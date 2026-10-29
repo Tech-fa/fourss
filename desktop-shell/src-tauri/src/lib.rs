@@ -318,6 +318,11 @@ fn shell_state(shell: tauri::State<Shell>) -> ShellState {
 }
 
 #[tauri::command]
+fn available_versions() -> Result<deploy::ReleaseVersions, String> {
+    deploy::available_versions()
+}
+
+#[tauri::command]
 fn deployment_state(shell: tauri::State<Shell>) -> Result<DeploymentView, String> {
     shell.deployment_view()
 }
@@ -499,6 +504,7 @@ pub fn run() {
             terminal_write,
             terminal_resize,
             deployment_state,
+            available_versions,
             save_deployment,
             check_token,
             droplet_regions,

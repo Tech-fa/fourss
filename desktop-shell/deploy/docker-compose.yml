@@ -31,9 +31,7 @@ services:
       retries: 20
 
   api:
-    build:
-      context: ../..
-      dockerfile: desktop-shell/deploy/api.Dockerfile
+    image: techfa/fourss-api:latest
     env_file: .env
     depends_on:
       mysql:
@@ -49,13 +47,11 @@ services:
     restart: unless-stopped
 
   ui:
-    build:
-      context: ../..
-      dockerfile: desktop-shell/deploy/ui.Dockerfile
-      args:
-        VITE_API_URL: http://${PUBLIC_IP}:3012
+    image: techfa/fourss-ui:latest
     ports:
       - "80:80"
+    volumes:
+      - ./ui-config.json:/usr/share/nginx/html/config.json:ro
     depends_on:
       - api
     restart: unless-stopped

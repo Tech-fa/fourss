@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { confirm, save } from "@tauri-apps/plugin-dialog";
-import { DROPLET_SIZE, RESEND_URL, TOKEN_URL, type Deployment, type RegionChoice } from "./types";
+import { DROPLET_SIZE, RESEND_URL, TOKEN_URL, type Deployment, type RegionChoice, type ReleaseVersions } from "./types";
 
 const WORKING = "Working on making your app. This can take a while. Leave this window open.";
 const PLACE_UNAVAILABLE =
@@ -32,12 +32,17 @@ const redeployButton = document.querySelector("#redeploy") as HTMLButtonElement;
 const deleteButton = document.querySelector("#delete-droplet") as HTMLButtonElement;
 const deployStatus = document.querySelector("#deploy-status") as HTMLParagraphElement;
 const deployError = document.querySelector("#deploy-error") as HTMLParagraphElement;
+const releaseNote = document.querySelector("#release-note") as HTMLParagraphElement;
 
 let deployment: Deployment | null = null;
 let tokenEditorOpen = false;
 let resendEditorOpen = false;
 let actionLocked = false;
 let shownStatus = "";
+let availableRelease: ReleaseVersions | null = null;
+let releaseError = "";
+let releaseLoaded = false;
+let sawRunning = false;
 
 function plainMessage(message: string): string {
   const text = message.replace(/^Error:\s*/i, "");
@@ -85,6 +90,7 @@ function renderDeployment(next: Deployment): void {
   tokenState.textContent = hasToken ? "Saved on this computer" : "Still needed";
   resendState.textContent = hasResend ? "Saved on this computer" : "Still needed";
   dropletState.textContent = hasDroplet ? "Ready" : "Not created yet";
+  releaseNote.textContent = releaseText(next);
   editToken.textContent = hasToken ? "Change" : "Add";
   editResend.textContent = hasResend ? "Change" : "Add";
   removeToken.hidden = !hasToken;
@@ -128,6 +134,24 @@ function renderDeployment(next: Deployment): void {
   appName.textContent = "Set up your app";
   summary.textContent =
     "This window puts your app on the internet. Each section explains what we need. What you save stays on this computer, and you can change or remove it later.";
+}
+
+function releaseText(next: Deployment): string {
+  if (releaseError) {
+    return releaseError;
+  }
+  if (!availableRelease) {
+    return "";
+  }
+  const newest = `The newest service is ${availableRelease.apiVersion}. The newest website is ${availableRelease.uiVersion}.`;
+  const runningKnown = next.dropletId > 0 && next.apiVersion.length > 0 && next.uiVersion.length > 0;
+  if (!runningKnown) {
+    return newest;
+  }
+  if (next.apiVersion === availableRelease.apiVersion && next.uiVersion === availableRelease.uiVersion) {
+    return `This computer is running service ${next.apiVersion} and website ${next.uiVersion}.`;
+  }
+  return `This computer is running service ${next.apiVersion} and website ${next.uiVersion}. ${newest} Choose Update my app to get the newest.`;
 }
 
 function credentialInput() {
@@ -186,9 +210,44 @@ async function loadRegions(): Promise<void> {
   deployButton.disabled = deployment.running;
 }
 
+async function loadRelease(): Promise<void> {
+  try {
+    availableRelease = await invoke<ReleaseVersions>("available_versions");
+    releaseError = "";
+  } catch (error) {
+    if (!availableRelease) {
+      releaseError = plainMessage(String(error));
+    }
+  }
+}
+
+export function watchForNewerRelease(): void {
+  window.setInterval(() => {
+    if (deploymentIsRunning()) {
+      return;
+    }
+    void loadRelease().then(() => {
+      if (deployment) {
+        renderDeployment(deployment);
+      }
+    });
+  }, 15 * 60 * 1000);
+}
+
 export async function refreshDeployment(): Promise<void> {
   const next = await invoke<Deployment>("deployment_state");
+  if (sawRunning && !next.running) {
+    releaseLoaded = false;
+  }
+  sawRunning = next.running;
   renderDeployment(next);
+  if (!next.running && !releaseLoaded) {
+    releaseLoaded = true;
+    await loadRelease();
+    if (deployment) {
+      renderDeployment(deployment);
+    }
+  }
   if (next.hasDigitalOceanToken && regionSelect.options.length === 0) {
     await loadRegions();
   }

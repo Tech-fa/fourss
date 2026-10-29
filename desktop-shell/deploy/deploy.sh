@@ -19,11 +19,9 @@ cd /opt/fourss
 mkdir -p desktop-shell/deploy
 printf '%s\n' "{\"apiUrl\":\"http://${PUBLIC_IP}:3012\"}" > desktop-shell/deploy/ui-config.json
 
-export COMPOSE_BAKE=false
-export BUILDKIT_PROGRESS=plain
 compose=(docker compose --env-file desktop-shell/deploy/.env -f desktop-shell/deploy/docker-compose.yml)
-# One image at a time. A 4 GB droplet runs out of memory if both installs run together.
-"${compose[@]}" build api
-"${compose[@]}" build ui
+for service in mysql redis rabbitmq api ui; do
+  "${compose[@]}" pull "$service"
+done
 "${compose[@]}" up -d
 echo "App is available at http://${PUBLIC_IP}"

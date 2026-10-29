@@ -6,8 +6,6 @@ COPY documents_dashboard/package.json documents_dashboard/package-lock.json ./
 RUN npm install -g npm@11.8.0 && npm ci
 
 COPY documents_dashboard/ ./
-ARG VITE_API_URL
-ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build-only
 
 FROM nginx:1.27-alpine

@@ -46,6 +46,13 @@ export type Deployment = {
   status: string;
   running: boolean;
   appUrl: string;
+  apiVersion: string;
+  uiVersion: string;
+};
+
+export type ReleaseVersions = {
+  apiVersion: string;
+  uiVersion: string;
 };
 
 export type RegionChoice = {

@@ -1,4 +1,4 @@
-import { deploymentIsRunning, mountDeploy, refreshDeployment } from "./setup/deploy";
+import { deploymentIsRunning, mountDeploy, refreshDeployment, watchForNewerRelease } from "./setup/deploy";
 import "./styles.css";
 
 const summary = document.querySelector("#summary") as HTMLParagraphElement;
@@ -15,6 +15,7 @@ async function boot(): Promise<void> {
           void refreshDeployment().catch(() => undefined);
         }
       }, 2000);
+      watchForNewerRelease();
       return;
     } catch (error) {
       last = String(error);

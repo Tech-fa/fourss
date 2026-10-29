@@ -1,8 +1,9 @@
+use std::cmp::Ordering;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
@@ -14,6 +15,10 @@ pub const BILLING_URL: &str = "https://cloud.digitalocean.com/account/billing";
 pub const TOKEN_URL: &str = "https://cloud.digitalocean.com/account/api/tokens";
 pub const RESEND_URL: &str = "https://resend.com/api-keys";
 pub const DROPLET_SIZE: &str = "s-2vcpu-4gb";
+const API_IMAGE: &str = "techfa/fourss-api";
+const UI_IMAGE: &str = "techfa/fourss-ui";
+const COMPOSE_FILE: &str = include_str!("../../deploy/docker-compose.yml");
+const DEPLOY_SCRIPT: &str = include_str!("../../deploy/deploy.sh");
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -50,6 +55,10 @@ pub struct DeploymentConfig {
     pub encryption_key: String,
     #[serde(default)]
     pub secret_key: String,
+    #[serde(default)]
+    pub api_version: String,
+    #[serde(default)]
+    pub ui_version: String,
 }
 
 fn default_region() -> String {
@@ -75,6 +84,8 @@ impl Default for DeploymentConfig {
             db_password: String::new(),
             encryption_key: String::new(),
             secret_key: String::new(),
+            api_version: String::new(),
+            ui_version: String::new(),
         }
     }
 }
@@ -104,6 +115,15 @@ pub struct DeploymentView {
     pub status: String,
     pub running: bool,
     pub app_url: String,
+    pub api_version: String,
+    pub ui_version: String,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleaseVersions {
+    pub api_version: String,
+    pub ui_version: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -263,7 +283,16 @@ pub fn view(config: DeploymentConfig, status: &str, running: bool) -> Deployment
         status: status.to_string(),
         running,
         app_url,
+        api_version: config.api_version,
+        ui_version: config.ui_version,
     }
+}
+
+pub fn available_versions() -> Result<ReleaseVersions, String> {
+    Ok(ReleaseVersions {
+        api_version: highest_published(API_IMAGE)?,
+        ui_version: highest_published(UI_IMAGE)?,
+    })
 }
 
 pub fn provision(data_dir: &Path, report: &mut dyn FnMut(String)) -> Result<DeploymentConfig, String> {
@@ -271,6 +300,10 @@ pub fn provision(data_dir: &Path, report: &mut dyn FnMut(String)) -> Result<Depl
     require_field(&config.digital_ocean_token, "The DigitalOcean key")?;
     require_field(&config.resend_api_key, "The email key")?;
     require_field(&config.region, "A place close to your team")?;
+    let release = available_versions()?;
+    config.api_version = release.api_version;
+    config.ui_version = release.ui_version;
+    write_config(&config_path(data_dir), &config)?;
     config.size = DROPLET_SIZE.into();
     if config.from_email.is_empty() {
         config.from_email = "onboarding@resend.dev".into();
@@ -350,7 +383,6 @@ pub fn provision(data_dir: &Path, report: &mut dyn FnMut(String)) -> Result<Depl
     }
     require_ip(&config.public_ip)?;
 
-    let repo = find_repo()?;
     let key_path = write_private_key(data_dir, &config.ssh_private_key)?;
     let known_hosts = data_dir.join("known_hosts");
     report(working_message());
@@ -363,7 +395,14 @@ pub fn provision(data_dir: &Path, report: &mut dyn FnMut(String)) -> Result<Depl
     );
 
     report(working_message());
-    upload_repo(&repo, &key_path, &known_hosts, &config.public_ip)?;
+    upload_runtime(
+        data_dir,
+        &key_path,
+        &known_hosts,
+        &config.public_ip,
+        &config.api_version,
+        &config.ui_version,
+    )?;
     upload_env(&config, data_dir, &key_path, &known_hosts)?;
 
     report(working_message());
@@ -483,64 +522,145 @@ fn write_private_key(data_dir: &Path, private_key: &str) -> Result<PathBuf, Stri
     Ok(path)
 }
 
-fn upload_repo(repo: &Path, key: &Path, known_hosts: &Path, ip: &str) -> Result<(), String> {
-    ssh_run(key, known_hosts, ip, "mkdir -p /opt/fourss")?;
-    let mut tar = Command::new("tar")
-        .current_dir(repo)
-        .args([
-            "-czf",
-            "-",
-            "--exclude",
-            "node_modules",
-            "--exclude",
-            "dist",
-            "--exclude",
-            ".git",
-            "--exclude",
-            "storage",
-            "--exclude",
-            ".env",
-            "--exclude",
-            "droplet.env",
-            "documents_backend",
-            "documents_dashboard",
-            "desktop-shell/deploy",
-        ])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|err| format!("tar failed to start: {err}"))?;
-    let stdout = tar
-        .stdout
-        .take()
-        .ok_or_else(|| "tar produced no output.".to_string())?;
-    let mut ssh = ssh_command(key, known_hosts, ip);
-    ssh.arg("tar -xzf - -C /opt/fourss")
-        .stdin(Stdio::from(stdout))
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    let ssh = ssh
-        .spawn()
-        .map_err(|err| format!("ssh failed to start: {err}"))?;
-    let ssh_output = ssh
-        .wait_with_output()
-        .map_err(|err| format!("ssh upload failed: {err}"))?;
-    let tar_output = tar
-        .wait_with_output()
-        .map_err(|err| format!("tar failed: {err}"))?;
-    if !tar_output.status.success() {
-        return Err(format!(
-            "Could not pack the app: {}",
-            String::from_utf8_lossy(&tar_output.stderr)
-        ));
+fn pinned_compose(api_version: &str, ui_version: &str) -> String {
+    COMPOSE_FILE
+        .replace(
+            &format!("{API_IMAGE}:latest"),
+            &format!("{API_IMAGE}:{api_version}"),
+        )
+        .replace(
+            &format!("{UI_IMAGE}:latest"),
+            &format!("{UI_IMAGE}:{ui_version}"),
+        )
+}
+
+fn highest_published(image: &str) -> Result<String, String> {
+    let tags = docker_hub_tags(image)?;
+    highest_version(&tags).ok_or_else(|| {
+        "The newest app is not published yet. Try again after the next build.".into()
+    })
+}
+
+fn docker_hub_tags(image: &str) -> Result<Vec<String>, String> {
+    let mut url = format!("https://hub.docker.com/v2/repositories/{image}/tags?page_size=100");
+    let mut tags = Vec::new();
+    for _ in 0..10 {
+        if !url.starts_with("https://hub.docker.com/") {
+            break;
+        }
+        let response = match ureq::get(&url).call() {
+            Ok(response) => response,
+            Err(ureq::Error::Status(404, _)) => {
+                return Err(
+                    "The newest app is not published yet. Try again after the next build.".into(),
+                );
+            }
+            Err(_) => {
+                return Err(
+                    "We could not find the newest app. Check the internet connection, then try again."
+                        .into(),
+                );
+            }
+        };
+        let text = response.into_string().unwrap_or_default();
+        let body: Value = serde_json::from_str(&text).map_err(|_| {
+            "We could not find the newest app. Check the internet connection, then try again."
+                .to_string()
+        })?;
+        if let Some(results) = body.get("results").and_then(Value::as_array) {
+            for result in results {
+                if let Some(name) = result.get("name").and_then(Value::as_str) {
+                    tags.push(name.to_string());
+                }
+            }
+        }
+        match body.get("next").and_then(Value::as_str) {
+            Some(next) if !next.is_empty() => url = next.to_string(),
+            _ => break,
+        }
     }
-    if !ssh_output.status.success() {
-        return Err(format!(
-            "Could not upload the app: {}",
-            String::from_utf8_lossy(&ssh_output.stderr)
-        ));
+    Ok(tags)
+}
+
+fn highest_version(tags: &[String]) -> Option<String> {
+    let mut best: Option<(Vec<u64>, String)> = None;
+    for tag in tags {
+        let Some(parts) = parse_version(tag) else {
+            continue;
+        };
+        let replace = match &best {
+            None => true,
+            Some((current, _)) => cmp_version(&parts, current) == Ordering::Greater,
+        };
+        if replace {
+            best = Some((parts, tag.clone()));
+        }
     }
-    Ok(())
+    best.map(|(_, tag)| tag)
+}
+
+fn parse_version(tag: &str) -> Option<Vec<u64>> {
+    if tag.is_empty() || tag == "latest" {
+        return None;
+    }
+    let mut parts = Vec::new();
+    for part in tag.split('.') {
+        if part.is_empty() || !part.chars().all(|character| character.is_ascii_digit()) {
+            return None;
+        }
+        parts.push(part.parse().ok()?);
+    }
+    if parts.is_empty() { None } else { Some(parts) }
+}
+
+fn cmp_version(left: &[u64], right: &[u64]) -> Ordering {
+    let len = left.len().max(right.len());
+    for index in 0..len {
+        let ordering = left
+            .get(index)
+            .copied()
+            .unwrap_or(0)
+            .cmp(&right.get(index).copied().unwrap_or(0));
+        if ordering != Ordering::Equal {
+            return ordering;
+        }
+    }
+    Ordering::Equal
+}
+
+fn upload_runtime(
+    data_dir: &Path,
+    key: &Path,
+    known_hosts: &Path,
+    ip: &str,
+    api_version: &str,
+    ui_version: &str,
+) -> Result<(), String> {
+    ssh_run(key, known_hosts, ip, "mkdir -p /opt/fourss/desktop-shell/deploy")?;
+    let compose_path = data_dir.join("docker-compose.yml");
+    let script_path = data_dir.join("deploy.sh");
+    let compose = pinned_compose(api_version, ui_version);
+    fs::write(&compose_path, compose).map_err(|err| err.to_string())?;
+    fs::write(&script_path, DEPLOY_SCRIPT).map_err(|err| err.to_string())?;
+    let destination = format!(
+        "{}:/opt/fourss/desktop-shell/deploy/",
+        ssh_destination(ip)?
+    );
+    let status = scp_command(key, known_hosts)
+        .arg(&compose_path)
+        .arg(&script_path)
+        .arg(&destination)
+        .status()
+        .map_err(|err| format!("scp failed to start: {err}"))?;
+    if !status.success() {
+        return Err("Could not upload the deployment files.".into());
+    }
+    ssh_run(
+        key,
+        known_hosts,
+        ip,
+        "chmod 755 /opt/fourss/desktop-shell/deploy/deploy.sh",
+    )
 }
 
 fn upload_env(
@@ -622,32 +742,6 @@ fn ssh_base_args(key: &Path, known_hosts: &Path) -> Vec<String> {
         "-o".into(),
         format!("UserKnownHostsFile={}", known_hosts.display()),
     ]
-}
-
-fn find_repo() -> Result<PathBuf, String> {
-    let mut starts = Vec::new();
-    if let Ok(current) = std::env::current_dir() {
-        starts.push(current);
-    }
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(parent) = exe.parent() {
-            starts.push(parent.to_path_buf());
-        }
-    }
-    for start in starts {
-        let mut cursor = Some(start.as_path());
-        for _ in 0..8 {
-            let Some(dir) = cursor else { break };
-            if dir.join("documents_backend/package.json").is_file()
-                && dir.join("documents_dashboard/package.json").is_file()
-                && dir.join("desktop-shell/deploy/deploy.sh").is_file()
-            {
-                return Ok(dir.to_path_buf());
-            }
-            cursor = dir.parent();
-        }
-    }
-    Err("Could not find the app folders next to desktop-shell.".into())
 }
 
 fn do_request(
@@ -922,6 +1016,23 @@ mod tests {
             "available": true,
             "sizes": ["s-2vcpu-4gb"]
         })));
+    }
+
+    #[test]
+    fn the_highest_numbered_tag_is_chosen() {
+        let tags = vec![
+            "latest".into(),
+            "7.9.0".into(),
+            "7.10.0".into(),
+            "7.3.0".into(),
+            "main".into(),
+        ];
+        assert_eq!(highest_version(&tags).as_deref(), Some("7.10.0"));
+        let compose = pinned_compose("7.3.0", "1.0.0");
+        assert!(compose.contains("techfa/fourss-api:7.3.0"));
+        assert!(compose.contains("techfa/fourss-ui:1.0.0"));
+        assert!(!compose.contains("techfa/fourss-api:latest"));
+        assert!(!compose.contains("techfa/fourss-ui:latest"));
     }
 
     #[test]
