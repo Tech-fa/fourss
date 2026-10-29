@@ -1,36 +1,31 @@
-import LoginView from '@/components/auth/LoginPage.vue'
-import ResetPasswordView from '@/components/auth/resetPasword.vue'
-import ForgotPasswordView from '@/components/auth/forgotPassword.vue'
-import LegalDocumentPage from '@/components/legal/LegalDocumentPage.vue'
-
 export const AUTH_ERROR_I18N_PREFIX = 'errors.auth' as const
 
 export const AuthRoutes = [
     {
         path: '/reset-password',
         name: 'ResetPassword',
-        component: ResetPasswordView
+        component: () => import('@/components/auth/resetPasword.vue')
     },
     {
         path: '/forgot-password',
         name: 'ForgotPassword',
-        component: ForgotPasswordView
+        component: () => import('@/components/auth/forgotPassword.vue')
     },
     {
         path: '/login',
         name: 'Login',
-        component: LoginView
+        component: () => import('@/components/auth/LoginPage.vue')
     },
     {
         path: '/terms-and-conditions',
         name: 'TermsAndConditions',
-        component: LegalDocumentPage,
+        component: () => import('@/components/legal/LegalDocumentPage.vue'),
         props: { documentType: 'terms' }
     },
     {
         path: '/privacy-policy',
         name: 'PrivacyPolicy',
-        component: LegalDocumentPage,
+        component: () => import('@/components/legal/LegalDocumentPage.vue'),
         props: { documentType: 'privacy' }
     },
     {

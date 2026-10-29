@@ -77,7 +77,6 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { BlankDOCX, SuperDoc } from 'superdoc'
 import { attachAutoParagraphDirection, wireAutoParagraphDirection } from './utils/autoParagraphDirection'
 import {
   attachPageNumberKeyboardEscape,
@@ -559,8 +558,11 @@ function isDocxSource(documentSource?: SuperDocDocumentSource) {
   return false
 }
 
-function resolveDocument(documentSource?: SuperDocDocumentSource): SuperDocDocumentSource {
-  return isDocxSource(documentSource) && documentSource != null ? documentSource : BlankDOCX
+function resolveDocument(
+  documentSource: SuperDocDocumentSource | undefined,
+  blank: SuperDocDocumentSource,
+): SuperDocDocumentSource {
+  return isDocxSource(documentSource) && documentSource != null ? documentSource : blank
 }
 
 function onDocxFileInputChange(event: Event) {
@@ -1495,6 +1497,8 @@ function disconnectCommentCopyLinkButtons() {
 }
 
 
+let disposed = false
+
 onMounted(async () => {
   const commentsEnabled = commentsAreEnabled()
   if (commentsEnabled) {
@@ -1502,7 +1506,10 @@ onMounted(async () => {
   }
   wireNodeContextMenu()
 
-  const resolved: SuperDocDocumentSource = resolveDocument(props.document) ?? null
+  const { BlankDOCX, SuperDoc } = await import('superdoc')
+  if (disposed) return
+
+  const resolved: SuperDocDocumentSource = resolveDocument(props.document, BlankDOCX) ?? null
   let documentSource: SuperDocDocumentSource = resolved
   oleRestoreEntries = []
   if (isDocxSource(resolved) && resolved) {
@@ -1583,6 +1590,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  disposed = true
   document.removeEventListener('click', onDocumentClick, true)
   disconnectAutoDirection?.()
   disconnectAutoDirection = null

@@ -1,14 +1,11 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
-import HomeView from "@/components/HomeView.vue";
 import { orgUnitTypeRoutes } from "@/components/admin/organization/routes";
 import { AuthRoutes } from "@/components/auth/routes";
 import { usersRoutes } from "@/components/admin/users/routes";
 import { ref } from "vue";
 import { permissionsRoutes } from "@/components/admin/permissions/routes";
 import { documentRoutes } from "@/components/document/routes";
-import ProfileView from "@/components/profile/Profile.vue";
-import NotificationsView from "@/components/UserNotification.vue";
 
 export const isRouteChanging = ref(false);
 
@@ -17,14 +14,14 @@ const router = createRouter({
   routes: [
     {
       path: "/",
-      component: HomeView,
+      component: () => import("@/components/HomeView.vue"),
       children: [
         { path: "", redirect: "/plan/documents" },
-        { path: "profile", name: "Profile", component: ProfileView },
+        { path: "profile", name: "Profile", component: () => import("@/components/profile/Profile.vue") },
         {
           path: "notifications",
           name: "Notifications",
-          component: NotificationsView,
+          component: () => import("@/components/UserNotification.vue"),
         },
         ...orgUnitTypeRoutes,
         ...usersRoutes,

@@ -1,10 +1,8 @@
 import { isBefore, parse, startOfDay } from 'date-fns'
 import { DateTime } from 'luxon'
-import jsPDF from 'jspdf'
-import html2canvas from 'html2canvas'
+import type jsPDF from 'jspdf'
 import 'quill/dist/quill.snow.css'
 import 'quill-table-better/dist/quill-table-better.css'
-import { exportDocumentLayoutPdf } from '@/util/pdf-export'
 import { parseDocumentLayoutPages } from '@/util/document-layout'
 import { DOCUMENT_EDITOR_FONTS_CSS } from '@/util/document-font-stacks'
 
@@ -676,6 +674,7 @@ const renderPdfSection = async (html: string): Promise<HTMLCanvasElement> => {
 
         const scrollHeight = container.scrollHeight
         const scrollWidth = container.scrollWidth
+        const { default: html2canvas } = await import('html2canvas')
         return await html2canvas(container, {
             scale: PDF_EXPORT_SCALE,
             useCORS: true,
@@ -738,10 +737,12 @@ export const generatePdfFromHtml = async (html: string, title: string): Promise<
     const pages = parseDocumentLayoutPages(html)
 
     if (pages?.length) {
+        const { exportDocumentLayoutPdf } = await import('@/util/pdf-export')
         return exportDocumentLayoutPdf(html, title)
     }
 
-    const pdf = new jsPDF({ unit: 'px', format: 'a4' })
+    const { default: JsPDF } = await import('jspdf')
+    const pdf = new JsPDF({ unit: 'px', format: 'a4' })
     const sections = splitHtmlByPageBreaks(html)
 
     for (let i = 0; i < sections.length; i++) {

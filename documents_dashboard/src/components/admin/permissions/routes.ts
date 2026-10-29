@@ -1,11 +1,8 @@
-import Groups from './Groups.vue'
-import AddGroup from './addGroup.vue'
-
 export const permissionsRoutes = [
     {
         path: '/admin/permissions/roles',
         name: 'Permissions Groups',
-        component: Groups,
+        component: () => import('./Groups.vue'),
         meta: {
             subject: 'permissions',
             actions: ['read']
@@ -14,7 +11,7 @@ export const permissionsRoutes = [
     {
         path: '/admin/permissions/roles/add',
         name: 'Add Permission Group',
-        component: AddGroup,
+        component: () => import('./addGroup.vue'),
         meta: {
             subject: 'permissions',
             actions: ['create']
@@ -23,7 +20,7 @@ export const permissionsRoutes = [
     {
         path: '/admin/permissions/roles/:id/edit',
         name: 'Edit Permission Group',
-        component: AddGroup,
+        component: () => import('./addGroup.vue'),
         meta: {
             subject: 'permissions',
             actions: ['update']
@@ -32,7 +29,7 @@ export const permissionsRoutes = [
     {
         path: '/admin/permissions/roles/:id',
         name: 'Permission Group',
-        component: AddGroup,
+        component: () => import('./addGroup.vue'),
         meta: {
             subject: 'permissions',
             actions: ['read']

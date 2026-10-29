@@ -1,11 +1,7 @@
-import AddUser from "./AddUser.vue";
-import MainView from "./mainView.vue";
-import ViewUser from "./viewUser.vue";
-
 export const usersRoutes = [
   {
     path: "/admin/users",
-    component: MainView,
+    component: () => import("./mainView.vue"),
     meta: {
       subject: "users",
       actions: ["read"],
@@ -14,7 +10,7 @@ export const usersRoutes = [
 
   {
     path: "/admin/users/:userId/edit",
-    component: AddUser,
+    component: () => import("./AddUser.vue"),
     meta: {
       subject: "users",
       actions: ["update"],
@@ -23,7 +19,7 @@ export const usersRoutes = [
 
   {
     path: "/admin/users/:userId",
-    component: ViewUser,
+    component: () => import("./viewUser.vue"),
     meta: {
       subject: "users",
       actions: ["read"],
@@ -31,7 +27,7 @@ export const usersRoutes = [
   },
   {
     path: "/admin/users/add",
-    component: AddUser,
+    component: () => import("./AddUser.vue"),
     meta: {
       subject: "users",
       actions: ["create"],

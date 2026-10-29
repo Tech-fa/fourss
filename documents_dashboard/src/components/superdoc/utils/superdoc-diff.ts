@@ -1,4 +1,4 @@
-import { SuperDoc } from 'superdoc'
+import type { SuperDoc } from 'superdoc'
 
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 const READY_TIMEOUT_MS = 120_000
@@ -107,36 +107,43 @@ function openHiddenDocx(docxSource: DocxSource, user: SuperDocDiffUser): Promise
             fail(new Error('SuperDoc init timeout'))
         }, READY_TIMEOUT_MS)
 
-        try {
-            instance = new SuperDoc({
-                selector: container,
-                document: docxSource,
-                documentMode: 'viewing',
-                role: 'viewer',
-                contained: true,
-                user,
-                modules: {
-                    comments: false,
-                },
-                onReady: () => {
-                    if (settled) return
-                    settled = true
-                    clearTimeout(timer)
-                    try {
-                        requireDiffApi(instance?.activeEditor)
-                        resolve({
-                            instance: instance!,
-                            cleanup,
-                        })
-                    } catch (error) {
-                        cleanup()
-                        reject(error instanceof Error ? error : new Error('SuperDoc diff API unavailable'))
-                    }
-                },
+        void import('superdoc')
+            .then(({ SuperDoc: SuperDocCtor }) => {
+                if (settled) return
+                try {
+                    instance = new SuperDocCtor({
+                        selector: container,
+                        document: docxSource,
+                        documentMode: 'viewing',
+                        role: 'viewer',
+                        contained: true,
+                        user,
+                        modules: {
+                            comments: false,
+                        },
+                        onReady: () => {
+                            if (settled) return
+                            settled = true
+                            clearTimeout(timer)
+                            try {
+                                requireDiffApi(instance?.activeEditor)
+                                resolve({
+                                    instance: instance!,
+                                    cleanup,
+                                })
+                            } catch (error) {
+                                cleanup()
+                                reject(error instanceof Error ? error : new Error('SuperDoc diff API unavailable'))
+                            }
+                        },
+                    })
+                } catch (error) {
+                    fail(error instanceof Error ? error : new Error('SuperDoc init failed'))
+                }
             })
-        } catch (error) {
-            fail(error instanceof Error ? error : new Error('SuperDoc init failed'))
-        }
+            .catch((error) => {
+                fail(error instanceof Error ? error : new Error('SuperDoc init failed'))
+            })
     })
 }
 
