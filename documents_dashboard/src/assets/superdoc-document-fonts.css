@@ -1,0 +1,68 @@
+/**
+ * SuperDoc layout-engine font fallbacks when a run uses a toolbar label as font-family.
+ * Web faces load from index.html (same URL as 4es-dashboard document editor).
+ * Scoped under .superdoc-editor so other UI is unaffected.
+ */
+
+.superdoc-editor .superdoc-layout,
+.superdoc-editor .presentation-editor {
+  font-family: Arial, 'Noto Sans Arabic', Cairo, Helvetica, sans-serif;
+}
+
+.superdoc-editor [style*='font-family: Arial'] {
+  font-family: Arial, 'Noto Sans Arabic', Cairo, Helvetica, sans-serif !important;
+}
+
+.superdoc-editor [style*='font-family: Futura'] {
+  font-family: Futura, 'Trebuchet MS', 'Noto Sans Arabic', Cairo, Arial, sans-serif !important;
+}
+
+.superdoc-editor [style*='font-family: Roboto'] {
+  font-family: Roboto, 'Noto Sans Arabic', Arial, sans-serif !important;
+}
+
+.superdoc-editor [style*='font-family: Open Sans'],
+.superdoc-editor [style*='font-family: "Open Sans"'],
+.superdoc-editor [style*="font-family: 'Open Sans'"] {
+  font-family: 'Open Sans', 'Noto Sans Arabic', Arial, sans-serif !important;
+}
+
+.superdoc-editor [style*='font-family: Montserrat'] {
+  font-family: Montserrat, Cairo, 'Noto Sans Arabic', Arial, sans-serif !important;
+}
+
+.superdoc-editor [style*='font-family: Lato'] {
+  font-family: Lato, 'Noto Sans Arabic', Cairo, Arial, sans-serif !important;
+}
+
+.superdoc-editor [style*='font-family: Poppins'] {
+  font-family: Poppins, Cairo, 'Noto Sans Arabic', Arial, sans-serif !important;
+}
+
+.superdoc-editor [style*='font-family: Times New Roman'],
+.superdoc-editor [style*='font-family: "Times New Roman"'],
+.superdoc-editor [style*="font-family: 'Times New Roman'"] {
+  font-family: 'Times New Roman', Times, 'Noto Naskh Arabic', Amiri, Georgia, serif !important;
+}
+
+.superdoc-editor [style*='font-family: Garamond'] {
+  font-family: Garamond, 'Times New Roman', Amiri, 'Noto Naskh Arabic', Georgia, serif !important;
+}
+
+.superdoc-editor [style*='font-family: Bodoni'] {
+  font-family: Bodoni, 'Bodoni Moda', 'Bodoni 72', Didot, Amiri, 'Noto Naskh Arabic', serif !important;
+}
+
+.superdoc-editor [style*='font-family: Didot'] {
+  font-family: Didot, 'Playfair Display', Amiri, 'Noto Naskh Arabic', serif !important;
+}
+
+.superdoc-editor [style*='font-family: Georgia'] {
+  font-family: Georgia, 'Times New Roman', 'Noto Naskh Arabic', Amiri, serif !important;
+}
+
+.superdoc-editor [style*='font-family: Playfair Display'],
+.superdoc-editor [style*='font-family: "Playfair Display"'],
+.superdoc-editor [style*="font-family: 'Playfair Display'"] {
+  font-family: 'Playfair Display', Amiri, 'Noto Naskh Arabic', Georgia, serif !important;
+}

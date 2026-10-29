@@ -1,0 +1,5 @@
+type PermissionModule = {
+    subject: string
+}
+
+

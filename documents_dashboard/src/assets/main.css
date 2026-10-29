@@ -1,0 +1,485 @@
+@charset "UTF-8";
+
+@import './tailwind.css';
+
+:root {
+  /* Base colors */
+  --color-base: #ffffff;
+  --color-base-50: #f9fafb;
+  --color-base-100: #f3f4f6;
+  --color-base-200: #e5e7eb;
+  --color-base-300: #d1d5db;
+  --color-base-400: #9ca3af;
+  --color-base-500: #6b7280;
+  --color-base-600: #4b5563;
+  --color-base-700: #374151;
+  --color-base-800: #1f2937;
+  --color-base-900: #111827;
+  --color-base-content: #1f2937;
+
+  /* Primary colors */
+  --color-primary: #3b82f6;
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+  --color-primary-focus: #2563eb;
+  --color-primary-content: #ffffff;
+
+  /* Secondary colors */
+  --color-secondary: #8b5cf6;
+  --color-secondary-50: #f5f3ff;
+  --color-secondary-100: #ede9fe;
+  --color-secondary-200: #ddd6fe;
+  --color-secondary-300: #c4b5fd;
+  --color-secondary-400: #a78bfa;
+  --color-secondary-500: #8b5cf6;
+  --color-secondary-600: #7c3aed;
+  --color-secondary-700: #6d28d9;
+  --color-secondary-800: #5b21b6;
+  --color-secondary-900: #4c1d95;
+  --color-secondary-focus: #7c3aed;
+  --color-secondary-content: #ffffff;
+
+  /* Accent colors */
+  --color-accent: #f472b6;
+  --color-accent-50: #fdf2f8;
+  --color-accent-100: #fce7f3;
+  --color-accent-200: #fbcfe8;
+  --color-accent-300: #f9a8d4;
+  --color-accent-400: #f472b6;
+  --color-accent-500: #ec4899;
+  --color-accent-600: #db2777;
+  --color-accent-700: #be185d;
+  --color-accent-800: #9d174d;
+  --color-accent-900: #831843;
+  --color-accent-focus: #db2777;
+  --color-accent-content: #ffffff;
+
+  /* Neutral colors */
+  --color-neutral: #6b7280;
+  --color-neutral-50: #f9fafb;
+  --color-neutral-100: #f3f4f6;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-300: #d1d5db;
+  --color-neutral-400: #9ca3af;
+  --color-neutral-500: #6b7280;
+  --color-neutral-600: #4b5563;
+  --color-neutral-700: #374151;
+  --color-neutral-800: #1f2937;
+  --color-neutral-900: #111827;
+  --color-neutral-focus: #4b5563;
+  --color-neutral-content: #ffffff;
+
+  /* Info colors */
+  --color-info: #3b82f6;
+  --color-info-50: #eff6ff;
+  --color-info-100: #dbeafe;
+  --color-info-200: #bfdbfe;
+  --color-info-300: #93c5fd;
+  --color-info-400: #60a5fa;
+  --color-info-500: #3b82f6;
+  --color-info-600: #2563eb;
+  --color-info-700: #1d4ed8;
+  --color-info-800: #1e40af;
+  --color-info-900: #1e3a8a;
+  --color-info-focus: #2563eb;
+  --color-info-content: #ffffff;
+
+  /* Success colors */
+  --color-success: #10b981;
+  --color-success-50: #ecfdf5;
+  --color-success-100: #d1fae5;
+  --color-success-200: #a7f3d0;
+  --color-success-300: #6ee7b7;
+  --color-success-400: #34d399;
+  --color-success-500: #10b981;
+  --color-success-600: #059669;
+  --color-success-700: #047857;
+  --color-success-800: #065f46;
+  --color-success-900: #064e3b;
+  --color-success-focus: #059669;
+  --color-success-content: #ffffff;
+
+  /* Warning colors */
+  --color-warning: #f59e0b;
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c7;
+  --color-warning-200: #fde68a;
+  --color-warning-300: #fcd34d;
+  --color-warning-400: #fbbf24;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+  --color-warning-700: #b45309;
+  --color-warning-800: #92400e;
+  --color-warning-900: #78350f;
+  --color-warning-focus: #d97706;
+  --color-warning-content: #ffffff;
+
+  /* Error colors */
+  --color-error: #ef4444;
+  --color-error-50: #fef2f2;
+  --color-error-100: #fee2e2;
+  --color-error-200: #fecaca;
+  --color-error-300: #fca5a5;
+  --color-error-400: #f87171;
+  --color-error-500: #ef4444;
+  --color-error-600: #dc2626;
+  --color-error-700: #b91c1c;
+  --color-error-800: #991b1b;
+  --color-error-900: #7f1d1d;
+  --color-error-focus: #dc2626;
+  --color-error-content: #ffffff;
+}
+
+/* Dark theme */
+.dark {
+  /* Base colors */
+  --color-base: #1f2937;
+  --color-base-50: #111827;
+  --color-base-100: #1f2937;
+  --color-base-200: #374151;
+  --color-base-300: #4b5563;
+  --color-base-400: #6b7280;
+  --color-base-500: #9ca3af;
+  --color-base-600: #d1d5db;
+  --color-base-700: #e5e7eb;
+  --color-base-800: #f3f4f6;
+  --color-base-900: #f9fafb;
+  --color-base-content: #f9fafb;
+
+  /* Primary colors */
+  --color-primary: #60a5fa;
+  --color-primary-50: #1e3a8a;
+  --color-primary-100: #1e40af;
+  --color-primary-200: #1d4ed8;
+  --color-primary-300: #2563eb;
+  --color-primary-400: #3b82f6;
+  --color-primary-500: #60a5fa;
+  --color-primary-600: #93c5fd;
+  --color-primary-700: #bfdbfe;
+  --color-primary-800: #dbeafe;
+  --color-primary-900: #eff6ff;
+  --color-primary-focus: #3b82f6;
+  --color-primary-content: #1f2937;
+
+  /* Secondary colors */
+  --color-secondary: #a78bfa;
+  --color-secondary-50: #4c1d95;
+  --color-secondary-100: #5b21b6;
+  --color-secondary-200: #6d28d9;
+  --color-secondary-300: #7c3aed;
+  --color-secondary-400: #8b5cf6;
+  --color-secondary-500: #a78bfa;
+  --color-secondary-600: #c4b5fd;
+  --color-secondary-700: #ddd6fe;
+  --color-secondary-800: #ede9fe;
+  --color-secondary-900: #f5f3ff;
+  --color-secondary-focus: #8b5cf6;
+  --color-secondary-content: #1f2937;
+
+  /* Accent colors */
+  --color-accent: #f472b6;
+  --color-accent-50: #831843;
+  --color-accent-100: #9d174d;
+  --color-accent-200: #be185d;
+  --color-accent-300: #db2777;
+  --color-accent-400: #ec4899;
+  --color-accent-500: #f472b6;
+  --color-accent-600: #f9a8d4;
+  --color-accent-700: #fbcfe8;
+  --color-accent-800: #fce7f3;
+  --color-accent-900: #fdf2f8;
+  --color-accent-focus: #ec4899;
+  --color-accent-content: #1f2937;
+
+  /* Neutral colors remain the same as light theme */
+
+  /* Info colors */
+  --color-info: #60a5fa;
+  --color-info-50: #1e3a8a;
+  --color-info-100: #1e40af;
+  --color-info-200: #1d4ed8;
+  --color-info-300: #2563eb;
+  --color-info-400: #3b82f6;
+  --color-info-500: #60a5fa;
+  --color-info-600: #93c5fd;
+  --color-info-700: #bfdbfe;
+  --color-info-800: #dbeafe;
+  --color-info-900: #eff6ff;
+  --color-info-focus: #3b82f6;
+  --color-info-content: #1f2937;
+
+  /* Success colors */
+  --color-success: #34d399;
+  --color-success-50: #064e3b;
+  --color-success-100: #065f46;
+  --color-success-200: #047857;
+  --color-success-300: #059669;
+  --color-success-400: #10b981;
+  --color-success-500: #34d399;
+  --color-success-600: #6ee7b7;
+  --color-success-700: #a7f3d0;
+  --color-success-800: #d1fae5;
+  --color-success-900: #ecfdf5;
+  --color-success-focus: #10b981;
+  --color-success-content: #1f2937;
+
+  /* Warning colors */
+  --color-warning: #fbbf24;
+  --color-warning-50: #78350f;
+  --color-warning-100: #92400e;
+  --color-warning-200: #b45309;
+  --color-warning-300: #d97706;
+  --color-warning-400: #f59e0b;
+  --color-warning-500: #fbbf24;
+  --color-warning-600: #fcd34d;
+  --color-warning-700: #fde68a;
+  --color-warning-800: #fef3c7;
+  --color-warning-900: #fffbeb;
+  --color-warning-focus: #f59e0b;
+  --color-warning-content: #1f2937;
+
+  /* Error colors */
+  --color-error: #f87171;
+  --color-error-50: #7f1d1d;
+  --color-error-100: #991b1b;
+  --color-error-200: #b91c1c;
+  --color-error-300: #dc2626;
+  --color-error-400: #ef4444;
+  --color-error-500: #f87171;
+  --color-error-600: #fca5a5;
+  --color-error-700: #fecaca;
+  --color-error-800: #fee2e2;
+  --color-error-900: #fef2f2;
+  --color-error-focus: #ef4444;
+  --color-error-content: #1f2937;
+}
+
+#wrapper {
+  margin: 0 auto;
+  padding: 2rem;
+  font-weight: normal;
+}
+
+.bottom-height {
+  height: -o-calc(100vh - 158px); /* opera */
+  height: -webkit-calc(100vh - 158px); /* google, safari */
+  height: -moz-calc(100vh - 158px); /* firefox */
+  height: calc(100vh - 158px);
+}
+body {
+  font-family: 'Nunito';
+}
+button {
+  cursor: pointer;
+}
+.card-task{
+  padding: 1rem;
+  border-radius: 1rem;
+  background-color: white;
+  width: 768px;
+  margin-right: auto;
+  margin-left: auto;
+  margin-top: 1.5rem;
+}
+.form-width {
+  width: 768px;
+}
+
+.dp__input:where(.dark, .dark *){
+  --tw-bg-opacity: 1;
+  background-color: rgb(31 41 55 / var(--tw-bg-opacity)) !important;
+  color:white !important;
+ border-color: rgb(255 255 255 / 0.1) !important;
+ 
+}
+
+.readiness{
+  height: 80px;
+  
+
+}
+#map {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: calc(100% - 32rem);
+  margin-top: 80px;
+}
+.dp__input{
+  border-radius: 0.5rem !important;
+}
+.bar-width{
+  width: calc(100% - 18rem);
+}
+
+.open-bar{
+  z-index: 5000 !important;
+  color:black !important;
+  
+  position: absolute !important;
+}
+
+.z-alot {
+  z-index: 10000;
+}
+.leaflet-popup-content-wrapper {
+  cursor: default;
+  padding: 0;
+  border-radius: calc(.3rem - 1px);
+}
+
+.leaflet-popup-content {
+  cursor: default;
+  margin: 0;
+}
+
+.leaflet-touch .leaflet-bar a {
+  color: #000000;
+  text-decoration: none;;
+}
+.blue-color{
+  color:#5293c6;
+}
+
+.red-ring{
+  --tw-ring-opacity: 1 !important;
+  --tw-ring-color: rgb(220 38 38 / var(--tw-ring-opacity)) !important;
+}
+.invalid{
+  border-color: red !important;
+}
+
+.progress-Inactive{
+  background-color: #A020F0;
+    background-image: repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2) 4px, transparent 4px, transparent 8px);
+}
+.progress-Ready{
+  background-color: #28a745;
+}
+.progress-Low{
+  background-color: yellow;
+}
+.progress-Medium{
+  background-color: #ffc107;
+}
+.progress-High{
+  background-color: #dc3545;
+}
+.map-filter{
+  right: 0;
+  width: 14rem;
+  height: calc(100vh - 80px);
+  margin-top: 80px;
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+}
+.fc-event-main-frame {
+  font-size: 10px !important;
+}
+.fc-event {
+  font-size: 10px !important;
+}
+.fc-daygrid-day-number{
+  color: black !important;
+  font-size: 12px !important;
+}
+.fc-col-header-cell-cushion{
+  color: black !important;
+}
+
+
+@media (max-width: 1280px) {
+  
+  #map{
+    width:calc(100% - 14rem) ;
+  }
+  .bar-width{
+    width: 100% !important;
+  }
+
+}
+
+.breadcrumb {
+  --bs-breadcrumb-padding-x: 0;
+  --bs-breadcrumb-padding-y: 0;
+  --bs-breadcrumb-margin-bottom: 1rem;
+  --bs-breadcrumb-bg: white;
+  --bs-breadcrumb-border-radius: ;
+  --bs-breadcrumb-divider-color: var(--bs-gray-600);
+  --bs-breadcrumb-item-padding-x: 0.5rem;
+  --bs-breadcrumb-item-active-color: blue;
+  display: flex;
+  flex-wrap: wrap;
+  padding: var(--bs-breadcrumb-padding-y) var(--bs-breadcrumb-padding-x);
+  margin-bottom: var(--bs-breadcrumb-margin-bottom);
+  font-size: var(--bs-breadcrumb-font-size);
+  list-style: none;
+  background-color: var(--bs-breadcrumb-bg);
+  border-radius: var(--bs-breadcrumb-border-radius);
+}
+
+.breadcrumb-item + .breadcrumb-item {
+  padding-left: var(--bs-breadcrumb-item-padding-x);
+}
+.breadcrumb-item + .breadcrumb-item::before {
+  float: left;
+  padding-right: var(--bs-breadcrumb-item-padding-x);
+  color: var(--bs-breadcrumb-divider-color);
+  content: var(--bs-breadcrumb-divider, "/") /* rtl: var(--bs-breadcrumb-divider, "/") */;
+}
+.breadcrumb-item.active {
+  color: var(--bs-breadcrumb-item-active-color);
+}
+
+
+@media (max-width: 1024px) {
+  
+
+  #wrapper {
+    width: 100%;
+    padding: 0.5rem;
+  }
+  .card-task{
+    width: 100%;
+  }
+   .form-width {
+    width: 100%;
+  }
+  .container {
+  max-width: 100%
+}
+
+}
+
+@media (max-width: 767px) {
+
+  #map{
+    width:calc(100% - 10rem) ;
+  }
+  .map-filter{
+    width: 10rem !important;
+  }
+  .fc-header-toolbar {
+    display: flex;
+    flex-direction: column; 
+    gap: 20px;
+  }
+
+}
+.vdr{touch-action:none;position:absolute;box-sizing:border-box;border:1px dashed black}.handle{box-sizing:border-box;position:absolute;width:10px;height:10px;background:#EEE;border:1px solid #333}.handle-tl{top:-10px;left:-10px;cursor:nw-resize}.handle-tm{top:-10px;left:50%;margin-left:-5px;cursor:n-resize}.handle-tr{top:-10px;right:-10px;cursor:ne-resize}.handle-ml{top:50%;margin-top:-5px;left:-10px;cursor:w-resize}.handle-mr{top:50%;margin-top:-5px;right:-10px;cursor:e-resize}.handle-bl{bottom:-10px;left:-10px;cursor:sw-resize}.handle-bm{bottom:-10px;left:50%;margin-left:-5px;cursor:s-resize}.handle-br{bottom:-10px;right:-10px;cursor:se-resize}@media only screen and (max-width: 768px){[class*=handle-]:before{content:"";left:-10px;right:-10px;bottom:-10px;top:-10px;position:absolute}}
+
+@media (display-mode: standalone) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+

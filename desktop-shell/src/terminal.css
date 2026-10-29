@@ -1,0 +1,35 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, "Segoe UI", sans-serif;
+  background: #1c1915;
+  color: #f3f0e8;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+#status {
+  margin: 0;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.82rem;
+  color: #c9c1b4;
+  border-bottom: 1px solid #3a342c;
+}
+
+#term {
+  flex: 1;
+  min-height: 0;
+  padding: 0.35rem;
+}
+
+.xterm {
+  height: 100%;
+}

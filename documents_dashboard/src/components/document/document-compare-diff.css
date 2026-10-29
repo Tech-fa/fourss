@@ -1,0 +1,83 @@
+.diff-legend-removed {
+    background: #ffd4d4;
+    border-left: 3px solid #cc0000;
+}
+
+.diff-legend-added {
+    background: #d4f7d4;
+    border-left: 3px solid #1a7f1a;
+}
+
+.superdoc-diff-utility {
+    position: fixed;
+    left: -10000px;
+    top: 0;
+    width: 1024px;
+    height: 768px;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.diff-view-wrapper .diff-panel-scroll {
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+}
+
+.diff-view-wrapper .diff-panel-scroll:deep(.superdoc-editor) {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+}
+
+.diff-tab-button {
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #525252;
+}
+
+.diff-tab-button:hover {
+    color: #171717;
+}
+
+.diff-tab-button-active {
+    background: #171717;
+    color: #ffffff;
+}
+
+.diff-tab-button-active:hover {
+    color: #ffffff;
+}
+
+.changes-only-line {
+    display: grid;
+    grid-template-columns: 1.5rem 3rem minmax(0, 1fr);
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: #404040;
+}
+
+.changes-only-line-added {
+    background: #f0fdf4;
+    color: #14532d;
+}
+
+.changes-only-line-removed {
+    background: #fef2f2;
+    color: #7f1d1d;
+}
+
+.changes-only-marker {
+    font-weight: 700;
+}
+
+.changes-only-paragraph {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #737373;
+}

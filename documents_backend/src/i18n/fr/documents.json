@@ -1,0 +1,16 @@
+{
+  "draftPurged": {
+    "emailSubject": "Suppression d'un brouillon de document",
+    "emailMessage": "Votre brouillon « {draftTitle} » pour le document « {documentTitle} » (version {versionNumber}) a été supprimé car la version n'est plus en attente (statut : {statusLabel}).",
+    "documentTitleFallback": "Document"
+  },
+  "versionStatus": {
+    "valid": "valide",
+    "invalid": "invalide",
+    "pending": "en attente",
+    "ready_for_approval": "prêt pour approbation",
+    "published": "publié",
+    "in_review": "en revue",
+    "obsolete": "obsolète"
+  }
+}

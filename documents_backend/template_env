@@ -1,0 +1,15 @@
+DB_HOST=<your db host>   
+DB_PASSWORD=<your passowrd>
+DB_USER=<>
+DB_NAME=<>
+DB_PORT=<>
+NODE_ENV=<>
+PORT=<>
+RESEND_API_KEY=<>
+FRONTEND_URL=<>
+FILE_STORAGE_DIR=storage
+FROM_EMAIL=<your from email>
+ENCRYPTION_KEY=<your encryption key>
+ENVIRONMENT=<>
+ADMIN_EMAIL=<your admin email>
+ADMIN_PASSWORD=<your admin password>

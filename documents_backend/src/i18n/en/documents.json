@@ -1,0 +1,16 @@
+{
+  "draftPurged": {
+    "emailSubject": "Document draft removed",
+    "emailMessage": "Your draft \"{draftTitle}\" for document \"{documentTitle}\" (version {versionNumber}) was removed because the version is no longer pending (status: {statusLabel}).",
+    "documentTitleFallback": "Document"
+  },
+  "versionStatus": {
+    "valid": "valid",
+    "invalid": "invalid",
+    "pending": "pending",
+    "ready_for_approval": "ready for approval",
+    "published": "published",
+    "in_review": "in review",
+    "obsolete": "obsolete"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "draftPurged": {
+    "emailSubject": "تم حذف مسودة المستند",
+    "emailMessage": "تم حذف مسودتك \"{draftTitle}\" للمستند \"{documentTitle}\" (الإصدار {versionNumber}) لأن الإصدار لم يعد قيد المراجعة (الحالة: {statusLabel}).",
+    "documentTitleFallback": "مستند"
+  },
+  "versionStatus": {
+    "valid": "ساري",
+    "invalid": "غير صالح",
+    "pending": "قيد الانتظار",
+    "ready_for_approval": "جاهز للاعتماد",
+    "published": "منشور",
+    "in_review": "قيد المراجعة",
+    "obsolete": "مهمل"
+  }
+}

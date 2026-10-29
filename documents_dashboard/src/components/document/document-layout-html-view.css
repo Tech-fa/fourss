@@ -1,0 +1,106 @@
+.view-doc-paper {
+    background: white;
+    border-radius: 0.5rem;
+    width: 794px;
+    max-width: 100%;
+    min-height: 1123px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    position: relative;
+    overflow: hidden;
+}
+
+.view-doc-paper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 1px;
+    left: 0;
+    pointer-events: none;
+    z-index: 1;
+    background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0,
+        transparent 1122px,
+        rgba(148, 163, 184, 0.75) 1122px,
+        rgba(148, 163, 184, 0.75) 1123px
+    );
+}
+
+.view-doc-header,
+.view-doc-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    min-height: 80px;
+    background: white;
+    position: relative;
+    z-index: 2;
+}
+
+.view-doc-header {
+    border-bottom: 1.5px solid #e5e7eb;
+}
+
+.view-doc-footer {
+    border-top: 1.5px solid #e5e7eb;
+}
+
+.view-doc-logo {
+    max-width: 90px;
+    max-height: 58px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.view-doc-hf-text {
+    flex: 1;
+    font-size: 13px;
+    color: #444;
+    unicode-bidi: plaintext;
+}
+
+.view-doc-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-top: 24px;
+    padding-bottom: 24px;
+    position: relative;
+    z-index: 0;
+}
+
+.view-doc-body.document-content {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 13.5px;
+    line-height: 1.75;
+    color: #212529;
+}
+
+.view-doc-body.document-content .ql-editor {
+    border: none;
+    padding-top: 0;
+    padding-bottom: 0;
+    font-size: 13.5px;
+    line-height: 1.75;
+    color: #212529;
+}
+
+.view-doc-body.document-content .ql-editor p {
+    margin: 0;
+    line-height: inherit;
+}
+
+.view-doc-body.document-content .ql-editor ul,
+.view-doc-body.document-content .ql-editor ol {
+    margin: 0;
+    padding-left: 1.5em;
+}
+
+.view-doc-body.document-content .ql-editor li {
+    margin: 0;
+    line-height: inherit;
+}

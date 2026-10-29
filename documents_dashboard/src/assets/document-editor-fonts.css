@@ -1,0 +1,92 @@
+/**
+ * Quill document font classes — Latin primaries with paired Arabic fallbacks.
+ * Loaded globally; also injected into PDF export via document-font-stacks.ts.
+ */
+
+/* ── Sans (generic Arabic: Noto Sans Arabic) ── */
+.ql-font-helvetica {
+    font-family: Helvetica, 'Noto Sans Arabic', Cairo, Arial, sans-serif !important;
+}
+
+.ql-font-helvetica-neue {
+    font-family: 'Helvetica Neue', Helvetica, 'Noto Sans Arabic', Cairo, Arial, sans-serif !important;
+}
+
+.ql-font-arial {
+    font-family: Arial, 'Noto Sans Arabic', Cairo, Helvetica, sans-serif !important;
+}
+
+.ql-font-calibri {
+    font-family: Calibri, 'Segoe UI', 'Noto Sans Arabic', Cairo, Arial, sans-serif !important;
+}
+
+.ql-font-futura {
+    font-family: Futura, 'Trebuchet MS', 'Noto Sans Arabic', Cairo, Arial, sans-serif !important;
+}
+
+.ql-font-proxima-nova {
+    font-family: 'Proxima Nova', Montserrat, 'Noto Sans Arabic', Cairo, Arial, sans-serif !important;
+}
+
+.ql-font-avenir {
+    font-family: Avenir, 'Avenir Next', Montserrat, 'Noto Sans Arabic', Cairo, Arial, sans-serif !important;
+}
+
+.ql-font-gotham {
+    font-family: Gotham, Montserrat, 'Noto Sans Arabic', Cairo, Arial, sans-serif !important;
+}
+
+/* ── Sans (web fonts + distinct Arabic pairing) ── */
+.ql-font-roboto {
+    font-family: Roboto, 'Noto Sans Arabic', Arial, sans-serif !important;
+}
+
+.ql-font-open-sans {
+    font-family: 'Open Sans', 'Noto Sans Arabic', Arial, sans-serif !important;
+}
+
+.ql-font-montserrat {
+    font-family: Montserrat, Cairo, 'Noto Sans Arabic', Arial, sans-serif !important;
+}
+
+.ql-font-lato {
+    font-family: Lato, 'Noto Sans Arabic', Cairo, Arial, sans-serif !important;
+}
+
+.ql-font-poppins {
+    font-family: Poppins, Cairo, 'Noto Sans Arabic', Arial, sans-serif !important;
+}
+
+/* ── Serif (Arabic: Noto Naskh / Amiri) ── */
+.ql-font-times-new-roman {
+    font-family: 'Times New Roman', Times, 'Noto Naskh Arabic', Amiri, Georgia, serif !important;
+}
+
+.ql-font-georgia {
+    font-family: Georgia, 'Times New Roman', 'Noto Naskh Arabic', Amiri, serif !important;
+}
+
+.ql-font-garamond {
+    font-family: Garamond, 'Times New Roman', Amiri, 'Noto Naskh Arabic', Georgia, serif !important;
+}
+
+.ql-font-bodoni {
+    font-family: Bodoni, 'Bodoni 72', Didot, Amiri, 'Noto Naskh Arabic', Georgia, serif !important;
+}
+
+.ql-font-didot {
+    font-family: Didot, 'Bodoni 72', Georgia, Amiri, 'Noto Naskh Arabic', serif !important;
+}
+
+.ql-font-playfair-display {
+    font-family: 'Playfair Display', Amiri, 'Noto Naskh Arabic', Georgia, serif !important;
+}
+
+/* Quill built-in font classes */
+.ql-font-serif {
+    font-family: Georgia, 'Times New Roman', 'Noto Naskh Arabic', Amiri, serif !important;
+}
+
+.ql-font-monospace {
+    font-family: Monaco, 'Courier New', monospace !important;
+}
