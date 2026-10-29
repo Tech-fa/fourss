@@ -56,10 +56,10 @@
                             type="email"
                         />
                         <AppInputForm
-                            name="mobilePhone"
-                            :label="$t('profile.mobilePhone')"
-                            :placeholder="$t('profile.mobilePhonePlaceholder')"
-                            :value="profile?.mobilePhone"
+                            name="phone"
+                            :label="$t('profile.phone')"
+                            :placeholder="$t('profile.phonePlaceholder')"
+                            :value="profile?.phone"
                             :required="true"
                             type="tel"
                         />

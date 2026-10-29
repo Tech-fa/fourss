@@ -157,28 +157,7 @@
                                         t('admin_users.label_mobile_phone')
                                     }}</label>
                                     <p class="text-neutral-900">
-                                        {{ user.mobilePhone || t('admin_users.field_not_provided') }}
-                                    </p>
-                                </div>
-
-                                <div class="space-y-2">
-                                    <label class="text-sm text-neutral-600">{{
-                                        t('admin_users.label_work_phone')
-                                    }}</label>
-                                    <p class="text-neutral-900">
-                                        {{ user.workPhone || t('admin_users.field_not_provided') }}
-                                    </p>
-                                </div>
-
-                                <div class="space-y-2">
-                                    <label class="text-sm text-neutral-600">{{
-                                        t('admin_users.label_extension')
-                                    }}</label>
-                                    <p class="text-neutral-900">
-                                        {{
-                                            user.officeExtension ||
-                                            t('admin_users.field_not_provided')
-                                        }}
+                                        {{ user.phone || t('admin_users.field_not_provided') }}
                                     </p>
                                 </div>
                             </div>
@@ -226,9 +205,7 @@ const user = ref<User>({
     fname: '',
     lname: '',
     email: '',
-    mobilePhone: '',
-    workPhone: '',
-    officeExtension: '',
+    phone: '',
     isActive: false,
     isTopManagement: false,
     createdAt: '',

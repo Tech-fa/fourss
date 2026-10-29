@@ -1,7 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { confirm, save } from "@tauri-apps/plugin-dialog";
+import { logError } from "../log";
 import { DROPLET_SIZE, RESEND_URL, TOKEN_URL, type Deployment, type RegionChoice, type ReleaseVersions } from "./types";
 
+const DEFAULT_FROM_EMAIL = "notifications@resend.dev";
 const WORKING = "Working on making your app. This can take a while. Leave this window open.";
 const PLACE_UNAVAILABLE =
   "That place is not available. Choose another place close to your team, then try again.";
@@ -11,9 +13,15 @@ const appName = document.querySelector("#app-name") as HTMLHeadingElement;
 const summary = document.querySelector("#summary") as HTMLParagraphElement;
 const tokenState = document.querySelector("#token-state") as HTMLParagraphElement;
 const resendState = document.querySelector("#resend-state") as HTMLParagraphElement;
+const fromEmailState = document.querySelector("#from-email-state") as HTMLParagraphElement;
+const fromEmailFollowup = document.querySelector("#from-email-followup") as HTMLParagraphElement;
+const adminEmailState = document.querySelector("#admin-email-state") as HTMLParagraphElement;
+const adminEmailFollowup = document.querySelector("#admin-email-followup") as HTMLParagraphElement;
 const dropletState = document.querySelector("#droplet-state") as HTMLParagraphElement;
 const tokenEditor = document.querySelector("#token-editor") as HTMLDivElement;
 const resendEditor = document.querySelector("#resend-editor") as HTMLDivElement;
+const fromEmailEditor = document.querySelector("#from-email-editor") as HTMLDivElement;
+const adminEmailEditor = document.querySelector("#admin-email-editor") as HTMLDivElement;
 const regionStep = document.querySelector("#region-step") as HTMLDivElement;
 const regionWarning = document.querySelector("#region-warning") as HTMLParagraphElement;
 const dropletActions = document.querySelector("#droplet-actions") as HTMLDivElement;
@@ -22,9 +30,15 @@ const finishedDetail = document.querySelector("#finished-detail") as HTMLParagra
 const downloadNote = document.querySelector("#download-note") as HTMLParagraphElement;
 const doToken = document.querySelector("#do-token") as HTMLInputElement;
 const resendKey = document.querySelector("#resend-key") as HTMLInputElement;
+const fromEmail = document.querySelector("#from-email") as HTMLInputElement;
+const adminEmail = document.querySelector("#admin-email") as HTMLInputElement;
 const regionSelect = document.querySelector("#region") as HTMLSelectElement;
 const editToken = document.querySelector("#edit-token") as HTMLButtonElement;
 const editResend = document.querySelector("#edit-resend") as HTMLButtonElement;
+const editFromEmail = document.querySelector("#edit-from-email") as HTMLButtonElement;
+const saveFromEmail = document.querySelector("#save-from-email") as HTMLButtonElement;
+const editAdminEmail = document.querySelector("#edit-admin-email") as HTMLButtonElement;
+const saveAdminEmail = document.querySelector("#save-admin-email") as HTMLButtonElement;
 const removeToken = document.querySelector("#remove-token") as HTMLButtonElement;
 const removeResend = document.querySelector("#remove-resend") as HTMLButtonElement;
 const deployButton = document.querySelector("#deploy") as HTMLButtonElement;
@@ -37,6 +51,8 @@ const releaseNote = document.querySelector("#release-note") as HTMLParagraphElem
 let deployment: Deployment | null = null;
 let tokenEditorOpen = false;
 let resendEditorOpen = false;
+let fromEmailEditorOpen = false;
+let adminEmailEditorOpen = false;
 let actionLocked = false;
 let shownStatus = "";
 let availableRelease: ReleaseVersions | null = null;
@@ -79,6 +95,10 @@ function renderDeployment(next: Deployment): void {
   deployment = next;
   const hasToken = next.hasDigitalOceanToken;
   const hasResend = next.hasResendApiKey;
+  const sendingAddress = sendingAddressOf(next.fromEmail);
+  const hasSendingAddress = sendingAddress.length > 0;
+  const signInEmail = chosenEmail(next.adminEmail);
+  const hasSignInEmail = signInEmail.length > 0;
   const hasDroplet = next.dropletId > 0 && next.publicIp.length > 0;
   const ready = hasDroplet && !next.running;
   if (!hasToken) {
@@ -87,22 +107,43 @@ function renderDeployment(next: Deployment): void {
   if (!hasResend) {
     resendEditorOpen = true;
   }
+  if (!hasSendingAddress) {
+    fromEmailEditorOpen = true;
+  }
+  if (!hasSignInEmail) {
+    adminEmailEditorOpen = true;
+  }
   tokenState.textContent = hasToken ? "Saved on this computer" : "Still needed";
   resendState.textContent = hasResend ? "Saved on this computer" : "Still needed";
+  fromEmailState.textContent = hasSendingAddress ? sendingAddress : "Still needed";
+  adminEmailState.textContent = hasSignInEmail ? signInEmail : "Still needed";
+  fromEmailFollowup.textContent = hasDroplet
+    ? "After you save a new address, choose Update my app so the running app sends from it."
+    : "People will see this address on messages from the app.";
+  adminEmailFollowup.textContent = hasDroplet
+    ? "After you save a new address, choose Update my app so the running app uses it."
+    : "You will sign in with this address and the password we show when the app is ready.";
   dropletState.textContent = hasDroplet ? "Ready" : "Not created yet";
   releaseNote.textContent = releaseText(next);
   editToken.textContent = hasToken ? "Change" : "Add";
   editResend.textContent = hasResend ? "Change" : "Add";
+  editFromEmail.textContent = hasSendingAddress ? "Change" : "Add";
+  editFromEmail.hidden = !hasSendingAddress;
+  editAdminEmail.textContent = hasSignInEmail ? "Change" : "Add";
+  editAdminEmail.hidden = !hasSignInEmail;
   removeToken.hidden = !hasToken;
   removeResend.hidden = !hasResend;
   tokenEditor.hidden = !tokenEditorOpen;
   resendEditor.hidden = !resendEditorOpen;
-  regionStep.hidden = hasDroplet || !hasToken || !hasResend;
+  fromEmailEditor.hidden = !fromEmailEditorOpen;
+  adminEmailEditor.hidden = !adminEmailEditorOpen;
+  regionStep.hidden = hasDroplet || !hasToken || !hasResend || !hasSendingAddress || !hasSignInEmail;
   dropletActions.hidden = !hasDroplet;
   finished.hidden = !ready;
   if (ready) {
     const password = next.adminPassword ? ` The password to sign in is ${next.adminPassword}.` : "";
-    finishedDetail.textContent = `People on your team can open the app in a browser at ${next.appUrl}.${password} Keep the password private.`;
+    const address = signInEmail ? ` Sign in with ${signInEmail}.` : "";
+    finishedDetail.textContent = `People on your team can open the app in a browser at ${next.appUrl}.${address}${password} Keep the password private.`;
   }
   const busy = next.running;
   deployButton.disabled = busy;
@@ -110,6 +151,10 @@ function renderDeployment(next: Deployment): void {
   deleteButton.disabled = busy || actionLocked;
   removeToken.disabled = busy || actionLocked;
   removeResend.disabled = busy || actionLocked;
+  editFromEmail.disabled = busy || actionLocked;
+  saveFromEmail.disabled = busy || actionLocked;
+  editAdminEmail.disabled = busy || actionLocked;
+  saveAdminEmail.disabled = busy || actionLocked;
   if (next.running) {
     deployStatus.textContent = WORKING;
     deployError.textContent = "";
@@ -124,6 +169,7 @@ function renderDeployment(next: Deployment): void {
       deployStatus.textContent = "";
     } else {
       const plain = plainMessage(next.status);
+      logError("setup", next.status);
       deployError.textContent = plain;
       deployStatus.textContent = "";
       if (plain === PLACE_UNAVAILABLE) {
@@ -152,6 +198,29 @@ function releaseText(next: Deployment): string {
     return `This computer is running service ${next.apiVersion} and website ${next.uiVersion}.`;
   }
   return `This computer is running service ${next.apiVersion} and website ${next.uiVersion}. ${newest} Choose Update my app to get the newest.`;
+}
+
+function chosenEmail(value: string): string {
+  const email = value.trim().toLowerCase();
+  const parts = email.split("@");
+  if (parts.length !== 2 || /\s/.test(email)) {
+    return "";
+  }
+  const [name, domain] = parts;
+  const dot = domain.lastIndexOf(".");
+  const ending = domain.slice(dot + 1);
+  if (!name || dot <= 0 || ending.length < 2) {
+    return "";
+  }
+  return email;
+}
+
+function sendingAddressOf(value: string): string {
+  const email = chosenEmail(value);
+  if (!email || email === "onboarding@resend.dev") {
+    return DEFAULT_FROM_EMAIL;
+  }
+  return email;
 }
 
 function credentialInput() {
@@ -215,6 +284,7 @@ async function loadRelease(): Promise<void> {
     availableRelease = await invoke<ReleaseVersions>("available_versions");
     releaseError = "";
   } catch (error) {
+    logError("newest versions", error);
     if (!availableRelease) {
       releaseError = plainMessage(String(error));
     }
@@ -279,6 +349,58 @@ export function mountDeploy(): void {
     resendEditorOpen = Boolean(resendEditor.hidden);
     resendEditor.hidden = !resendEditorOpen;
   });
+  editFromEmail.addEventListener("click", () => {
+    fromEmailEditorOpen = Boolean(fromEmailEditor.hidden);
+    if (fromEmailEditorOpen && deployment) {
+      fromEmail.value = sendingAddressOf(deployment.fromEmail);
+    }
+    fromEmailEditor.hidden = !fromEmailEditorOpen;
+  });
+  saveFromEmail.addEventListener("click", async () => {
+    deployError.textContent = "";
+    const email = sendingAddressOf(fromEmail.value);
+    if (!email) {
+      deployError.textContent = "Type the address people should see when the app emails them.";
+      return;
+    }
+    try {
+      fromEmailEditorOpen = false;
+      await saveCredentials({ fromEmail: email });
+      fromEmail.value = "";
+      deployStatus.textContent = deployment?.publicIp
+        ? "Saved. Choose Update my app so the running app sends from this address."
+        : "Saved. We will use this address when we make your app.";
+    } catch (error) {
+      logError("sending address", error);
+      deployError.textContent = plainMessage(String(error));
+    }
+  });
+  editAdminEmail.addEventListener("click", () => {
+    adminEmailEditorOpen = Boolean(adminEmailEditor.hidden);
+    if (adminEmailEditorOpen && deployment) {
+      adminEmail.value = chosenEmail(deployment.adminEmail);
+    }
+    adminEmailEditor.hidden = !adminEmailEditorOpen;
+  });
+  saveAdminEmail.addEventListener("click", async () => {
+    deployError.textContent = "";
+    const email = chosenEmail(adminEmail.value);
+    if (!email) {
+      deployError.textContent = "Type an email address you can open, such as the one you use for work.";
+      return;
+    }
+    try {
+      adminEmailEditorOpen = false;
+      await saveCredentials({ adminEmail: email });
+      adminEmail.value = "";
+      deployStatus.textContent = deployment?.publicIp
+        ? "Saved. Choose Update my app so the running app uses this sign-in email."
+        : "Saved. We will use this email when we make your app.";
+    } catch (error) {
+      logError("sign-in email", error);
+      deployError.textContent = plainMessage(String(error));
+    }
+  });
 
   removeToken.addEventListener("click", async () => {
     if (!deployment || actionLocked) {
@@ -297,6 +419,7 @@ export function mountDeploy(): void {
       await forget("token");
       doToken.value = "";
     } catch (error) {
+      logError("remove the DigitalOcean key", error);
       deployError.textContent = plainMessage(String(error));
     } finally {
       actionLocked = false;
@@ -325,6 +448,7 @@ export function mountDeploy(): void {
       await forget("resend");
       resendKey.value = "";
     } catch (error) {
+      logError("remove the email key", error);
       deployError.textContent = plainMessage(String(error));
     } finally {
       actionLocked = false;
@@ -344,6 +468,7 @@ export function mountDeploy(): void {
       doToken.value = "";
       await loadRegions();
     } catch (error) {
+      logError("DigitalOcean key", error);
       deployError.textContent = plainMessage(String(error));
     }
   });
@@ -363,6 +488,7 @@ export function mountDeploy(): void {
         ? "Saved. Choose Update my app so the running app uses the new email key."
         : "Saved. We will use this email key when we make your app.";
     } catch (error) {
+      logError("email key", error);
       deployError.textContent = plainMessage(String(error));
     }
   });
@@ -379,6 +505,7 @@ export function mountDeploy(): void {
       await saveCredentials({ region: regionSelect.value });
       renderDeployment(await invoke<Deployment>("start_deploy"));
     } catch (error) {
+      logError("make the app", error);
       const plain = plainMessage(String(error));
       deployError.textContent = plain;
       if (plain === PLACE_UNAVAILABLE) {
@@ -392,6 +519,7 @@ export function mountDeploy(): void {
     try {
       renderDeployment(await invoke<Deployment>("start_deploy"));
     } catch (error) {
+      logError("update the app", error);
       deployError.textContent = plainMessage(String(error));
     }
   });
@@ -414,6 +542,7 @@ export function mountDeploy(): void {
       renderDeployment(await invoke<Deployment>("delete_droplet"));
       await loadRegions();
     } catch (error) {
+      logError("remove the computer", error);
       deployError.textContent = plainMessage(String(error));
     } finally {
       actionLocked = false;
@@ -438,6 +567,7 @@ export function mountDeploy(): void {
       await invoke("export_configuration", { destination });
       downloadNote.textContent = "Saved. Keep that file somewhere private, and do not share it.";
     } catch (error) {
+      logError("save a copy", error);
       deployError.textContent = plainMessage(String(error));
     }
   });

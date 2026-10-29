@@ -247,7 +247,7 @@ pub fn serve_on(executor: Arc<dyn ToolExecutor>, port: u16) -> Result<ControlHan
             let token = thread_token.clone();
             std::thread::spawn(move || {
                 if let Err(err) = dispatch(request, executor.as_ref(), &session, &token) {
-                    eprintln!("app control request failed: {err}");
+                    crate::journal::write("app control", &err);
                 }
             });
         }

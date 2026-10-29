@@ -62,6 +62,44 @@
 
       <section class="panel resource">
         <div class="resource-head">
+          <h2>Sending address</h2>
+          <p id="from-email-state" class="hint"></p>
+        </div>
+        <div class="actions">
+          <button id="edit-from-email" type="button">Change</button>
+        </div>
+        <div id="from-email-editor" hidden>
+          <p>When the app sends an email, this is the address people see it came from. It starts as notifications@resend.dev. Change it only if Resend is allowed to send from another address.</p>
+          <p id="from-email-followup" class="hint"></p>
+          <label for="from-email">Email address</label>
+          <input id="from-email" type="email" autocomplete="email" spellcheck="false" placeholder="notifications@resend.dev" />
+          <div class="actions">
+            <button id="save-from-email" class="primary" type="button">Save this address</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel resource">
+        <div class="resource-head">
+          <h2>Sign-in email</h2>
+          <p id="admin-email-state" class="hint"></p>
+        </div>
+        <div class="actions">
+          <button id="edit-admin-email" type="button">Change</button>
+        </div>
+        <div id="admin-email-editor" hidden>
+          <p>This is the email address you will use to sign in and manage the app. Use an address you can open.</p>
+          <p id="admin-email-followup" class="hint"></p>
+          <label for="admin-email">Email address</label>
+          <input id="admin-email" type="email" autocomplete="email" spellcheck="false" placeholder="you@company.com" />
+          <div class="actions">
+            <button id="save-admin-email" class="primary" type="button">Save this email</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel resource">
+        <div class="resource-head">
           <h2>Where your app runs</h2>
           <p id="droplet-state" class="hint"></p>
         </div>

@@ -149,13 +149,7 @@ export class UserSearchResponseDto {
   email: string;
 
   @ApiPropertyOptional()
-  mobilePhone?: string;
-
-  @ApiPropertyOptional()
-  workPhone?: string;
-
-  @ApiPropertyOptional()
-  officeExtension?: string | null;
+  phone?: string;
 
   @ApiProperty()
   isActive: boolean;
@@ -193,13 +187,7 @@ export class UserProfileResponseDto {
   email: string;
 
   @ApiPropertyOptional()
-  mobilePhone?: string;
-
-  @ApiPropertyOptional()
-  workPhone?: string;
-
-  @ApiPropertyOptional()
-  officeExtension?: string | null;
+  phone?: string;
 }
 
 export class UserCreatedByResponseDto {

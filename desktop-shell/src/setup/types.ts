@@ -42,6 +42,8 @@ export type Deployment = {
   dropletId: number;
   dropletName: string;
   publicIp: string;
+  fromEmail: string;
+  adminEmail: string;
   adminPassword: string;
   status: string;
   running: boolean;

@@ -3,7 +3,7 @@ use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::net::{IpAddr, SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Output};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
@@ -15,8 +15,9 @@ pub const BILLING_URL: &str = "https://cloud.digitalocean.com/account/billing";
 pub const TOKEN_URL: &str = "https://cloud.digitalocean.com/account/api/tokens";
 pub const RESEND_URL: &str = "https://resend.com/api-keys";
 pub const DROPLET_SIZE: &str = "s-2vcpu-4gb";
-const API_IMAGE: &str = "techfa/fourss-api";
-const UI_IMAGE: &str = "techfa/fourss-ui";
+const DEFAULT_FROM_EMAIL: &str = "notifications@resend.dev";
+const API_IMAGE: &str = "techfa22/fourss-api";
+const UI_IMAGE: &str = "techfa22/fourss-ui";
 const COMPOSE_FILE: &str = include_str!("../../deploy/docker-compose.yml");
 const DEPLOY_SCRIPT: &str = include_str!("../../deploy/deploy.sh");
 
@@ -111,6 +112,8 @@ pub struct DeploymentView {
     pub droplet_id: u64,
     pub droplet_name: String,
     pub public_ip: String,
+    pub from_email: String,
+    pub admin_email: String,
     pub admin_password: String,
     pub status: String,
     pub running: bool,
@@ -160,12 +163,18 @@ pub fn save_input(data_dir: &Path, input: DeploymentInput) -> Result<DeploymentC
         config.resend_api_key = key.to_string();
     }
     if let Some(email) = nonempty(&input.from_email) {
-        reject_secret_text("From email", email)?;
-        config.from_email = email.to_string();
+        let email = effective_from_email(email);
+        if !acceptable_email(&email) {
+            return Err("Type the address people should see when the app emails them.".into());
+        }
+        config.from_email = email;
     }
     if let Some(email) = nonempty(&input.admin_email) {
-        reject_secret_text("Admin email", email)?;
-        config.admin_email = email.to_string();
+        let email = email.trim().to_lowercase();
+        if !acceptable_email(&email) {
+            return Err("Type an email address you can open, such as the one you use for work.".into());
+        }
+        config.admin_email = email;
     }
     if let Some(region) = nonempty(&input.region) {
         if !valid_region(region) {
@@ -185,7 +194,7 @@ pub fn delete_droplet(data_dir: &Path) -> Result<DeploymentConfig, String> {
         match do_request(&config.digital_ocean_token, "DELETE", &path, None) {
             Ok(_) => {}
             Err(err) if err.contains("404") => {}
-            Err(err) => return Err(plain_failure(&err)),
+            Err(err) => return Err(err),
         }
     }
     config.droplet_id = 0;
@@ -214,9 +223,7 @@ pub fn verify_token(token: &str) -> Result<(), String> {
     if token.trim().is_empty() {
         return Err("Paste the key from DigitalOcean.".into());
     }
-    do_request(token.trim(), "GET", "/account", None)
-        .map(|_| ())
-        .map_err(|err| plain_failure(&err))
+    do_request(token.trim(), "GET", "/account", None).map(|_| ())
 }
 
 pub fn export_configuration(data_dir: &Path, destination: &Path) -> Result<(), String> {
@@ -235,7 +242,7 @@ pub fn export_configuration(data_dir: &Path, destination: &Path) -> Result<(), S
 }
 
 pub fn list_regions(token: &str) -> Result<Vec<RegionChoice>, String> {
-    let body = do_request(token, "GET", "/regions?per_page=200", None).map_err(|err| plain_failure(&err))?;
+    let body = do_request(token, "GET", "/regions?per_page=200", None)?;
     let regions = body
         .get("regions")
         .and_then(Value::as_array)
@@ -279,6 +286,8 @@ pub fn view(config: DeploymentConfig, status: &str, running: bool) -> Deployment
         droplet_id: config.droplet_id,
         droplet_name: config.droplet_name,
         public_ip: config.public_ip,
+        from_email: effective_from_email(&config.from_email),
+        admin_email: shown_email(&config.admin_email),
         admin_password: config.admin_password,
         status: status.to_string(),
         running,
@@ -300,25 +309,25 @@ pub fn provision(data_dir: &Path, report: &mut dyn FnMut(String)) -> Result<Depl
     require_field(&config.digital_ocean_token, "The DigitalOcean key")?;
     require_field(&config.resend_api_key, "The email key")?;
     require_field(&config.region, "A place close to your team")?;
+    if !acceptable_email(&config.admin_email) {
+        return Err("Type the email address you will use to sign in.".into());
+    }
+    config.from_email = effective_from_email(&config.from_email);
+    if !acceptable_email(&config.from_email) {
+        return Err("Type the address people should see when the app emails them.".into());
+    }
     let release = available_versions()?;
     config.api_version = release.api_version;
     config.ui_version = release.ui_version;
     write_config(&config_path(data_dir), &config)?;
     config.size = DROPLET_SIZE.into();
-    if config.from_email.is_empty() {
-        config.from_email = "onboarding@resend.dev".into();
-    }
-    if config.admin_email.is_empty() {
-        config.admin_email = "admin@localhost".into();
-    }
+    let new_app = config.droplet_id == 0;
+    config.encryption_key = encryption_key_for_app(&config.encryption_key, new_app);
     if config.admin_password.is_empty() {
         config.admin_password = random_token(20);
     }
     if config.db_password.is_empty() {
         config.db_password = random_token(24);
-    }
-    if config.encryption_key.is_empty() {
-        config.encryption_key = random_token(32);
     }
     if config.secret_key.is_empty() {
         config.secret_key = random_token(32);
@@ -713,8 +722,28 @@ fn ssh_run(key: &Path, known_hosts: &Path, ip: &str, remote: &str) -> Result<(),
     } else {
         Err(format!(
             "Remote command failed: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
+            command_output(&output)
         ))
+    }
+}
+
+fn command_output(output: &Output) -> String {
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let mut text = String::new();
+    if !stdout.trim().is_empty() {
+        text.push_str(stdout.trim());
+    }
+    if !stderr.trim().is_empty() {
+        if !text.is_empty() {
+            text.push('\n');
+        }
+        text.push_str(stderr.trim());
+    }
+    if text.is_empty() {
+        format!("exit {}", output.status)
+    } else {
+        text
     }
 }
 
@@ -878,6 +907,51 @@ pub fn plain_failure(message: &str) -> String {
     message.to_string()
 }
 
+fn shown_email(value: &str) -> String {
+    if acceptable_email(value) {
+        value.to_string()
+    } else {
+        String::new()
+    }
+}
+
+fn effective_from_email(value: &str) -> String {
+    let value = value.trim().to_lowercase();
+    if value.is_empty() || value == "onboarding@resend.dev" {
+        DEFAULT_FROM_EMAIL.to_string()
+    } else {
+        value
+    }
+}
+
+fn acceptable_email(value: &str) -> bool {
+    valid_sign_in_email(value)
+}
+
+fn encryption_key_for_app(current: &str, new_app: bool) -> String {
+    if !new_app && !current.trim().is_empty() {
+        current.to_string()
+    } else {
+        random_token(32)
+    }
+}
+
+fn valid_sign_in_email(value: &str) -> bool {
+    let Some((name, domain)) = value.split_once('@') else {
+        return false;
+    };
+    let Some((host, ending)) = domain.rsplit_once('.') else {
+        return false;
+    };
+    !name.is_empty()
+        && !host.is_empty()
+        && ending.len() >= 2
+        && value.len() <= 200
+        && !value.chars().any(|character| character.is_whitespace() || character.is_control())
+        && name.chars().all(|character| character.is_ascii())
+        && domain.chars().all(|character| character.is_ascii() && character != '@')
+}
+
 fn valid_region(value: &str) -> bool {
     let mut chars = value.chars();
     matches!(chars.next(), Some(first) if first.is_ascii_lowercase())
@@ -1002,6 +1076,96 @@ mod tests {
     }
 
     #[test]
+    fn the_sign_in_email_is_saved_and_a_blank_one_does_not_erase_it() {
+        let dir = std::env::temp_dir().join(format!("shell-deploy-email-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        let saved = save_input(
+            &dir,
+            DeploymentInput {
+                digital_ocean_token: String::new(),
+                resend_api_key: String::new(),
+                from_email: String::new(),
+                admin_email: "Owner@Example.com".into(),
+                region: String::new(),
+                size: String::new(),
+            },
+        )
+        .unwrap();
+        assert_eq!(saved.admin_email, "owner@example.com");
+        assert_eq!(view(saved.clone(), "", false).admin_email, "owner@example.com");
+        let kept = save_input(
+            &dir,
+            DeploymentInput {
+                digital_ocean_token: String::new(),
+                resend_api_key: String::new(),
+                from_email: String::new(),
+                admin_email: String::new(),
+                region: String::new(),
+                size: String::new(),
+            },
+        )
+        .unwrap();
+        assert_eq!(kept.admin_email, "owner@example.com");
+        let rejected = save_input(
+            &dir,
+            DeploymentInput {
+                digital_ocean_token: String::new(),
+                resend_api_key: String::new(),
+                from_email: String::new(),
+                admin_email: "admin@localhost".into(),
+                region: String::new(),
+                size: String::new(),
+            },
+        );
+        assert!(rejected.is_err());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_sending_address_is_saved_and_the_placeholder_is_refused() {
+        let dir = std::env::temp_dir().join(format!("shell-deploy-from-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        let saved = save_input(
+            &dir,
+            DeploymentInput {
+                digital_ocean_token: String::new(),
+                resend_api_key: String::new(),
+                from_email: "Notes@Example.com".into(),
+                admin_email: String::new(),
+                region: String::new(),
+                size: String::new(),
+            },
+        )
+        .unwrap();
+        assert_eq!(saved.from_email, "notes@example.com");
+        assert_eq!(view(saved, "", false).from_email, "notes@example.com");
+        assert_eq!(view(DeploymentConfig::default(), "", false).from_email, DEFAULT_FROM_EMAIL);
+        let replaced = save_input(
+            &dir,
+            DeploymentInput {
+                digital_ocean_token: String::new(),
+                resend_api_key: String::new(),
+                from_email: "onboarding@resend.dev".into(),
+                admin_email: String::new(),
+                region: String::new(),
+                size: String::new(),
+            },
+        )
+        .unwrap();
+        assert_eq!(replaced.from_email, DEFAULT_FROM_EMAIL);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn each_new_app_gets_its_own_encryption_key() {
+        let first = encryption_key_for_app("", true);
+        let second = encryption_key_for_app("", true);
+        assert_ne!(first, second);
+        assert_eq!(encryption_key_for_app("kept-key-for-this-app", false), "kept-key-for-this-app");
+        assert_ne!(encryption_key_for_app("kept-key-for-this-app", true), "kept-key-for-this-app");
+    }
+
+    #[test]
     fn an_unavailable_place_is_explained_in_plain_language() {
         let message = plain_failure("DigitalOcean returned 422: Size is not available in this region.");
         assert!(message.contains("Choose another place"));
@@ -1029,10 +1193,10 @@ mod tests {
         ];
         assert_eq!(highest_version(&tags).as_deref(), Some("7.10.0"));
         let compose = pinned_compose("7.3.0", "1.0.0");
-        assert!(compose.contains("techfa/fourss-api:7.3.0"));
-        assert!(compose.contains("techfa/fourss-ui:1.0.0"));
-        assert!(!compose.contains("techfa/fourss-api:latest"));
-        assert!(!compose.contains("techfa/fourss-ui:latest"));
+        assert!(compose.contains("techfa22/fourss-api:7.3.0"));
+        assert!(compose.contains("techfa22/fourss-ui:1.0.0"));
+        assert!(!compose.contains("techfa22/fourss-api:latest"));
+        assert!(!compose.contains("techfa22/fourss-ui:latest"));
     }
 
     #[test]

@@ -31,7 +31,7 @@ services:
       retries: 20
 
   api:
-    image: techfa/fourss-api:latest
+    image: techfa22/fourss-api:latest
     env_file: .env
     depends_on:
       mysql:
@@ -47,7 +47,7 @@ services:
     restart: unless-stopped
 
   ui:
-    image: techfa/fourss-ui:latest
+    image: techfa22/fourss-ui:latest
     ports:
       - "80:80"
     volumes:

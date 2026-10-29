@@ -1,3 +1,4 @@
+import { logError } from "./log";
 import { deploymentIsRunning, mountDeploy, refreshDeployment, watchForNewerRelease } from "./setup/deploy";
 import "./styles.css";
 
@@ -12,12 +13,15 @@ async function boot(): Promise<void> {
       await refreshDeployment();
       window.setInterval(() => {
         if (deploymentIsRunning()) {
-          void refreshDeployment().catch(() => undefined);
+          void refreshDeployment().catch((error: unknown) => {
+            logError("setup", error);
+          });
         }
       }, 2000);
       watchForNewerRelease();
       return;
     } catch (error) {
+      logError("open the window", error);
       last = String(error);
       await new Promise((resolve) => setTimeout(resolve, 200));
     }

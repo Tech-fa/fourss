@@ -59,7 +59,7 @@ pub fn serve(shared: Arc<Mutex<Session>>, port: u16) -> Result<ServerHandle, Str
                 break;
             }
             if let Err(err) = dispatch(request, &shared) {
-                eprintln!("app shell request failed: {err}");
+                crate::journal::write("local page", &err.to_string());
             }
         }
     });

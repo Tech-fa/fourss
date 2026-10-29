@@ -97,12 +97,12 @@ const getUserStatus = (user: User) => {
 }
 
 const mapRows = (userList: User[]) => {
-    const [cName, cEmail, cMobile, cStatus, cTopManagement] = tableCols.value
+    const [cName, cEmail, cPhone, cStatus, cTopManagement] = tableCols.value
     return userList.map((user) => ({
         id: user.id,
         [cName]: `${user.fname} ${user.lname}`,
         [cEmail]: user.email,
-        [cMobile]: user.mobilePhone,
+        [cPhone]: user.phone,
         [cStatus]: getUserStatus(user),
         [cTopManagement]: user.isTopManagement
             ? t('admin_users.top_management_yes')
@@ -162,9 +162,8 @@ const filterUsers = (userList: User[], searchQuery: string) => {
             user.fname.toLowerCase().includes(q) ||
             user.lname.toLowerCase().includes(q) ||
             user.email.toLowerCase().includes(q) ||
-            user.mobilePhone?.toLowerCase().includes(q) ||
-            `${user.fname} ${user.lname}`.toLowerCase().includes(q) ||
-            user.workPhone?.toLowerCase().includes(q)
+            user.phone?.toLowerCase().includes(q) ||
+            `${user.fname} ${user.lname}`.toLowerCase().includes(q)
     )
 }
 

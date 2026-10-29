@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { logError } from "./log";
 import { listen } from "@tauri-apps/api/event";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
@@ -74,5 +75,6 @@ async function boot(): Promise<void> {
 }
 
 void boot().catch((error: unknown) => {
+  logError("terminal", error);
   status.textContent = String(error);
 });

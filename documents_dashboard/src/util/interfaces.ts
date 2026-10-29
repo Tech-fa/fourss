@@ -45,9 +45,7 @@ export interface User {
     email: string
     createdAt: string
     updatedAt: string
-    workPhone: string
-    mobilePhone: string
-    officeExtension: string
+    phone: string
     isActive: boolean
     isTopManagement: boolean
     order?: number

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { logError } from "../log";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Field, SaveOutcome, ShellState } from "./types";
 
@@ -184,6 +185,7 @@ async function loadPath(path: string): Promise<void> {
     formError.textContent = "";
     render(next);
   } catch (error) {
+    logError("web app folder", error);
     pathError.textContent = String(error);
   }
 }
@@ -203,6 +205,7 @@ async function saveAndMaybeOpen(openAfter: boolean): Promise<void> {
       await invoke("open_served_app");
     }
   } catch (error) {
+    logError("save settings", error);
     formError.textContent = String(error);
   } finally {
     saveButton.disabled = false;
@@ -269,6 +272,7 @@ export function mountBundle(hooks: { afterRender: () => void }): void {
     try {
       render(await invoke<ShellState>("open_public_app", { url: appUrlInput.value.trim() }));
     } catch (error) {
+      logError("open the app address", error);
       urlError.textContent = String(error);
     }
   });
@@ -278,6 +282,7 @@ export function mountBundle(hooks: { afterRender: () => void }): void {
     try {
       await invoke("open_served_app");
     } catch (error) {
+      logError("open the app", error);
       formError.textContent = String(error);
     }
   });

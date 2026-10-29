@@ -32,9 +32,9 @@
                         :placeholder="t('admin_users.placeholder_email')" :value="initialValues.email"
                         :rules="emailRule" :disabled="isEditMode && !!verifiedAt" :required="true" />
 
-                    <AppInputForm test-id="mobile" name="mobilePhone" :label="t('admin_users.label_mobile_phone')"
-                        :placeholder="t('admin_users.placeholder_mobile_phone')" :value="initialValues.mobilePhone"
-                        :rules="mobilePhoneRule" :required="true" />
+                    <AppInputForm test-id="phone" name="phone" :label="t('admin_users.label_mobile_phone')"
+                        :placeholder="t('admin_users.placeholder_mobile_phone')" :value="initialValues.phone"
+                        :rules="phoneRule" :required="true" />
 
                     <div class="space-y-3">
                         <div class="flex items-center justify-between gap-3">
@@ -200,7 +200,7 @@ type MembershipRow = {
 const firstNameRule = (v: any) => (!exists(v) ? t('admin_users.rule_first_name') : true)
 const lastNameRule = (v: any) => (!exists(v) ? t('admin_users.rule_last_name') : true)
 const emailRule = (v: any) => (!exists(v) || !isEmail(v) ? t('admin_users.rule_email') : true)
-const mobilePhoneRule = (v: any) =>
+const phoneRule = (v: any) =>
     !exists(v) || !isPhone(v) ? t('admin_users.rule_mobile_phone') : true
 
 const statusDisplay = (item: any) =>
@@ -258,9 +258,7 @@ onMounted(async () => {
                 fname: userData.fname,
                 lname: userData.lname,
                 email: userData.email,
-                mobilePhone: userData.mobilePhone,
-                workPhone: userData.workPhone,
-                officeExtension: userData.officeExtension
+                phone: userData.phone
             }
 
             isActive.value = userData.isActive
@@ -354,9 +352,7 @@ const submitForm = async (values: any) => {
         fname: values.fname,
         lname: values.lname,
         email: values.email,
-        mobilePhone: values.mobilePhone,
-        workPhone: values.workPhone,
-        officeExtension: values.officeExtension,
+        phone: values.phone,
         isActive: isActive.value,
         isTopManagement: isTopManagement.value,
         roles

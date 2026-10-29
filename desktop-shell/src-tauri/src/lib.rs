@@ -1,5 +1,6 @@
 mod control;
 mod deploy;
+mod journal;
 mod server;
 mod settings;
 mod terminal;
@@ -319,12 +320,12 @@ fn shell_state(shell: tauri::State<Shell>) -> ShellState {
 
 #[tauri::command]
 fn available_versions() -> Result<deploy::ReleaseVersions, String> {
-    deploy::available_versions()
+    journal::logged("newest versions", deploy::available_versions())
 }
 
 #[tauri::command]
 fn deployment_state(shell: tauri::State<Shell>) -> Result<DeploymentView, String> {
-    shell.deployment_view()
+    journal::logged("read setup", shell.deployment_view())
 }
 
 #[tauri::command]
@@ -332,36 +333,39 @@ fn save_deployment(
     shell: tauri::State<Shell>,
     input: DeploymentInput,
 ) -> Result<DeploymentView, String> {
-    deploy::save_input(&shell.data_dir, input)?;
-    shell.deployment_view()
+    journal::logged_plain("save setup", deploy::save_input(&shell.data_dir, input))?;
+    journal::logged("read setup", shell.deployment_view())
 }
 
 #[tauri::command]
 fn check_token(token: String) -> Result<(), String> {
-    deploy::verify_token(&token)
+    journal::logged_plain("DigitalOcean key", deploy::verify_token(&token))
 }
 
 #[tauri::command]
 fn droplet_regions(shell: tauri::State<Shell>) -> Result<Vec<deploy::RegionChoice>, String> {
-    let config = deploy::ensure_config(&shell.data_dir)?;
-    deploy::list_regions(&config.digital_ocean_token)
+    let config = journal::logged("read setup", deploy::ensure_config(&shell.data_dir))?;
+    journal::logged_plain("places", deploy::list_regions(&config.digital_ocean_token))
 }
 
 #[tauri::command]
 fn open_external(url: String) -> Result<(), String> {
     let allowed = url == deploy::TOKEN_URL || url == deploy::RESEND_URL || url == deploy::BILLING_URL;
     if !allowed {
-        return Err("That page cannot be opened from the shell.".into());
+        return journal::logged("open page", Err("That page cannot be opened from the shell.".into()));
     }
     let status = std::process::Command::new("open")
         .arg(&url)
         .status()
-        .map_err(|err| format!("Could not open the page: {err}"))?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err("Could not open the page.".into())
-    }
+        .map_err(|err| format!("Could not open the page: {err}"));
+    journal::logged(
+        "open page",
+        match status {
+            Ok(status) if status.success() => Ok(()),
+            Ok(_) => Err("Could not open the page.".into()),
+            Err(err) => Err(err),
+        },
+    )
 }
 
 #[tauri::command]
@@ -371,7 +375,10 @@ fn start_deploy(app: AppHandle, shell: tauri::State<Shell>) -> Result<Deployment
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
     {
-        return Err("We are already working on your app.".into());
+        return journal::logged(
+            "make the app",
+            Err("We are already working on your app.".into()),
+        );
     }
     let data_dir = shell.data_dir.clone();
     let status = Arc::clone(&shell.deploy_status);
@@ -391,11 +398,14 @@ fn start_deploy(app: AppHandle, shell: tauri::State<Shell>) -> Result<Deployment
         let mut slot = status.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         *slot = match outcome {
             Ok(_) => "Your app is ready.".into(),
-            Err(err) => deploy::plain_failure(&err),
+            Err(err) => {
+                journal::write("make the app", &err);
+                deploy::plain_failure(&err)
+            }
         };
         running.store(false, Ordering::SeqCst);
     });
-    shell.deployment_view()
+    journal::logged("read setup", shell.deployment_view())
 }
 
 #[tauri::command]
@@ -404,34 +414,47 @@ fn set_ui_path(
     window: WebviewWindow,
     path: String,
 ) -> Result<ShellState, String> {
-    let state = shell.set_ui_path(PathBuf::from(path))?;
+    let state = journal::logged("web app folder", shell.set_ui_path(PathBuf::from(path)))?;
     let _ = window.set_title(&window_title(&state.view.app_name));
     Ok(state)
 }
 
 #[tauri::command]
 fn save_config(shell: tauri::State<Shell>, values: Value) -> SaveOutcome {
-    shell.save(values)
+    let outcome = shell.save(values);
+    if !outcome.message.is_empty() {
+        journal::write("save settings", &outcome.message);
+    }
+    for (field, err) in &outcome.field_errors {
+        journal::write("save settings", &format!("{field}: {err}"));
+    }
+    outcome
 }
 
 #[tauri::command]
 fn export_configuration(shell: tauri::State<Shell>, destination: String) -> Result<(), String> {
-    deploy::export_configuration(&shell.data_dir, Path::new(&destination))
+    journal::logged(
+        "save a copy",
+        deploy::export_configuration(&shell.data_dir, Path::new(&destination)),
+    )
 }
 
 #[tauri::command]
 fn forget_resource(shell: tauri::State<Shell>, kind: String) -> Result<DeploymentView, String> {
-    deploy::forget_resource(&shell.data_dir, &kind)?;
-    shell.deployment_view()
+    journal::logged("remove a saved item", deploy::forget_resource(&shell.data_dir, &kind))?;
+    journal::logged("read setup", shell.deployment_view())
 }
 
 #[tauri::command]
 fn delete_droplet(shell: tauri::State<Shell>) -> Result<DeploymentView, String> {
     if shell.deploy_running.load(Ordering::SeqCst) {
-        return Err("Wait until we finish making your app.".into());
+        return journal::logged(
+            "remove the computer",
+            Err("Wait until we finish making your app.".into()),
+        );
     }
-    deploy::delete_droplet(&shell.data_dir)?;
-    shell.deployment_view()
+    journal::logged_plain("remove the computer", deploy::delete_droplet(&shell.data_dir))?;
+    journal::logged("read setup", shell.deployment_view())
 }
 
 #[tauri::command]
@@ -442,17 +465,17 @@ fn terminal_start(
     rows: u16,
     cols: u16,
 ) -> Result<TerminalInfo, String> {
-    host.start(app, rows, cols, agent_environment(&shell))
+    journal::logged("terminal", host.start(app, rows, cols, agent_environment(&shell)))
 }
 
 #[tauri::command]
 fn terminal_write(host: State<TerminalHost>, data: String) -> Result<(), String> {
-    host.write(&data)
+    journal::logged("terminal", host.write(&data))
 }
 
 #[tauri::command]
 fn terminal_resize(host: State<TerminalHost>, rows: u16, cols: u16) -> Result<(), String> {
-    host.resize(rows, cols)
+    journal::logged("terminal", host.resize(rows, cols))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -471,13 +494,19 @@ pub fn run() {
                 .ok_or_else(|| std::io::Error::other("The main window is missing."))?;
             let setup_url = window.url().map_err(std::io::Error::other)?.to_string();
             let data_dir = app.path().app_data_dir().map_err(std::io::Error::other)?;
-            let shell = Shell::start(data_dir, setup_url.clone(), requested_ui())
-                .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+            journal::install(&data_dir);
+            let shell = Shell::start(data_dir, setup_url.clone(), requested_ui()).map_err(|err| {
+                journal::write("start", &err);
+                std::io::Error::new(std::io::ErrorKind::Other, err)
+            })?;
             let control = serve_control(Arc::new(PageExecutor::new(
                 app.handle().clone(),
                 setup_url.clone(),
             )))
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::Other, err))?;
+            .map_err(|err| {
+                journal::write("start", &err);
+                std::io::Error::new(std::io::ErrorKind::Other, err)
+            })?;
             shell.set_mcp_url(control.mcp_url.clone());
             shell.set_mcp_token(control.token.clone());
             *bridge_for_setup
@@ -490,7 +519,10 @@ pub fn run() {
                 .unwrap_or_else(|poisoned| poisoned.into_inner()) =
                 control::bridge_script().to_string();
             let _ = window.set_title("Your app");
-            install_menu(app.handle()).map_err(|err| std::io::Error::other(err.to_string()))?;
+            install_menu(app.handle()).map_err(|err| {
+                journal::write("start", &err.to_string());
+                std::io::Error::other(err.to_string())
+            })?;
             app.manage(control);
             app.manage(shell);
             app.manage(TerminalHost::new());

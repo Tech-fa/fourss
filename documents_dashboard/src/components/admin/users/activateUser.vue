@@ -88,19 +88,7 @@
                     <div>
                         <p class="text-sm text-neutral-600 mb-1">{{ t('admin_users.label_mobile') }}</p>
                         <p class="text-neutral-800">{{
-                            props.user.mobilePhone || t('admin_users.value_not_available')
-                        }}</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-neutral-600 mb-1">{{ t('admin_users.label_work_phone') }}</p>
-                        <p class="text-neutral-800">{{
-                            props.user.workPhone || t('admin_users.value_not_available')
-                        }}</p>
-                    </div>
-                    <div>
-                        <p class="text-sm text-neutral-600 mb-1">{{ t('admin_users.label_extension') }}</p>
-                        <p class="text-neutral-800">{{
-                            props.user.officeExtension || t('admin_users.value_not_available')
+                            props.user.phone || t('admin_users.value_not_available')
                         }}</p>
                     </div>
                     <div>
