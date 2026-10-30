@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - web_backend/**
-      - desktop-shell/deploy/api.Dockerfile
+      - deploy/api.Dockerfile
       - .github/workflows/api-image.yml
   workflow_dispatch:
 
@@ -28,7 +28,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: desktop-shell/deploy/api.Dockerfile
+          file: deploy/api.Dockerfile
           push: true
           tags: |
             techfa22/fourss-api:latest

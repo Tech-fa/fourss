@@ -7,19 +7,25 @@ describe("StandardsService", () => {
   let implementations: any[];
   let nextId: number;
   let service: StandardsService;
+  let nextDocumentId: number;
   let implementationRepository: {
     find: jest.Mock;
     findOne: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
+    update: jest.Mock;
     remove: jest.Mock;
   };
-  let implementationDocumentRepository: { save: jest.Mock };
+  let implementationDocumentRepository: {
+    create: jest.Mock;
+    save: jest.Mock;
+  };
   let documentRepository: { findOne: jest.Mock };
 
   beforeEach(() => {
     implementations = [];
     nextId = 1;
+    nextDocumentId = 1000;
     implementationRepository = {
       find: jest.fn(async ({ relations } = {}) =>
         implementations.map((item) => cloneImplementation(item, relations)),
@@ -51,23 +57,41 @@ describe("StandardsService", () => {
         implementations.push(created);
         return created;
       }),
+      update: jest.fn(async (id, partial) => {
+        const index = implementations.findIndex((item) => item.id === id);
+        implementations[index] = { ...implementations[index], ...partial };
+      }),
       remove: jest.fn(async (value) => {
         implementations = implementations.filter((item) => item.id !== value.id);
       }),
     };
     implementationDocumentRepository = {
+      create: jest.fn((value) => ({ ...value })),
       save: jest.fn(async (value) => {
-        const implementation = implementations.find(
-          (item) => item.id === value.implementationId,
-        );
-        const index = implementation.documents.findIndex(
-          (document: any) => document.id === value.id,
-        );
-        implementation.documents[index] = {
-          ...implementation.documents[index],
-          ...value,
-        };
-        return implementation.documents[index];
+        const values = Array.isArray(value) ? value : [value];
+        const saved = values.map((item) => {
+          const implementation = implementations.find(
+            (row) => row.id === item.implementationId,
+          );
+          if (item.id) {
+            const index = implementation.documents.findIndex(
+              (document: any) => document.id === item.id,
+            );
+            implementation.documents[index] = {
+              ...implementation.documents[index],
+              ...item,
+            };
+            return implementation.documents[index];
+          }
+          const created = {
+            ...item,
+            id: nextDocumentId++,
+            linkedDocument: item.linkedDocument ?? null,
+          };
+          implementation.documents.push(created);
+          return created;
+        });
+        return Array.isArray(value) ? saved : saved[0];
       }),
     };
     documentRepository = {
@@ -143,6 +167,29 @@ describe("StandardsService", () => {
     }
     expect(current.status).toBe("completed");
     expect(current.completedCount).toBe(current.totalCount);
+  });
+
+  it("adds newly required documents to an existing implementation", async () => {
+    const created = await service.createImplementation(
+      { standardKey: "iso-27001-2022" },
+      user as any,
+    );
+    const stored = implementations[0];
+    const removed = stored.documents.pop();
+    for (const document of stored.documents) {
+      document.status = ImplementationDocumentStatus.IMPLEMENTED;
+    }
+    stored.status = "completed";
+
+    const loaded = await service.getImplementation(created.id);
+    expect(loaded.documents.map((document) => document.documentKey)).toContain(
+      removed.documentKey,
+    );
+    expect(
+      loaded.documents.find((document) => document.documentKey === removed.documentKey)
+        ?.status,
+    ).toBe(ImplementationDocumentStatus.NOT_STARTED);
+    expect(loaded.status).toBe("in_progress");
   });
 
   it("rejects a missing linked document", async () => {

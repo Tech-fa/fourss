@@ -1,3 +1,5 @@
+import { ISO_27001_ANNEX_A_DOCUMENTS } from "./iso-27001-annex-a.documents";
+
 export type StandardKey =
   | "iso-9001-2015"
   | "iso-27001-2022"
@@ -195,7 +197,7 @@ export const STANDARDS: StandardDefinition[] = [
     year: 2022,
     family: "Information security",
     description:
-      "Information security management system requirements. Maintain ISMS documents and retain the evidence this standard requires.",
+      "Information security management system requirements. Maintain ISMS documents, Annex A controls that require documented information, and the evidence this standard requires.",
     requiredDocuments: [
       {
         key: "isms-scope",
@@ -307,6 +309,7 @@ export const STANDARDS: StandardDefinition[] = [
         description:
           "The nature of nonconformities, subsequent actions taken, and the results of any corrective action.",
       },
+      ...ISO_27001_ANNEX_A_DOCUMENTS,
     ],
   },
   {

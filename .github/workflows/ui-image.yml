@@ -5,9 +5,9 @@ on:
     branches: [main]
     paths:
       - web_dashboard/**
-      - desktop-shell/deploy/ui.Dockerfile
-      - desktop-shell/deploy/nginx.conf
-      - desktop-shell/deploy/ui-config.json
+      - deploy/ui.Dockerfile
+      - deploy/nginx.conf
+      - deploy/ui-config.json
       - .github/workflows/ui-image.yml
   workflow_dispatch:
 
@@ -30,7 +30,7 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: desktop-shell/deploy/ui.Dockerfile
+          file: deploy/ui.Dockerfile
           push: true
           tags: |
             techfa22/fourss-ui:latest

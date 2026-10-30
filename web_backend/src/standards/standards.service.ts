@@ -13,7 +13,10 @@ import {
 } from "./dtos";
 import { StandardImplementationDocument } from "./standard-implementation-document.entity";
 import { StandardImplementation } from "./standard-implementation.entity";
-import { ImplementationStatus } from "./standards.enums";
+import {
+  ImplementationDocumentStatus,
+  ImplementationStatus,
+} from "./standards.enums";
 import {
   computeImplementationStatus,
   countImplemented,
@@ -89,7 +92,14 @@ export class StandardsService {
       ]),
     );
 
-    return this.listCatalog().map((standard) => {
+    const standards = this.listCatalog();
+    await Promise.all(
+      [...byKey.values()].map((implementation) =>
+        this.syncMissingDocuments(implementation),
+      ),
+    );
+
+    return standards.map((standard) => {
       const implementation = byKey.get(standard.key);
       return {
         ...standard,
@@ -110,6 +120,11 @@ export class StandardsService {
       relations: ["documents", "documents.linkedDocument", "createdBy"],
       order: { createdAt: "DESC" },
     });
+    await Promise.all(
+      implementations.map((implementation) =>
+        this.syncMissingDocuments(implementation),
+      ),
+    );
     return implementations.map((implementation) =>
       this.toImplementationView(implementation),
     );
@@ -239,10 +254,55 @@ export class StandardsService {
     if (!implementation) {
       throw new NotFoundException(standardHttpError("STANDARD_005"));
     }
+    await this.syncMissingDocuments(implementation);
     implementation.documents = [...(implementation.documents ?? [])].sort(
       (left, right) => left.sortOrder - right.sortOrder,
     );
     return implementation;
+  }
+
+  private async syncMissingDocuments(
+    implementation: StandardImplementation,
+  ): Promise<void> {
+    const standard = getStandard(implementation.standardKey);
+    if (!standard) return;
+
+    const documents = implementation.documents ?? [];
+    const present = new Set(documents.map((document) => document.documentKey));
+    const missing = standard.requiredDocuments
+      .map((document, index) => ({ document, index }))
+      .filter(({ document }) => !present.has(document.key));
+    if (missing.length === 0) return;
+
+    const now = Date.now();
+    const created = missing.map(({ document, index }) =>
+      this.implementationDocumentRepository.create({
+        implementation,
+        implementationId: implementation.id,
+        documentKey: document.key,
+        title: document.title,
+        clause: document.clause,
+        description: document.description,
+        kind: document.kind,
+        status: ImplementationDocumentStatus.NOT_STARTED,
+        sortOrder: index,
+        updatedAt: now,
+        linkedDocumentId: null,
+        linkedDocument: null,
+      }),
+    );
+    const saved = await this.implementationDocumentRepository.save(created);
+    documents.push(...(Array.isArray(saved) ? saved : [saved]));
+    implementation.documents = documents;
+
+    const status = computeImplementationStatus(documents);
+    if (status === implementation.status) return;
+    implementation.status = status;
+    implementation.updatedAt = now;
+    await this.implementationRepository.update(implementation.id, {
+      status,
+      updatedAt: now,
+    });
   }
 
   private toImplementationView(
