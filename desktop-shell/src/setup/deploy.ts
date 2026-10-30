@@ -47,6 +47,10 @@ const deleteButton = document.querySelector("#delete-droplet") as HTMLButtonElem
 const deployStatus = document.querySelector("#deploy-status") as HTMLParagraphElement;
 const deployError = document.querySelector("#deploy-error") as HTMLParagraphElement;
 const releaseNote = document.querySelector("#release-note") as HTMLParagraphElement;
+const runningActions = document.querySelector("#running-actions") as HTMLDivElement;
+const pageForm = document.querySelector("#page-form") as HTMLFormElement;
+const pageUrl = document.querySelector("#page-url") as HTMLInputElement;
+const pageError = document.querySelector("#page-error") as HTMLParagraphElement;
 
 let deployment: Deployment | null = null;
 let tokenEditorOpen = false;
@@ -59,6 +63,7 @@ let availableRelease: ReleaseVersions | null = null;
 let releaseError = "";
 let releaseLoaded = false;
 let sawRunning = false;
+let shownAppUrl = "";
 
 function plainMessage(message: string): string {
   const text = message.replace(/^Error:\s*/i, "");
@@ -140,6 +145,15 @@ function renderDeployment(next: Deployment): void {
   regionStep.hidden = hasDroplet || !hasToken || !hasResend || !hasSendingAddress || !hasSignInEmail;
   dropletActions.hidden = !hasDroplet;
   finished.hidden = !ready;
+  runningActions.hidden = !ready;
+  if (
+    next.appUrl &&
+    document.activeElement !== pageUrl &&
+    (pageUrl.value === "" || pageUrl.value === shownAppUrl)
+  ) {
+    pageUrl.value = next.appUrl;
+    shownAppUrl = next.appUrl;
+  }
   if (ready) {
     const password = next.adminPassword ? ` The password to sign in is ${next.adminPassword}.` : "";
     const address = signInEmail ? ` Sign in with ${signInEmail}.` : "";
@@ -177,7 +191,7 @@ function renderDeployment(next: Deployment): void {
       }
     }
   }
-  appName.textContent = "Set up your app";
+  appName.textContent = "Buho";
   summary.textContent =
     "This window puts your app on the internet. Each section explains what we need. What you save stays on this computer, and you can change or remove it later.";
 }
@@ -328,7 +342,38 @@ async function forget(kind: string): Promise<void> {
   renderDeployment(await invoke<Deployment>("forget_resource", { kind }));
 }
 
+function setPageError(message: string): void {
+  pageError.textContent = message;
+  pageUrl.setAttribute("aria-invalid", message ? "true" : "false");
+}
+
+async function openPage(raw: string): Promise<void> {
+  const address = raw.trim();
+  if (!address) {
+    setPageError("Type a full address, such as https://example.com.");
+    return;
+  }
+  setPageError("");
+  try {
+    await invoke("open_in_app", { url: address });
+    pageUrl.value = address;
+  } catch (error) {
+    logError("open page", error);
+    setPageError(plainMessage(String(error)));
+  }
+}
+
 export function mountDeploy(): void {
+  pageForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    void openPage(pageUrl.value);
+  });
+  document.querySelector("#open-running-app")?.addEventListener("click", () => {
+    void openPage(deployment?.appUrl ?? pageUrl.value);
+  });
+  document.querySelector("#open-running-app-finished")?.addEventListener("click", () => {
+    void openPage(deployment?.appUrl ?? pageUrl.value);
+  });
   document.querySelector("#create-token")?.addEventListener("click", () => {
     void invoke("open_external", { url: TOKEN_URL });
   });

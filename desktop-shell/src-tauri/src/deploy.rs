@@ -172,7 +172,9 @@ pub fn save_input(data_dir: &Path, input: DeploymentInput) -> Result<DeploymentC
     if let Some(email) = nonempty(&input.admin_email) {
         let email = email.trim().to_lowercase();
         if !acceptable_email(&email) {
-            return Err("Type an email address you can open, such as the one you use for work.".into());
+            return Err(
+                "Type an email address you can open, such as the one you use for work.".into(),
+            );
         }
         config.admin_email = email;
     }
@@ -208,7 +210,10 @@ pub fn forget_resource(data_dir: &Path, kind: &str) -> Result<DeploymentConfig, 
     match kind {
         "token" => {
             if config.droplet_id != 0 {
-                return Err("Remove the computer first. After that, you can remove the DigitalOcean key.".into());
+                return Err(
+                    "Remove the computer first. After that, you can remove the DigitalOcean key."
+                        .into(),
+                );
             }
             config.digital_ocean_token.clear();
         }
@@ -246,7 +251,9 @@ pub fn list_regions(token: &str) -> Result<Vec<RegionChoice>, String> {
     let regions = body
         .get("regions")
         .and_then(Value::as_array)
-        .ok_or_else(|| "DigitalOcean did not offer any places. Try again in a moment.".to_string())?;
+        .ok_or_else(|| {
+            "DigitalOcean did not offer any places. Try again in a moment.".to_string()
+        })?;
     let mut listed = Vec::new();
     for region in regions {
         if !region_is_offered(region) {
@@ -255,10 +262,7 @@ pub fn list_regions(token: &str) -> Result<Vec<RegionChoice>, String> {
         let Some(slug) = region.get("slug").and_then(Value::as_str) else {
             continue;
         };
-        let name = region
-            .get("name")
-            .and_then(Value::as_str)
-            .unwrap_or(slug);
+        let name = region.get("name").and_then(Value::as_str).unwrap_or(slug);
         listed.push(RegionChoice {
             slug: slug.to_string(),
             name: name.to_string(),
@@ -304,7 +308,10 @@ pub fn available_versions() -> Result<ReleaseVersions, String> {
     })
 }
 
-pub fn provision(data_dir: &Path, report: &mut dyn FnMut(String)) -> Result<DeploymentConfig, String> {
+pub fn provision(
+    data_dir: &Path,
+    report: &mut dyn FnMut(String),
+) -> Result<DeploymentConfig, String> {
     let mut config = ensure_config(data_dir)?;
     require_field(&config.digital_ocean_token, "The DigitalOcean key")?;
     require_field(&config.resend_api_key, "The email key")?;
@@ -383,7 +390,9 @@ pub fn provision(data_dir: &Path, report: &mut dyn FnMut(String)) -> Result<Depl
         config.droplet_id = created
             .pointer("/droplet/id")
             .and_then(Value::as_u64)
-            .ok_or_else(|| "DigitalOcean did not finish creating the computer. Try again.".to_string())?;
+            .ok_or_else(|| {
+                "DigitalOcean did not finish creating the computer. Try again.".to_string()
+            })?;
         write_config(&config_path(data_dir), &config)?;
         report(working_message());
         config.public_ip = wait_for_ip(&config)?;
@@ -419,7 +428,10 @@ pub fn provision(data_dir: &Path, report: &mut dyn FnMut(String)) -> Result<Depl
         &key_path,
         &known_hosts,
         &config.public_ip,
-        &format!("PUBLIC_IP={} bash /opt/fourss/desktop-shell/deploy/deploy.sh", shell_quote(&config.public_ip)),
+        &format!(
+            "PUBLIC_IP={} bash /opt/fourss/desktop-shell/deploy/deploy.sh",
+            shell_quote(&config.public_ip)
+        ),
     )?;
     report("Your app is ready.".into());
     Ok(config)
@@ -442,7 +454,10 @@ fn wait_for_ip(config: &DeploymentConfig) -> Result<String, String> {
             return Ok(ip);
         }
         if Instant::now() > deadline {
-            return Err("The computer is taking too long to come online. Wait a moment, then try again.".into());
+            return Err(
+                "The computer is taking too long to come online. Wait a moment, then try again."
+                    .into(),
+            );
         }
         std::thread::sleep(Duration::from_secs(5));
     }
@@ -645,16 +660,18 @@ fn upload_runtime(
     api_version: &str,
     ui_version: &str,
 ) -> Result<(), String> {
-    ssh_run(key, known_hosts, ip, "mkdir -p /opt/fourss/desktop-shell/deploy")?;
+    ssh_run(
+        key,
+        known_hosts,
+        ip,
+        "mkdir -p /opt/fourss/desktop-shell/deploy",
+    )?;
     let compose_path = data_dir.join("docker-compose.yml");
     let script_path = data_dir.join("deploy.sh");
     let compose = pinned_compose(api_version, ui_version);
     fs::write(&compose_path, compose).map_err(|err| err.to_string())?;
     fs::write(&script_path, DEPLOY_SCRIPT).map_err(|err| err.to_string())?;
-    let destination = format!(
-        "{}:/opt/fourss/desktop-shell/deploy/",
-        ssh_destination(ip)?
-    );
+    let destination = format!("{}:/opt/fourss/desktop-shell/deploy/", ssh_destination(ip)?);
     let status = scp_command(key, known_hosts)
         .arg(&compose_path)
         .arg(&script_path)
@@ -773,12 +790,7 @@ fn ssh_base_args(key: &Path, known_hosts: &Path) -> Vec<String> {
     ]
 }
 
-fn do_request(
-    token: &str,
-    method: &str,
-    path: &str,
-    body: Option<Value>,
-) -> Result<Value, String> {
+fn do_request(token: &str, method: &str, path: &str, body: Option<Value>) -> Result<Value, String> {
     let url = format!("{API}{path}");
     let request = match method {
         "GET" => ureq::get(&url),
@@ -859,11 +871,18 @@ fn shell_quote(value: &str) -> String {
 
 fn nonempty(value: &str) -> Option<&str> {
     let trimmed = value.trim();
-    if trimmed.is_empty() { None } else { Some(trimmed) }
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
 }
 
 fn reject_secret_text(label: &str, value: &str) -> Result<(), String> {
-    if value.chars().any(|character| character.is_control() || character.is_whitespace()) {
+    if value
+        .chars()
+        .any(|character| character.is_control() || character.is_whitespace())
+    {
         Err(format!("{label} cannot contain spaces or line breaks."))
     } else if value.len() > 500 {
         Err(format!("{label} is too long."))
@@ -899,9 +918,14 @@ pub fn plain_failure(message: &str) -> String {
         return "DigitalOcean did not accept this key. Create a new key and choose Full Access, as in the picture.".into();
     }
     if lower.contains("payment") || lower.contains("billing") {
-        return format!("DigitalOcean needs a payment card on the account before it can create the computer. Add a card at {BILLING_URL}, then try again.");
+        return format!(
+            "DigitalOcean needs a payment card on the account before it can create the computer. Add a card at {BILLING_URL}, then try again."
+        );
     }
-    if lower.contains("remote command failed") || lower.contains("failed to solve") || message.len() > 240 {
+    if lower.contains("remote command failed")
+        || lower.contains("failed to solve")
+        || message.len() > 240
+    {
         return "We could not finish making your app. Wait a moment, then try again.".into();
     }
     message.to_string()
@@ -947,9 +971,13 @@ fn valid_sign_in_email(value: &str) -> bool {
         && !host.is_empty()
         && ending.len() >= 2
         && value.len() <= 200
-        && !value.chars().any(|character| character.is_whitespace() || character.is_control())
+        && !value
+            .chars()
+            .any(|character| character.is_whitespace() || character.is_control())
         && name.chars().all(|character| character.is_ascii())
-        && domain.chars().all(|character| character.is_ascii() && character != '@')
+        && domain
+            .chars()
+            .all(|character| character.is_ascii() && character != '@')
 }
 
 fn valid_region(value: &str) -> bool {
@@ -1092,7 +1120,10 @@ mod tests {
         )
         .unwrap();
         assert_eq!(saved.admin_email, "owner@example.com");
-        assert_eq!(view(saved.clone(), "", false).admin_email, "owner@example.com");
+        assert_eq!(
+            view(saved.clone(), "", false).admin_email,
+            "owner@example.com"
+        );
         let kept = save_input(
             &dir,
             DeploymentInput {
@@ -1139,7 +1170,10 @@ mod tests {
         .unwrap();
         assert_eq!(saved.from_email, "notes@example.com");
         assert_eq!(view(saved, "", false).from_email, "notes@example.com");
-        assert_eq!(view(DeploymentConfig::default(), "", false).from_email, DEFAULT_FROM_EMAIL);
+        assert_eq!(
+            view(DeploymentConfig::default(), "", false).from_email,
+            DEFAULT_FROM_EMAIL
+        );
         let replaced = save_input(
             &dir,
             DeploymentInput {
@@ -1161,13 +1195,20 @@ mod tests {
         let first = encryption_key_for_app("", true);
         let second = encryption_key_for_app("", true);
         assert_ne!(first, second);
-        assert_eq!(encryption_key_for_app("kept-key-for-this-app", false), "kept-key-for-this-app");
-        assert_ne!(encryption_key_for_app("kept-key-for-this-app", true), "kept-key-for-this-app");
+        assert_eq!(
+            encryption_key_for_app("kept-key-for-this-app", false),
+            "kept-key-for-this-app"
+        );
+        assert_ne!(
+            encryption_key_for_app("kept-key-for-this-app", true),
+            "kept-key-for-this-app"
+        );
     }
 
     #[test]
     fn an_unavailable_place_is_explained_in_plain_language() {
-        let message = plain_failure("DigitalOcean returned 422: Size is not available in this region.");
+        let message =
+            plain_failure("DigitalOcean returned 422: Size is not available in this region.");
         assert!(message.contains("Choose another place"));
         assert!(!message.contains("422"));
         assert!(!region_is_offered(&json!({

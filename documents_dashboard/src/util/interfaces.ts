@@ -49,11 +49,6 @@ export interface User {
     isActive: boolean
     isTopManagement: boolean
     order?: number
-    interestedPartyId?: string | null
-    interestedParty?: {
-        id: string
-        name: string
-    } | null
     createdBy: {
         id: number
         fname: string
@@ -278,6 +273,8 @@ export interface Document {
     acknowledgers?: User[]
 
     contributors: ContentContributor[]
+
+    contentContributors?: Array<Pick<User, 'id' | 'fname' | 'lname' | 'email'>>
 
     approvalStrategy: ApprovalStrategy
 
@@ -537,8 +534,6 @@ export interface RiskAssessment {
     riskType?: RiskType | null
     issueId?: string | null
     issue?: { id: string; name: string } | null
-    interestedPartyId?: string | null
-    interestedParty?: { id: string; name: string } | null
     siteId?: string | null
     site?: {
         id: string
@@ -880,8 +875,6 @@ export interface RiskAssessment {
     riskType?: RiskType | null
     issueId?: string | null
     issue?: { id: string; name: string } | null
-    interestedPartyId?: string | null
-    interestedParty?: { id: string; name: string } | null
     siteId?: string | null
     site?: {
         id: string

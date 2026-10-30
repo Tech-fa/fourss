@@ -37,7 +37,8 @@ import {
   ResetPasswordRequestDto,
   UnauthorizedResponseDto,
 } from "./auth.dto";
-
+import { hasPermission } from "./permission.decorator";
+import { userPermission } from "../permissions/permissions";
 @ApiTags("Authentication")
 @ApiBearerAuth()
 @Controller("auth")
@@ -58,16 +59,15 @@ export class AuthController {
       "Sign in with email and password. Application UI only; omitted from the public API.",
   })
   @ApiBody({ type: LoginRequestDto })
-  @ApiOkResponse({ description: "Signed-in session.", type: AuthSessionResponseDto })
+  @ApiOkResponse({
+    description: "Signed-in session.",
+    type: AuthSessionResponseDto,
+  })
   @ApiUnauthorizedResponse({
     description: "Email or password is wrong.",
     type: UnauthorizedResponseDto,
   })
-  async login(
-    @Request() req,
-    @Response() res,
-    @Body() body: LoginRequestDto,
-  ) {
+  async login(@Request() req, @Response() res, @Body() body: LoginRequestDto) {
     return formatResponse(
       this.logger,
       this.authService.login(req.user, body.locale),
@@ -103,7 +103,8 @@ export class AuthController {
   })
   @ApiBody({ type: RegisterDTO })
   @ApiBadRequestResponse({
-    description: "Registration is not accepted. Body is CatalogErrorResponseDto (AUTH_002).",
+    description:
+      "Registration is not accepted. Body is CatalogErrorResponseDto (AUTH_002).",
     type: CatalogErrorResponseDto,
   })
   async registerV2(@Body() user: RegisterDTO, @Response() res) {
@@ -115,57 +116,11 @@ export class AuthController {
     );
   }
 
-  @Public()
-  @Post("register/verify")
-  @ApiExcludeEndpoint()
-  @ApiOperation({
-    summary: "Confirm a registration code. Application UI only.",
-  })
-  @ApiBody({ type: VerifyRegistrationDTO })
-  @ApiOkResponse({ schema: authTextResponseSchema })
-  @ApiBadRequestResponse({
-    description: "Unknown account, already verified, or bad code (AUTH_003 or AUTH_002 or AUTH_004).",
-    type: CatalogErrorResponseDto,
-  })
-  async verifyRegistration(
-    @Body() payload: VerifyRegistrationDTO,
-    @Response() res,
-  ) {
-    return formatResponse(
-      this.logger,
-      this.authService.verifyRegistration(payload),
-      res,
-      `verifying registration for ${payload.email}`,
-    );
-  }
-
-  @Public()
-  @Get("register/code")
-  @ApiExcludeEndpoint()
-  @ApiOperation({
-    summary: "Email a new registration code. Application UI only.",
-  })
-  @ApiOkResponse({ schema: authTextResponseSchema })
-  @ApiBadRequestResponse({
-    description: "Missing email, unknown account, or already verified (AUTH_002 or AUTH_004).",
-    type: CatalogErrorResponseDto,
-  })
-  async resendRegistrationCode(
-    @Query() params: EmailQueryDto,
-    @Response() res,
-  ) {
-    return formatResponse(
-      this.logger,
-      this.authService.resendRegistrationCode(params.email),
-      res,
-      `resending registration code for ${params.email}`,
-    );
-  }
-
   @Get("code")
   @ApiOperation({ summary: "Email a password reset code." })
   @ApiOkResponse({
-    description: "`done`, or `needs registration` when the account was invited.",
+    description:
+      "`done`, or `needs registration` when the account was invited.",
     schema: authTextResponseSchema,
   })
   @ApiBadRequestResponse({
@@ -197,14 +152,11 @@ export class AuthController {
     description: "Missing or invalid bearer token.",
     type: UnauthorizedResponseDto,
   })
-  async createActivation(
-    @Request() req,
-    @Response() res,
-    @Query() params: EmailQueryDto,
-  ) {
+  @hasPermission({ subject: userPermission.subject, actions: ["create"] })
+  async createActivation(@Response() res, @Query() params: EmailQueryDto) {
     return formatResponse(
       this.logger,
-      this.authService.createCodeForActivation(params.email, req.user),
+      this.authService.createCodeForActivation(params.email),
       res,
       `creating activation request for user ${params.email}`,
     );

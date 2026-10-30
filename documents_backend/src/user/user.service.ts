@@ -8,6 +8,7 @@ import { userHttpError } from "./user.errors";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { User } from "./user.entity";
+import { randomInt } from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import * as bcrypt from "bcrypt";
 import { UserDTO, UserRoleAssignmentDto, UpdateUserDTO } from "./user.dto";
@@ -108,7 +109,6 @@ export class UsersService {
         "user.phone",
         "user.isActive",
         "user.isTopManagement",
-        "user.interestedPartyId",
         "user.createdAt",
         "user.deleted",
         "user.failedLogins",
@@ -159,7 +159,7 @@ export class UsersService {
       }
     }
     if (!user.verifiedAt) {
-      throw new BadRequestException(userHttpError("USER_008"));
+      user.verifiedAt = new Date().valueOf();
     }
 
     if (user.failedLogins >= 3) {
@@ -523,6 +523,12 @@ export class UsersService {
     );
   }
 
+  public async setPassword(user: User): Promise<void> {
+    user.password = this.createRandomPassword();
+    user.password = await hashPassword(user.password);
+    await this.userRepository.save(user);
+  }
+
   public async createUser(dto: UserDTO, user: any): Promise<{ id: string }> {
     const roles = dto.roles?.length
       ? dto.roles
@@ -538,6 +544,13 @@ export class UsersService {
     }
 
     const newUser = await this.createUserObject(dto, user);
+    let password: string | undefined;
+    if (newUser.createdBy) {
+      password = this.createRandomPassword();
+      newUser.password = await hashPassword(password);
+      newUser.isActive = true;
+      newUser.verifiedAt = undefined;
+    }
     const result = await this.userRepository.save(newUser);
 
     if (dto.roles?.length) {
@@ -547,29 +560,42 @@ export class UsersService {
     }
 
     const userDB = await this.findBy({ id: result.id });
-    if (newUser.createdBy) {
-      const code = `${Math.floor(Math.random() * 90000000) + 10000000}`;
-      await this.otpRepository.save({
-        email: newUser.email,
-        code,
-        created: new Date().valueOf() + 1000 * 60 * 60 * 24,
-      });
-      const link = `${
-        process.env.FRONTEND_URL
-      }/activate?email=${encodeURIComponent(
-        newUser.email,
-      )}&code=${encodeURIComponent(code)}`;
+    if (newUser.createdBy && password) {
+      const link = `${process.env.FRONTEND_URL}/login`;
       this.queuePublisher.sendEmail({
         to: newUser.email,
         type: EmailType.ACTIVATION,
         replaceString: {
           name: newUser.fname,
           added_by: newUser.createdBy.fname,
+          password,
           link,
         },
       });
     }
     return { id: userDB.id };
+  }
+
+  private createRandomPassword(length = 16): string {
+    const lowers = "abcdefghijkmnopqrstuvwxyz";
+    const uppers = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    const digits = "23456789";
+    const specials = "@$!%*?&-_";
+    const all = lowers + uppers + digits + specials;
+    const chars = [
+      lowers[randomInt(lowers.length)],
+      uppers[randomInt(uppers.length)],
+      digits[randomInt(digits.length)],
+      specials[randomInt(specials.length)],
+    ];
+    while (chars.length < length) {
+      chars.push(all[randomInt(all.length)]);
+    }
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = randomInt(i + 1);
+      [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+    return chars.join("");
   }
 
   public async unlockUser(userId: string): Promise<{ id: string }> {

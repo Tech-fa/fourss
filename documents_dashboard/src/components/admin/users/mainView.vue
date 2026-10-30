@@ -32,7 +32,7 @@
                 </template>
                 <template #extra-field="{ entity }">
                  
-                    <Can :subject="'users'" :actions="['update']" v-if="!entity.verifiedAt && !entity.isActive">
+                    <Can :subject="'users'" :actions="['update']" v-if="!entity.verifiedAt">
                         <span class="text-gray-800 hover:text-gray-400 cursor-pointer ml-4"
                             :test-id="`user-resend-invitation-${entity.id}`" @click="resendInvitation(entity)">
                             <i class="fa-solid fa-envelope"></i>

@@ -57,7 +57,7 @@
                     <div class="space-y-2" v-if="!isNewVersion">
                         <AppTextareaForm name="description" :label="t('document.form.description')"
                             :value="formData.description" :placeholder="t('document.form.description_placeholder')"
-                            :disabled="isNewVersion" testID="document-description-input" />
+                            :disabled="isNewVersion" testID="document-description-input" :required="true" :rules="(v)=>!v ? t('document.form.description_required') : true" />
                     </div>
 
                     <div class="grid grid-cols-2 gap-4" v-if="!isNewVersion">
@@ -123,21 +123,7 @@
                                 {{ t('document.form.org_unit_required') }}
                             </div>
                         </div>
-                        <div v-if="selectedOrgUnitId">
-                            <label class="block text-sm mb-1">
-                                {{ t('document.form.linked_processes_label') }}
-                            </label>
-                            <MultiSelect
-                                v-model="selectedProcesses"
-                                :results="availableProcesses"
-                                :display="displayProcess"
-                                :placeholder="t('document.form.processes_placeholder')"
-                                test-id="document-process-select"
-                            />
-                            <p class="text-xs text-neutral-500 mt-1">
-                                {{ t('document.form.linked_processes_hint') }}
-                            </p>
-                        </div>
+                 
                     </div>
 
                     <div class="flex items-start gap-2">
@@ -307,7 +293,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter, useRoute } from 'vue-router'
 import { Form } from 'vee-validate'
@@ -1804,7 +1790,26 @@ const handleFilterChange = (value: any, type: 'category' | 'organizationUnit') =
     }
 }
 
+async function insertAgentDocumentContent(markdown: string) {
+    const deadline = Date.now() + 8000
+    while (Date.now() < deadline) {
+        const editor = superdocRef.value
+        if (editor) {
+            const inserted = editor.replaceContent
+                ? await editor.replaceContent(markdown, 'markdown')
+                : await editor.insertContent(markdown, 'markdown')
+            if (inserted) {
+                hasSuperdocEdits.value = true
+                return true
+            }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 200))
+    }
+    throw new Error('The document editor is not ready.')
+}
+
 onMounted(() => {
+    window.__agentInsertDocumentContent = insertAgentDocumentContent
     const routeId = route.params.id as string
     const isNewVersionPath = route.path.includes('new-version') || route.path.includes('edit-version')
 
@@ -1842,5 +1847,11 @@ onMounted(() => {
     }
 
     fetchOptions()
+})
+
+onUnmounted(() => {
+    if (window.__agentInsertDocumentContent === insertAgentDocumentContent) {
+        delete window.__agentInsertDocumentContent
+    }
 })
 </script>

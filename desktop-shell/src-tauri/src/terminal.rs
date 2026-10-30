@@ -7,7 +7,13 @@ use base64::Engine;
 use portable_pty::{Child, CommandBuilder, MasterPty, NativePtySystem, PtySize, PtySystem};
 use serde::Serialize;
 use serde_json::{Map, Value};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
+
+use crate::agent_context::{AgentContext, AgentPlace};
+
+/// Webview label for the terminal docked in the preview. It is not a window label:
+/// a window with this label would grant shell commands to every webview in it.
+pub const TERMINAL_WEBVIEW: &str = "terminal";
 
 struct PtySession {
     master: Box<dyn MasterPty + Send>,
@@ -19,6 +25,7 @@ struct PtySession {
 pub struct TerminalHost {
     session: Mutex<Option<PtySession>>,
     generation: Arc<AtomicU64>,
+    context: AgentContext,
 }
 
 #[derive(Serialize)]
@@ -30,10 +37,17 @@ pub struct TerminalInfo {
 }
 
 impl TerminalHost {
-    pub fn new() -> Self {
+    pub fn new(data_dir: std::path::PathBuf) -> Self {
+        let context = AgentContext::open(data_dir);
+        if let Some(home) = home_dir() {
+            if let Err(err) = context.repair(&home) {
+                crate::journal::write("terminal", &err);
+            }
+        }
         Self {
             session: Mutex::new(None),
             generation: Arc::new(AtomicU64::new(0)),
+            context,
         }
     }
 
@@ -85,10 +99,22 @@ impl TerminalHost {
             .take_writer()
             .map_err(|err| format!("Could not write to the terminal: {err}"))?;
 
+        if let Some(home) = home_dir() {
+            if let Err(err) = self
+                .context
+                .publish(&home, generation, &place_from_env(&extra_env))
+            {
+                crate::journal::write("terminal", &err);
+            }
+        }
+
         let thread_app = app.clone();
         let current = Arc::clone(&self.generation);
-        let reader_thread =
-            std::thread::spawn(move || read_terminal(reader, thread_app, generation, current));
+        let context = self.context.clone();
+        let reader_thread = std::thread::spawn(move || {
+            read_terminal(reader, thread_app, generation, current);
+            context.clear_generation(generation);
+        });
         *slot = Some(PtySession {
             master: pair.master,
             writer,
@@ -113,6 +139,12 @@ impl TerminalHost {
             .map_err(|err| format!("Could not write to the terminal: {err}"))
     }
 
+    pub fn note_app_url(&self, url: &str) {
+        if let Err(err) = self.context.note_app_url(url) {
+            crate::journal::write("terminal", &err);
+        }
+    }
+
     pub fn resize(&self, rows: u16, cols: u16) -> Result<(), String> {
         let slot = self
             .session
@@ -133,6 +165,17 @@ impl TerminalHost {
     }
 }
 
+impl Drop for TerminalHost {
+    fn drop(&mut self) {
+        let mut slot = self
+            .session
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        *slot = None;
+        self.context.clear_all();
+    }
+}
+
 impl Drop for PtySession {
     fn drop(&mut self) {
         let _ = self.child.kill();
@@ -146,6 +189,22 @@ pub fn agent_env(values: &Map<String, Value>) -> Vec<(String, String)> {
         env.push(("API_URL".into(), url));
     }
     env
+}
+
+fn place_from_env(extra_env: &[(String, String)]) -> AgentPlace {
+    AgentPlace {
+        app_url: env_value(extra_env, "APP_URL"),
+        mcp_url: env_value(extra_env, "APP_MCP_URL"),
+        api_url: env_value(extra_env, "API_URL"),
+    }
+}
+
+fn env_value(extra_env: &[(String, String)], key: &str) -> String {
+    extra_env
+        .iter()
+        .find(|(name, _)| name == key)
+        .map(|(_, value)| value.clone())
+        .unwrap_or_default()
 }
 
 fn info_from_env(extra_env: &[(String, String)]) -> TerminalInfo {
@@ -200,32 +259,17 @@ fn read_terminal(
                     break;
                 }
                 let payload = base64::engine::general_purpose::STANDARD.encode(&buffer[..size]);
-                let _ = app.emit_to("terminal", "terminal-output", payload);
+                let _ = app.emit_to(TERMINAL_WEBVIEW, "terminal-output", payload);
             }
         }
     }
     if current.load(Ordering::Relaxed) == generation {
         let _ = app.emit_to(
-            "terminal",
+            TERMINAL_WEBVIEW,
             "terminal-exit",
-            "The shell exited. Close this window and open Agent CLI again.",
+            "The shell exited. Pull the terminal down, then pull it up to start again.",
         );
     }
-}
-
-pub fn open_terminal_window(app: &AppHandle, setup_url: &str) -> Result<(), String> {
-    if let Some(window) = app.get_webview_window("terminal") {
-        window.set_focus().map_err(|err| err.to_string())?;
-        return Ok(());
-    }
-    let url = terminal_page(setup_url)?;
-    tauri::WebviewWindowBuilder::new(app, "terminal", tauri::WebviewUrl::External(url))
-        .title("Agent CLI")
-        .inner_size(860.0, 520.0)
-        .min_inner_size(480.0, 280.0)
-        .build()
-        .map_err(|err| format!("Could not open the agent CLI: {err}"))?;
-    Ok(())
 }
 
 pub fn terminal_page(setup_url: &str) -> Result<url::Url, String> {

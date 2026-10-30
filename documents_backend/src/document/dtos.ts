@@ -12,6 +12,7 @@ import {
   IsArray,
   IsObject,
   IsUUID,
+  ArrayNotEmpty,
   MaxLength,
   IsIn,
   ArrayMaxSize,
@@ -275,6 +276,13 @@ export class UploadVersionChecklistDto {
   documentDraftId?: string;
 }
 
+export class AddDocumentContentContributorsDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsUUID("4", { each: true })
+  userIds: string[];
+}
+
 export class ViewDocumentDto extends DocumentDto {
   @IsArray()
   @IsOptional()
@@ -307,6 +315,12 @@ export class ViewDocumentDto extends DocumentDto {
   @ValidateNested({ each: true })
   @Type(() => BaseUserDTO)
   acknowledgers: BaseUserDTO[];
+
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => BaseUserDTO)
+  contentContributors?: BaseUserDTO[];
 
   team: { id: number; name: string };
 

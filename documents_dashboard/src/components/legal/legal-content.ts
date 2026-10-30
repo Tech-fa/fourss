@@ -21,14 +21,14 @@ export const legalContent: LegalContent = {
             title: 'Terms and Conditions',
             effectiveDate: 'Effective date: August 11, 2026',
             introduction: [
-                'These Terms and Conditions (the “Terms”) govern your access to and use of the 4ES platform, related applications, and services (collectively, the “Service”) operated by Afawaz Technologies Inc. (“Afawaz”, “we”, “us”, or “our”).',
+                'These Terms and Conditions (the “Terms”) govern your access to and use of the 4SS platform, related applications, and services (collectively, the “Service”) operated by Afawaz Technologies Inc. (“Afawaz”, “we”, “us”, or “our”).',
                 'By creating an account, accessing, or using the Service, you confirm that you are at least 18 years old and agree to these Terms. If you use the Service for an organization, you confirm that you are authorized to bind that organization to these Terms.'
             ],
             sections: [
                 {
                     title: '1. The Service and trial access',
                     paragraphs: [
-                        '4ES is a business platform that helps organizations manage workplace, operational, compliance, training, and related records. We may modify, improve, suspend, or discontinue any part of the Service when reasonably necessary.',
+                        '4SS is a business platform that helps organizations manage workplace, operational, compliance, training, and related records. We may modify, improve, suspend, or discontinue any part of the Service when reasonably necessary.',
                         'Eligible organizations may receive a three-month trial. A trial does not automatically convert to a paid subscription, and we do not collect payment information through the Service at this time. Continuing access after a trial requires a separate subscription arrangement with Afawaz.'
                     ]
                 },
@@ -95,7 +95,7 @@ export const legalContent: LegalContent = {
                     title: '10. Governing law and contact',
                     paragraphs: [
                         'These Terms are governed by the federal laws of Canada applicable in Ontario. Subject to any non-waivable rights that apply to you, the courts located in Ottawa, Ontario have exclusive jurisdiction over disputes arising from these Terms or the Service.',
-                        'Questions about these Terms can be sent to Afawaz Technologies Inc., 2415 Holly Lane, Unit 205, Ottawa, Ontario, K1V 7P2, Canada, at afawaz@4eshub.com.'
+                        'Questions about these Terms can be sent to Afawaz Technologies Inc., 2415 Holly Lane, Unit 205, Ottawa, Ontario, K1V 7P2, Canada, at afawaz@4sshub.com.'
                     ]
                 }
             ]
@@ -104,8 +104,8 @@ export const legalContent: LegalContent = {
             title: 'Privacy Policy',
             effectiveDate: 'Effective date: August 11, 2026',
             introduction: [
-                'This Privacy Policy explains how Afawaz Technologies Inc. (“Afawaz”, “we”, “us”, or “our”) collects, uses, discloses, retains, and protects personal information when you use the 4ES platform and related services (the “Service”).',
-                'Afawaz Technologies Inc. is located at 2415 Holly Lane, Unit 205, Ottawa, Ontario, K1V 7P2, Canada. For privacy questions or requests, contact afawaz@4eshub.com.'
+                'This Privacy Policy explains how Afawaz Technologies Inc. (“Afawaz”, “we”, “us”, or “our”) collects, uses, discloses, retains, and protects personal information when you use the 4SS platform and related services (the “Service”).',
+                'Afawaz Technologies Inc. is located at 2415 Holly Lane, Unit 205, Ottawa, Ontario, K1V 7P2, Canada. For privacy questions or requests, contact afawaz@4sshub.com.'
             ],
             sections: [
                 {
@@ -172,7 +172,7 @@ export const legalContent: LegalContent = {
                 {
                     title: '9. Your privacy choices and rights',
                     paragraphs: [
-                        'Subject to applicable law, you may request access to, correction of, or deletion of personal information that Afawaz controls, or ask questions about our handling of it. Send requests to afawaz@4eshub.com. We may need to verify your identity and may decline or limit a request where permitted or required by law.',
+                        'Subject to applicable law, you may request access to, correction of, or deletion of personal information that Afawaz controls, or ask questions about our handling of it. Send requests to afawaz@4sshub.com. We may need to verify your identity and may decline or limit a request where permitted or required by law.',
                         'If you are in Canada and are not satisfied with our response, you may have the right to complain to the Office of the Privacy Commissioner of Canada or the relevant provincial privacy regulator. We will not discriminate against you for exercising your privacy rights.'
                     ]
                 },
@@ -191,14 +191,14 @@ export const legalContent: LegalContent = {
             title: 'Conditions générales',
             effectiveDate: 'Date d’entrée en vigueur : 11 août 2026',
             introduction: [
-                'Les présentes Conditions générales (« Conditions ») régissent votre accès à la plateforme 4ES, aux applications connexes et aux services associés (collectivement, le « Service ») exploités par Afawaz Technologies Inc. (« Afawaz », « nous », « notre » ou « nos »).',
+                'Les présentes Conditions générales (« Conditions ») régissent votre accès à la plateforme 4SS, aux applications connexes et aux services associés (collectivement, le « Service ») exploités par Afawaz Technologies Inc. (« Afawaz », « nous », « notre » ou « nos »).',
                 'En créant un compte, en accédant au Service ou en l’utilisant, vous confirmez avoir au moins 18 ans et acceptez les présentes Conditions. Si vous utilisez le Service pour le compte d’une organisation, vous confirmez être autorisé à l’engager par les présentes Conditions.'
             ],
             sections: [
                 {
                     title: '1. Le Service et l’accès d’essai',
                     paragraphs: [
-                        '4ES est une plateforme d’entreprise qui aide les organisations à gérer des dossiers liés au milieu de travail, aux opérations, à la conformité, à la formation et à des domaines connexes. Nous pouvons modifier, améliorer, suspendre ou interrompre une partie du Service lorsque cela est raisonnablement nécessaire.',
+                        '4SS est une plateforme d’entreprise qui aide les organisations à gérer des dossiers liés au milieu de travail, aux opérations, à la conformité, à la formation et à des domaines connexes. Nous pouvons modifier, améliorer, suspendre ou interrompre une partie du Service lorsque cela est raisonnablement nécessaire.',
                         'Les organisations admissibles peuvent bénéficier d’un essai de trois mois. Un essai ne se transforme pas automatiquement en abonnement payant et nous ne recueillons actuellement aucune information de paiement par l’entremise du Service. La poursuite de l’accès après l’essai exige une entente d’abonnement distincte avec Afawaz.'
                     ]
                 },
@@ -265,7 +265,7 @@ export const legalContent: LegalContent = {
                     title: '10. Droit applicable et coordonnées',
                     paragraphs: [
                         'Les présentes Conditions sont régies par les lois fédérales du Canada applicables en Ontario. Sous réserve des droits impératifs qui peuvent vous être applicables, les tribunaux situés à Ottawa, en Ontario, ont compétence exclusive pour les différends découlant des présentes Conditions ou du Service.',
-                        'Pour toute question sur les présentes Conditions, communiquez avec Afawaz Technologies Inc., 2415 Holly Lane, unité 205, Ottawa (Ontario) K1V 7P2, Canada, à afawaz@4eshub.com.'
+                        'Pour toute question sur les présentes Conditions, communiquez avec Afawaz Technologies Inc., 2415 Holly Lane, unité 205, Ottawa (Ontario) K1V 7P2, Canada, à afawaz@4sshub.com.'
                     ]
                 }
             ]
@@ -274,8 +274,8 @@ export const legalContent: LegalContent = {
             title: 'Politique de confidentialité',
             effectiveDate: 'Date d’entrée en vigueur : 11 août 2026',
             introduction: [
-                'La présente Politique de confidentialité explique comment Afawaz Technologies Inc. (« Afawaz », « nous », « notre » ou « nos ») recueille, utilise, communique, conserve et protège les renseignements personnels lorsque vous utilisez la plateforme 4ES et les services connexes (le « Service »).',
-                'Afawaz Technologies Inc. est située au 2415 Holly Lane, unité 205, Ottawa (Ontario) K1V 7P2, Canada. Pour toute question ou demande relative à la vie privée, écrivez à afawaz@4eshub.com.'
+                'La présente Politique de confidentialité explique comment Afawaz Technologies Inc. (« Afawaz », « nous », « notre » ou « nos ») recueille, utilise, communique, conserve et protège les renseignements personnels lorsque vous utilisez la plateforme 4SS et les services connexes (le « Service »).',
+                'Afawaz Technologies Inc. est située au 2415 Holly Lane, unité 205, Ottawa (Ontario) K1V 7P2, Canada. Pour toute question ou demande relative à la vie privée, écrivez à afawaz@4sshub.com.'
             ],
             sections: [
                 {
@@ -342,7 +342,7 @@ export const legalContent: LegalContent = {
                 {
                     title: '9. Vos choix et droits en matière de vie privée',
                     paragraphs: [
-                        'Sous réserve de la loi applicable, vous pouvez demander l’accès aux renseignements personnels qu’Afawaz contrôle, leur correction ou leur suppression, ou poser des questions sur leur traitement. Envoyez vos demandes à afawaz@4eshub.com. Nous pourrions devoir vérifier votre identité et pouvons refuser ou limiter une demande lorsque la loi le permet ou l’exige.',
+                        'Sous réserve de la loi applicable, vous pouvez demander l’accès aux renseignements personnels qu’Afawaz contrôle, leur correction ou leur suppression, ou poser des questions sur leur traitement. Envoyez vos demandes à afawaz@4sshub.com. Nous pourrions devoir vérifier votre identité et pouvons refuser ou limiter une demande lorsque la loi le permet ou l’exige.',
                         'Si vous êtes au Canada et n’êtes pas satisfait de notre réponse, vous pouvez avoir le droit de vous plaindre auprès du Commissariat à la protection de la vie privée du Canada ou de l’autorité provinciale compétente. Nous ne ferons aucune discrimination à votre égard parce que vous exercez vos droits en matière de vie privée.'
                     ]
                 },

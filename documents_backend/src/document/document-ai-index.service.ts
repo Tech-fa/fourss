@@ -1,4 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { documentHttpError } from "./document.errors";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Repository } from "typeorm";
 import { LocalFileService } from "../common/local-file.service";
@@ -121,6 +122,42 @@ export class DocumentAiIndexService {
         error: message,
       });
     }
+  }
+
+  async requireStoredText(document: {
+    id: string;
+    isAiAccessible: boolean;
+    currentVersion: number;
+  }): Promise<{ versionId: number; text: string }> {
+    const stored = await this.readStoredText(document);
+    if (!stored) {
+      throw new NotFoundException(documentHttpError("DOC_124"));
+    }
+    return stored;
+  }
+
+  async readStoredText(document: {
+    id: string;
+    isAiAccessible: boolean;
+    currentVersion: number;
+  }): Promise<{ versionId: number; text: string } | null> {
+    if (!document.isAiAccessible) return null;
+    const version = await this.versionRepository.findOne({
+      where: {
+        documentId: document.id,
+        versionNumber: document.currentVersion,
+      },
+    });
+    if (!version) return null;
+    const source = await this.sourceRepository.findOne({
+      where: {
+        documentVersionId: version.id,
+        status: DocumentAiIndexStatus.READY,
+      },
+    });
+    const text = source?.fullText;
+    if (!text?.trim()) return null;
+    return { versionId: version.id, text };
   }
 
   async readCurrentVersionText(input: {

@@ -19,48 +19,61 @@
                     </label>
                     <div class="flex gap-2 justify-between" v-if="!code">
                         <input
+                            v-model="digits[0]"
                             type="text"
                             maxlength="1"
+                            inputmode="numeric"
+                            autocomplete="one-time-code"
                             ref="input1"
                             class="w-12 h-12 text-center border border-neutral-300 rounded-lg focus:ring-2 focus:ring-neutral-400 focus:border-transparent text-xl"
                             @input="moveToNext($event, 1)"
                             @keydown="handleBackspace($event, 0)"
                         />
                         <input
+                            v-model="digits[1]"
                             type="text"
                             maxlength="1"
+                            inputmode="numeric"
                             ref="input2"
                             class="w-12 h-12 text-center border border-neutral-300 rounded-lg focus:ring-2 focus:ring-neutral-400 focus:border-transparent text-xl"
                             @input="moveToNext($event, 2)"
                             @keydown="handleBackspace($event, 1)"
                         />
                         <input
+                            v-model="digits[2]"
                             type="text"
                             maxlength="1"
+                            inputmode="numeric"
                             ref="input3"
                             class="w-12 h-12 text-center border border-neutral-300 rounded-lg focus:ring-2 focus:ring-neutral-400 focus:border-transparent text-xl"
                             @input="moveToNext($event, 3)"
                             @keydown="handleBackspace($event, 2)"
                         />
                         <input
+                            v-model="digits[3]"
                             type="text"
                             maxlength="1"
+                            inputmode="numeric"
                             ref="input4"
                             class="w-12 h-12 text-center border border-neutral-300 rounded-lg focus:ring-2 focus:ring-neutral-400 focus:border-transparent text-xl"
                             @input="moveToNext($event, 4)"
                             @keydown="handleBackspace($event, 3)"
                         />
                         <input
+                            v-model="digits[4]"
                             type="text"
                             maxlength="1"
+                            inputmode="numeric"
                             ref="input5"
                             class="w-12 h-12 text-center border border-neutral-300 rounded-lg focus:ring-2 focus:ring-neutral-400 focus:border-transparent text-xl"
                             @input="moveToNext($event, 5)"
                             @keydown="handleBackspace($event, 4)"
                         />
                         <input
+                            v-model="digits[5]"
                             type="text"
                             maxlength="1"
+                            inputmode="numeric"
                             ref="input6"
                             class="w-12 h-12 text-center border border-neutral-300 rounded-lg focus:ring-2 focus:ring-neutral-400 focus:border-transparent text-xl"
                             @input="moveToNext($event, 6)"
@@ -213,6 +226,7 @@ const toast = useToast()
 
 const newPassword = ref('')
 const confirmPassword = ref('')
+const digits = ref(['', '', '', '', '', ''])
 const input1 = ref(null)
 const input2 = ref(null)
 const input3 = ref(null)
@@ -248,6 +262,14 @@ const handleBackspace = (event: any, index: number) => {
 const loading = ref(false)
 const loadingResend = ref(false)
 const email = ref(window.localStorage.getItem('reset_email'))
+
+function verificationCode() {
+    const fromLink = Array.isArray(code) ? code[0] : code
+    if (typeof fromLink === 'string' && fromLink.trim()) {
+        return fromLink.trim()
+    }
+    return digits.value.join('').trim()
+}
 onMounted(() => {
     if (!window.localStorage.getItem('reset_email')) {
         router.push('/login')
@@ -293,8 +315,14 @@ const handleSubmit = () => {
         return
     }
 
+    const resetCode = verificationCode()
+    if (!resetCode) {
+        toast.showToast(t('common.error'), t('resetPassword.errNoCode'), 'error')
+        return
+    }
+
     loading.value = true
-    apiPostPublic('/auth/password/reset', {
+    apiPostPublic(`/auth/password/reset?code=${encodeURIComponent(resetCode)}`, {
         password: newPassword.value,
         confirmPassword: confirmPassword.value,
         email: email.value

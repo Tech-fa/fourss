@@ -15,6 +15,7 @@ import { TeamModule } from "../teams/team.module";
 import { CommonModule } from "../common/common.module";
 import { DocumentApprover } from "./document-approver.entity";
 import { DocumentContributor } from "./document-contributor.entity";
+import { DocumentContentContributor } from "./document-content-contributor.entity";
 import { DocumentAction } from "./document-action.entity";
 import { ChangeRequest } from "./change-request.entity";
 import { ChangeRequestDocument } from "./change-request-document.entity";
@@ -29,6 +30,7 @@ import { DocumentChecklist } from "./document-checklist.entity";
 import { DocumentChecklistQuestion } from "./document-checklist-question.entity";
 import { DocumentAiSource } from "./document-ai-source.entity";
 import { DocumentAiIndexService } from "./document-ai-index.service";
+import { AgentRulesService } from "./agent-rules.service";
 
 @Module({
   imports: [
@@ -43,6 +45,7 @@ import { DocumentAiIndexService } from "./document-ai-index.service";
       DocumentAcknowledgementUser,
       DocumentApprover,
       DocumentContributor,
+      DocumentContentContributor,
       DocumentAction,
       ChangeRequest,
       ChangeRequestDocument,
@@ -60,7 +63,12 @@ import { DocumentAiIndexService } from "./document-ai-index.service";
     PermissionModule,
   ],
   controllers: [DocumentController],
-  providers: [DocumentService, DocumentCronService, DocumentAiIndexService],
+  providers: [
+    DocumentService,
+    DocumentCronService,
+    DocumentAiIndexService,
+    AgentRulesService,
+  ],
   exports: [DocumentService, DocumentAiIndexService],
 })
 export class DocumentModule {}

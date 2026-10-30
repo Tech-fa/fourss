@@ -1,8 +1,8 @@
-# App Shell
+# Buho
 
 A small desktop window that serves a built web app on this computer and writes the settings that app asks for.
 
-The window is the setup screen. The web app is a folder of static files. That folder includes `shell.manifest.json`, which names the settings. App Shell saves them on this computer and serves them at the path the app already fetches (`/config.json` for the dashboard). The same project runs on macOS and Windows. Build the installer on each system.
+The window is the setup screen. The web app is a folder of static files. That folder includes `shell.manifest.json`, which names the settings. Buho saves them on this computer and serves them at the path the app already fetches (`/config.json` for the dashboard). The same project runs on macOS and Windows. Build the installer on each system.
 
 ## Run
 

@@ -22,7 +22,7 @@
 
             <!-- Illustration/Icon -->
             <div class="mb-12 flex justify-center">
-                <img src="@/assets/img/logo-color.png" alt="404" class="w-64 h-64"></img>
+                <img src="@/assets/img/4ss-logo.svg?url" alt="4SS" class="w-64 h-64"></img>
             </div>
 
             <!-- Action Buttons -->

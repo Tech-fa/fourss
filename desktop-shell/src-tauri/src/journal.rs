@@ -106,7 +106,9 @@ fn redact_prefix(text: &str, prefix: &str) -> String {
         out.push_str("[redacted]");
         let after = &rest[index + prefix.len()..];
         let skip = after
-            .find(|character: char| character.is_whitespace() || character == '"' || character == '\'')
+            .find(|character: char| {
+                character.is_whitespace() || character == '"' || character == '\''
+            })
             .unwrap_or(after.len());
         rest = &after[skip..];
     }
@@ -140,7 +142,11 @@ fn civil_from_days(days: i64) -> (i64, u32, u32) {
     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
     let month_part = (5 * doy + 2) / 153;
     let day = doy - (153 * month_part + 2) / 5 + 1;
-    let month = if month_part < 10 { month_part + 3 } else { month_part - 9 };
+    let month = if month_part < 10 {
+        month_part + 3
+    } else {
+        month_part - 9
+    };
     let year = if month <= 2 { year + 1 } else { year };
     (year, month as u32, day as u32)
 }
@@ -156,7 +162,8 @@ mod tests {
 
     #[test]
     fn secrets_are_removed_from_the_log_line() {
-        let cleaned = redact("failed RESEND_API_KEY=re_live_secret dop_v1_abc token Bearer dop_v1_xyz");
+        let cleaned =
+            redact("failed RESEND_API_KEY=re_live_secret dop_v1_abc token Bearer dop_v1_xyz");
         assert!(!cleaned.contains("re_live_secret"));
         assert!(!cleaned.contains("dop_v1_abc"));
         assert!(!cleaned.contains("dop_v1_xyz"));
@@ -168,7 +175,10 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("shell-log-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         install(&dir);
-        write("make the app", "DigitalOcean returned 403: You are not authorized");
+        write(
+            "make the app",
+            "DigitalOcean returned 403: You are not authorized",
+        );
         let text = fs::read_to_string(dir.join("shell.log")).unwrap();
         assert!(text.contains("make the app: DigitalOcean returned 403"));
         let _ = fs::remove_dir_all(&dir);

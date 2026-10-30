@@ -231,6 +231,23 @@ export const DOCUMENT_ERROR_MAP = {
     message:
       'Earlier approvers must finish before you can approve or reject this document',
   },
+  DOC_124: { message: 'This document has no extracted text' },
+  DOC_125: {
+    message: 'Only the document owner can add or remove contributors',
+  },
+  DOC_126: {
+    message:
+      'Only the document owner or a contributor can edit this document or create a new version',
+  },
+  DOC_127: {
+    message:
+      'One or more selected people cannot edit documents for this team',
+  },
+  DOC_128: {
+    message:
+      'The document owner does not need to be added as a contributor',
+  },
+  DOC_129: { message: 'This person is not a contributor on this document' },
 } as const;
 
 export type DocumentErrorCode = keyof typeof DOCUMENT_ERROR_MAP;

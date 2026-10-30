@@ -1,3 +1,5 @@
+mod agent_context;
+mod browser;
 mod control;
 mod deploy;
 mod journal;
@@ -9,13 +11,13 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use control::{BridgeTarget, PageExecutor, remembered_app_url, serve_control};
+use control::{BridgeTarget, PageExecutor, public_app_url, remembered_app_url, serve_control};
 use serde::Serialize;
 use serde_json::Value;
 use server::{ServerHandle, Session, serve_local};
 use settings::{
-    AppView, LoadedUi, empty_view, load_ui, prepare_ui_dir, remember_ui_path, remembered_ui_path,
-    save_values, view,
+    APP_NAME, AppView, LoadedUi, empty_view, load_ui, prepare_ui_dir, remember_ui_path,
+    remembered_ui_path, save_values, view,
 };
 use tauri::menu::{Menu, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
@@ -149,6 +151,15 @@ impl Shell {
             .clone()
     }
 
+    fn remember_opened_url(&self, url: &str) -> Result<(), String> {
+        control::remember_app_url(&self.data_dir, url)?;
+        *self
+            .app_url
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = url.to_string();
+        Ok(())
+    }
+
     fn snapshot(&self) -> ShellState {
         let session = self
             .shared
@@ -203,7 +214,6 @@ impl Shell {
             }
         }
     }
-
 }
 
 fn state_from(session: &Session, server_url: &str, data_dir: &Path) -> ShellState {
@@ -249,10 +259,6 @@ fn try_load(data_dir: &Path, path: &Path) -> Result<(PathBuf, LoadedUi), String>
     let ui_dir = prepare_ui_dir(path)?;
     let loaded = load_ui(data_dir, &ui_dir)?;
     Ok((ui_dir, loaded))
-}
-
-fn window_title(app_name: &str) -> String {
-    format!("{app_name} — App Shell")
 }
 
 fn agent_environment(shell: &Shell) -> Vec<(String, String)> {
@@ -349,10 +355,48 @@ fn droplet_regions(shell: tauri::State<Shell>) -> Result<Vec<deploy::RegionChoic
 }
 
 #[tauri::command]
+async fn open_in_app(
+    app: AppHandle,
+    shell: State<'_, Shell>,
+    host: State<'_, TerminalHost>,
+    url: String,
+) -> Result<(), String> {
+    let url = journal::logged("open page", public_app_url(&url))?;
+    journal::logged("open page", shell.remember_opened_url(&url))?;
+    let opened = journal::logged("open page", browser::show(&app, &url, &shell.setup_url));
+    if opened.is_ok() {
+        host.note_app_url(&url);
+    }
+    opened
+}
+
+#[tauri::command]
+fn set_preview_terminal(
+    app: AppHandle,
+    height: f64,
+    dragging: bool,
+    snap: bool,
+) -> Result<browser::DockView, String> {
+    journal::logged(
+        "terminal",
+        browser::set_height(&app, height, dragging, snap),
+    )
+}
+
+#[tauri::command]
+fn toggle_preview_terminal(app: AppHandle) -> Result<browser::DockView, String> {
+    journal::logged("terminal", browser::toggle(&app))
+}
+
+#[tauri::command]
 fn open_external(url: String) -> Result<(), String> {
-    let allowed = url == deploy::TOKEN_URL || url == deploy::RESEND_URL || url == deploy::BILLING_URL;
+    let allowed =
+        url == deploy::TOKEN_URL || url == deploy::RESEND_URL || url == deploy::BILLING_URL;
     if !allowed {
-        return journal::logged("open page", Err("That page cannot be opened from the shell.".into()));
+        return journal::logged(
+            "open page",
+            Err("That page cannot be opened from the shell.".into()),
+        );
     }
     let status = std::process::Command::new("open")
         .arg(&url)
@@ -384,18 +428,24 @@ fn start_deploy(app: AppHandle, shell: tauri::State<Shell>) -> Result<Deployment
     let status = Arc::clone(&shell.deploy_status);
     let running = Arc::clone(&shell.deploy_running);
     {
-        let mut slot = status.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut slot = status
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         slot.clear();
     }
     let handle = app.clone();
     std::thread::spawn(move || {
         let mut report = |message: String| {
-            let mut slot = status.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            let mut slot = status
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
             *slot = message;
             let _ = handle.emit("deploy-status", slot.clone());
         };
         let outcome = deploy::provision(&data_dir, &mut report);
-        let mut slot = status.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut slot = status
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
         *slot = match outcome {
             Ok(_) => "Your app is ready.".into(),
             Err(err) => {
@@ -415,7 +465,7 @@ fn set_ui_path(
     path: String,
 ) -> Result<ShellState, String> {
     let state = journal::logged("web app folder", shell.set_ui_path(PathBuf::from(path)))?;
-    let _ = window.set_title(&window_title(&state.view.app_name));
+    let _ = window.set_title(APP_NAME);
     Ok(state)
 }
 
@@ -441,7 +491,10 @@ fn export_configuration(shell: tauri::State<Shell>, destination: String) -> Resu
 
 #[tauri::command]
 fn forget_resource(shell: tauri::State<Shell>, kind: String) -> Result<DeploymentView, String> {
-    journal::logged("remove a saved item", deploy::forget_resource(&shell.data_dir, &kind))?;
+    journal::logged(
+        "remove a saved item",
+        deploy::forget_resource(&shell.data_dir, &kind),
+    )?;
     journal::logged("read setup", shell.deployment_view())
 }
 
@@ -453,7 +506,10 @@ fn delete_droplet(shell: tauri::State<Shell>) -> Result<DeploymentView, String> 
             Err("Wait until we finish making your app.".into()),
         );
     }
-    journal::logged_plain("remove the computer", deploy::delete_droplet(&shell.data_dir))?;
+    journal::logged_plain(
+        "remove the computer",
+        deploy::delete_droplet(&shell.data_dir),
+    )?;
     journal::logged("read setup", shell.deployment_view())
 }
 
@@ -465,7 +521,10 @@ fn terminal_start(
     rows: u16,
     cols: u16,
 ) -> Result<TerminalInfo, String> {
-    journal::logged("terminal", host.start(app, rows, cols, agent_environment(&shell)))
+    journal::logged(
+        "terminal",
+        host.start(app, rows, cols, agent_environment(&shell)),
+    )
 }
 
 #[tauri::command]
@@ -495,10 +554,12 @@ pub fn run() {
             let setup_url = window.url().map_err(std::io::Error::other)?.to_string();
             let data_dir = app.path().app_data_dir().map_err(std::io::Error::other)?;
             journal::install(&data_dir);
-            let shell = Shell::start(data_dir, setup_url.clone(), requested_ui()).map_err(|err| {
-                journal::write("start", &err);
-                std::io::Error::new(std::io::ErrorKind::Other, err)
-            })?;
+            let shell = Shell::start(data_dir.clone(), setup_url.clone(), requested_ui()).map_err(
+                |err| {
+                    journal::write("start", &err);
+                    std::io::Error::new(std::io::ErrorKind::Other, err)
+                },
+            )?;
             let control = serve_control(Arc::new(PageExecutor::new(
                 app.handle().clone(),
                 setup_url.clone(),
@@ -518,14 +579,15 @@ pub fn run() {
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner()) =
                 control::bridge_script().to_string();
-            let _ = window.set_title("Your app");
+            let _ = window.set_title(APP_NAME);
             install_menu(app.handle()).map_err(|err| {
                 journal::write("start", &err.to_string());
                 std::io::Error::other(err.to_string())
             })?;
             app.manage(control);
             app.manage(shell);
-            app.manage(TerminalHost::new());
+            app.manage(TerminalHost::new(data_dir));
+            app.manage(browser::PreviewDock::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -535,12 +597,15 @@ pub fn run() {
             terminal_start,
             terminal_write,
             terminal_resize,
+            set_preview_terminal,
+            toggle_preview_terminal,
             deployment_state,
             available_versions,
             save_deployment,
             check_token,
             droplet_regions,
             open_external,
+            open_in_app,
             start_deploy,
             delete_droplet,
             forget_resource,
@@ -554,6 +619,15 @@ pub fn run() {
 mod tests {
     use super::select_ui;
 
+    fn labels_of<'a>(value: &'a serde_json::Value, key: &str) -> Vec<&'a str> {
+        value[key]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|label| label.as_str())
+            .collect()
+    }
+
     #[test]
     fn first_launch_asks_for_a_bundle() {
         let dir = std::env::temp_dir().join(format!("app-shell-first-{}", std::process::id()));
@@ -565,5 +639,21 @@ mod tests {
         assert_eq!(source, "none");
         assert!(status.is_empty());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_opened_page_is_not_granted_shell_commands() {
+        let text = include_str!("../capabilities/default.json");
+        let value: serde_json::Value = serde_json::from_str(text).unwrap();
+        let windows = labels_of(&value, "windows");
+        assert!(windows.contains(&"main"));
+        assert!(!windows.contains(&crate::control::PAGE_WEBVIEW));
+        assert!(!windows.contains(&crate::browser::PREVIEW_WINDOW));
+        assert!(!windows.contains(&crate::terminal::TERMINAL_WEBVIEW));
+        assert!(!windows.contains(&"*"));
+        let webviews = labels_of(&value, "webviews");
+        assert!(webviews.contains(&crate::terminal::TERMINAL_WEBVIEW));
+        assert!(!webviews.contains(&crate::control::PAGE_WEBVIEW));
+        assert!(!webviews.contains(&"*"));
     }
 }

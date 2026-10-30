@@ -12,6 +12,7 @@ import App from './App.vue'
 import router from './router'
 import i18n from './i18n'
 import { initializeRuntimeConfig } from './util/runtime-config'
+import { installAgentPageLinks } from './agent/install-page-links'
 
 const bootstrap = async () => {
     await initializeRuntimeConfig()
@@ -20,6 +21,7 @@ const bootstrap = async () => {
     const pinia = createPinia()
     app.use(pinia)
     app.use(router)
+    installAgentPageLinks(router)
     app.use(i18n)
     app.mount('#app')
 }

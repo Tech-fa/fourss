@@ -3,6 +3,18 @@ export default {
     content: ['./index.html', './src/**/*.{vue,js,ts,jsx,tsx}'],
     theme: {
         extend: {
+            fontFamily: {
+                sans: ['Nunito', 'ui-sans-serif', 'system-ui', 'sans-serif']
+            },
+            height: {
+                screen: '100dvh'
+            },
+            minHeight: {
+                screen: '100dvh'
+            },
+            maxHeight: {
+                screen: '100dvh'
+            },
             boxShadow: {
                 even: '0 0 16px rgba(0, 0, 0, 0.08)'
             },

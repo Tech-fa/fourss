@@ -174,23 +174,20 @@ export class AuthService {
     return user.createdBy ? "needs registration" : "done";
   }
 
-  async createCodeForActivation(email: string, creator: UserRequest) {
-    let user = await this.userService.findBy({ email, isActive: false }, [
-      "createdBy",
-    ]);
+  async createCodeForActivation(email: string) {
+    let user = await this.userService.findBy({ email }, ["createdBy"]);
     if (!user) {
       throw new BadRequestException(authHttpError("AUTH_002"));
     }
-    const code = await this.createCode(email, true);
+    this.userService.setPassword(user);
     this.queuePublisher.publishEmail({
       to: email,
       type: EmailType.ACTIVATION,
       replaceString: {
         added_by: user.createdBy?.fname + " " + user.createdBy?.lname,
         name: user.fname + " " + user.lname,
-        link: `${process.env.FRONTEND_URL}/activate/?code=${encodeURIComponent(
-          code,
-        )}&email=${encodeURIComponent(email)}`,
+        password: user.password,
+        link: `${process.env.FRONTEND_URL}/login`,
       },
     });
     return "done";

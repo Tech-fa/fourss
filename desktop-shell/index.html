@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Your app</title>
+    <title>Buho</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" />
     <script type="module" src="/src/main.ts" defer></script>
@@ -125,13 +125,30 @@
         <p id="finished-detail"></p>
         <p>Save a copy of your setup in a private place, such as a folder only you use. The copy includes your keys and the sign-in password. Do not email the file, and do not put it in a shared folder.</p>
         <div class="actions">
-          <button id="download-config" class="primary" type="button">Save a copy of my setup</button>
+          <button id="open-running-app-finished" class="primary" type="button">App is running</button>
+          <button id="download-config" type="button">Save a copy of my setup</button>
         </div>
         <p id="download-note" class="hint"></p>
       </section>
 
       <p id="deploy-status" class="hint"></p>
       <p id="deploy-error" class="error" role="alert"></p>
+
+      <section class="panel" id="page-panel">
+        <h2>Open a page</h2>
+        <p>Open your app, or any other address. It opens in its own window. Pull the terminal up from the bottom of that window to work with the app.</p>
+        <div class="actions" id="running-actions" hidden>
+          <button id="open-running-app" class="primary" type="button">App is running</button>
+        </div>
+        <form id="page-form">
+          <label for="page-url">Page address</label>
+          <div class="path-row">
+            <input id="page-url" type="url" spellcheck="false" autocomplete="off" placeholder="https://example.com" aria-describedby="page-error" />
+            <button class="primary" type="submit">Open</button>
+          </div>
+        </form>
+        <p id="page-error" class="error" role="alert"></p>
+      </section>
     </main>
   </body>
 </html>

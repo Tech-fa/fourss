@@ -47,6 +47,7 @@ describe('DocumentAiIndexService', () => {
     id: 44,
     documentId: 'doc-1',
     versionNumber: 1,
+    status: 'published',
     file: '',
     content: '',
     checklist: {
@@ -200,6 +201,48 @@ describe('DocumentAiIndexService', () => {
     });
     expect(result.fullText).toBe('Cached policy');
     expect(s3Service.getFileBuffer).not.toHaveBeenCalled();
+  });
+
+  it('returns stored text without opening the file', async () => {
+    const { service, s3Service } = createService({
+      existingSource: {
+        status: DocumentAiIndexStatus.READY,
+        fullText: 'Cached policy',
+      },
+    });
+    const result = await service.readStoredText({
+      id: 'doc-1',
+      isAiAccessible: true,
+      currentVersion: 1,
+    });
+    expect(result).toEqual({ versionId: 44, text: 'Cached policy' });
+    expect(s3Service.getFileBuffer).not.toHaveBeenCalled();
+  });
+
+  it('returns nothing when extraction is missing or the document is closed to AI', async () => {
+    const missing = createService();
+    await expect(
+      missing.service.readStoredText({
+        id: 'doc-1',
+        isAiAccessible: true,
+        currentVersion: 1,
+      }),
+    ).resolves.toBeNull();
+
+    const closed = createService({
+      existingSource: {
+        status: DocumentAiIndexStatus.READY,
+        fullText: 'Cached policy',
+      },
+    });
+    await expect(
+      closed.service.readStoredText({
+        id: 'doc-1',
+        isAiAccessible: false,
+        currentVersion: 1,
+      }),
+    ).resolves.toBeNull();
+    expect(closed.s3Service.getFileBuffer).not.toHaveBeenCalled();
   });
 
   it('does not extract when the document is not AI accessible', async () => {

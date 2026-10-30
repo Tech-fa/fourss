@@ -11,7 +11,16 @@ use tiny_http::{Header, Method, Request, Response, Server, StatusCode};
 use url::Url;
 
 const BRIDGE: &str = include_str!("bridge.js");
-const INSTRUCTIONS: &str = "These tools control the app window open in App Shell. Call list_pages, then navigate, then describe_page, then set_fields, then submit_form. Paths that contain :name need a real id from the open page. The tools change the window the user is looking at.";
+
+/// Webview that shows the page the user opened. The agent tools drive this webview.
+pub const PAGE_WEBVIEW: &str = "app";
+pub const LEAVE_CONFIRMATION_TO_THE_USER: &str = "After you change the page, stop. Do not call submit_form, and do not click a confirmation button. The user approves the change by clicking that button.";
+
+fn base_instructions() -> String {
+    format!(
+        "These tools control the app window open in Buho. Call list_pages, then navigate, then describe_page, then set_fields. Paths that contain :name need a real id from the open page. The tools change the window the user is looking at. {LEAVE_CONFIRMATION_TO_THE_USER}"
+    )
+}
 
 pub struct BridgeTarget {
     pub setup_url: Mutex<String>,
@@ -26,7 +35,7 @@ pub fn bridge_plugin<R: Runtime>(target: Arc<BridgeTarget>) -> tauri::plugin::Ta
     tauri::plugin::Builder::new("app-control")
         .on_page_load(move |webview, payload| {
             use tauri::webview::PageLoadEvent;
-            if payload.event() != PageLoadEvent::Finished || webview.label() != "main" {
+            if payload.event() != PageLoadEvent::Finished || webview.label() != PAGE_WEBVIEW {
                 return;
             }
             let setup = target
@@ -83,6 +92,17 @@ pub fn remember_app_url(data_dir: &Path, url: &str) -> Result<(), String> {
 
 pub trait ToolExecutor: Send + Sync {
     fn call(&self, name: &str, arguments: &Value) -> Result<Value, String>;
+
+    fn page_url(&self) -> Option<String> {
+        None
+    }
+
+    fn instructions(&self) -> String {
+        match self.page_url() {
+            Some(url) => format!("{} The open page is {url}.", base_instructions()),
+            None => base_instructions(),
+        }
+    }
 }
 
 pub struct PageExecutor {
@@ -99,26 +119,26 @@ impl PageExecutor {
 impl ToolExecutor for PageExecutor {
     fn call(&self, name: &str, arguments: &Value) -> Result<Value, String> {
         validate_call(name, arguments)?;
-        let window = self
+        let webview = self
             .app
-            .get_webview_window("main")
+            .get_webview(PAGE_WEBVIEW)
             .ok_or_else(|| "Open the app URL first.".to_string())?;
-        let current = window.url().map_err(|err| err.to_string())?;
+        let current = webview.url().map_err(|err| err.to_string())?;
         let setup = Url::parse(&self.setup_url).map_err(|err| err.to_string())?;
         if is_shell_page(&current, &setup) {
             return Err("Open the app URL first. These tools control that window.".into());
         }
         let id = next_id();
-        window
+        webview
             .eval(invocation_script(&id, name, arguments))
             .map_err(|err| format!("Could not reach the open app: {err}"))?;
         let deadline = Instant::now() + Duration::from_secs(20);
         loop {
-            let raw = eval_json(&window, &poll_script(&id))?;
+            let raw = eval_json(&webview, &poll_script(&id))?;
             if !raw.is_empty() && raw != "null" {
                 let parsed: Value = serde_json::from_str(&raw)
                     .map_err(|err| format!("The app returned an unreadable result: {err}"))?;
-                return finish_call(&window, parsed);
+                return finish_call(&webview, parsed);
             }
             if Instant::now() >= deadline {
                 return Err(
@@ -128,9 +148,20 @@ impl ToolExecutor for PageExecutor {
             std::thread::sleep(Duration::from_millis(50));
         }
     }
+
+    fn page_url(&self) -> Option<String> {
+        let webview = self.app.get_webview(PAGE_WEBVIEW)?;
+        let current = webview.url().ok()?;
+        let setup = Url::parse(&self.setup_url).ok()?;
+        if is_shell_page(&current, &setup) {
+            None
+        } else {
+            Some(current.to_string())
+        }
+    }
 }
 
-fn finish_call(window: &tauri::WebviewWindow, parsed: Value) -> Result<Value, String> {
+fn finish_call(webview: &tauri::Webview, parsed: Value) -> Result<Value, String> {
     let ok = parsed
         .get("ok")
         .and_then(|value| value.as_bool())
@@ -152,14 +183,14 @@ fn finish_call(window: &tauri::WebviewWindow, parsed: Value) -> Result<Value, St
             "location.assign({})",
             serde_json::to_string(&target).unwrap_or_else(|_| "\"\"".into())
         );
-        let _ = window.eval(script);
+        let _ = webview.eval(script);
     }
     Ok(result)
 }
 
-fn eval_json(window: &tauri::WebviewWindow, script: &str) -> Result<String, String> {
+fn eval_json(webview: &tauri::Webview, script: &str) -> Result<String, String> {
     let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    window
+    webview
         .eval_with_callback(script, move |value| {
             let _ = tx.send(value);
         })
@@ -389,7 +420,7 @@ fn rpc_one(body: &Value, executor: &dyn ToolExecutor) -> RpcOutcome {
         return RpcOutcome::Accepted;
     }
     let result = match method {
-        "initialize" => Ok(initialize_result(body)),
+        "initialize" => Ok(initialize_result(body, executor)),
         "ping" => Ok(json!({})),
         "tools/list" => Ok(json!({ "tools": tool_definitions() })),
         "tools/call" => call_tool(body, executor),
@@ -449,7 +480,7 @@ fn rpc_error(id: Value, code: i32, message: &str) -> Value {
     })
 }
 
-fn initialize_result(body: &Value) -> Value {
+fn initialize_result(body: &Value, executor: &dyn ToolExecutor) -> Value {
     let requested = body
         .pointer("/params/protocolVersion")
         .and_then(|value| value.as_str())
@@ -459,14 +490,14 @@ fn initialize_result(body: &Value) -> Value {
         "protocolVersion": requested,
         "capabilities": { "tools": { "listChanged": false } },
         "serverInfo": { "name": "app-shell", "version": "0.1.0" },
-        "instructions": INSTRUCTIONS
+        "instructions": executor.instructions()
     })
 }
 
 pub fn tool_catalog() -> Value {
     json!({
         "name": "app-shell",
-        "instructions": INSTRUCTIONS,
+        "instructions": base_instructions(),
         "mcp": "/mcp",
         "tools": tool_definitions()
             .as_array()
@@ -536,7 +567,7 @@ fn tool_definitions() -> Value {
         ),
         tool(
             "submit_form",
-            "Submit the form that is open. Pass button when the page has more than one button.",
+            "Do not call this. The user approves the change by clicking the confirmation button.",
             json!({
                 "type": "object",
                 "properties": {
@@ -593,6 +624,51 @@ mod tests {
         fn call(&self, name: &str, arguments: &Value) -> Result<Value, String> {
             Ok(json!({ "tool": name, "arguments": arguments }))
         }
+    }
+
+    struct OpenPage;
+
+    impl ToolExecutor for OpenPage {
+        fn call(&self, _name: &str, _arguments: &Value) -> Result<Value, String> {
+            Ok(json!({}))
+        }
+
+        fn page_url(&self) -> Option<String> {
+            Some("https://app.example.com/home".into())
+        }
+    }
+
+    #[test]
+    fn initialize_names_the_open_page() {
+        let outcome = rpc_response(
+            &json!({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": { "protocolVersion": "2025-03-26" }
+            }),
+            &OpenPage,
+        );
+        let RpcOutcome::Reply(reply) = outcome else {
+            panic!("initialize should reply");
+        };
+        let instructions = reply["result"]["instructions"].as_str().unwrap();
+        assert!(instructions.contains("list_pages"));
+        assert!(instructions.contains("https://app.example.com/home"));
+        assert!(instructions.contains(LEAVE_CONFIRMATION_TO_THE_USER));
+        let catalog = tool_definitions();
+        let submit = catalog
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|tool| tool["name"] == "submit_form")
+            .unwrap();
+        assert!(
+            submit["description"]
+                .as_str()
+                .unwrap()
+                .contains("confirmation button")
+        );
     }
 
     #[test]

@@ -54,6 +54,11 @@ import { v4 as uuidv4 } from "uuid";
 import { LocalFileService } from "../common/local-file.service";
 import { PaginatedResponse, PaginationDto } from "../common/pagination";
 import { DocumentContributor } from "./document-contributor.entity";
+import { DocumentContentContributor } from "./document-content-contributor.entity";
+import {
+  planContentContributorAdd,
+  userCanEditDocumentContent,
+} from "./document-content-access";
 import { DocumentAction } from "./document-action.entity";
 import { DocumentActionType } from "./document-action.entity";
 import { ChangeRequest, ChangeRequestStatus } from "./change-request.entity";
@@ -90,6 +95,7 @@ import { EmailType } from "../common/dto";
 import { I18nService } from "nestjs-i18n";
 import { TeamMember } from "../teams/team-member.entity";
 import { DocumentChecklist } from "./document-checklist.entity";
+import { DocumentAiIndexService } from "./document-ai-index.service";
 
 @Injectable()
 export class DocumentService implements NotificationInfo {
@@ -108,6 +114,8 @@ export class DocumentService implements NotificationInfo {
     private docApproverRepo: Repository<DocumentApprover>,
     @InjectRepository(DocumentContributor)
     private documentContributorRepository: Repository<DocumentContributor>,
+    @InjectRepository(DocumentContentContributor)
+    private contentContributorRepo: Repository<DocumentContentContributor>,
     @InjectRepository(DocumentAction)
     private documentActionRepository: Repository<DocumentAction>,
     @InjectRepository(ChangeRequest)
@@ -124,6 +132,7 @@ export class DocumentService implements NotificationInfo {
     private permissionService: PermissionService,
     private queuePublisher: QueuePublisher,
     private readonly i18n: I18nService,
+    private readonly documentAiIndexService: DocumentAiIndexService,
   ) {}
   private logger = new Logger(DocumentService.name);
 
@@ -643,6 +652,8 @@ export class DocumentService implements NotificationInfo {
       .leftJoinAndSelect("contributors.actions", "actions")
       .leftJoinAndSelect("actions.comment", "comment")
       .leftJoinAndSelect("contributors.user", "contributorUser")
+      .leftJoinAndSelect("document.contentContributors", "contentContributors")
+      .leftJoinAndSelect("contentContributors.user", "contentContributorUser")
       .leftJoinAndSelect("document.createdBy", "createdBy")
       .leftJoinAndSelect("document.approvalStrategy", "approvalStrategy")
       .leftJoinAndSelect(
@@ -689,6 +700,22 @@ export class DocumentService implements NotificationInfo {
     }
 
     return document;
+  }
+
+  async getDocumentText(id: string, user: UserRequest) {
+    const document = await this.getDocumentById(id, user);
+    const stored = await this.documentAiIndexService.requireStoredText({
+      id: document.id,
+      isAiAccessible: !!document.isAiAccessible,
+      currentVersion: document.currentVersion,
+    });
+    return {
+      id: document.id,
+      title: document.title,
+      documentCode: document.documentCode,
+      versionId: stored.versionId,
+      text: stored.text,
+    };
   }
 
   // Approval Strategy Methods
@@ -1205,6 +1232,7 @@ export class DocumentService implements NotificationInfo {
     const {
       documentTemplate,
       processLinks: _processLinks,
+      contentContributors,
       ...documentRest
     } = document;
 
@@ -1246,6 +1274,7 @@ export class DocumentService implements NotificationInfo {
       approvers,
       reviewers,
       acknowledgers,
+      contentContributors: this.mapContentContributors(contentContributors),
       team: {
         id: document?.team?.id,
         name: document?.team?.name,
@@ -4440,6 +4469,127 @@ export class DocumentService implements NotificationInfo {
     return { data, totalCount };
   }
 
+  private assertCanEditDocumentContent(
+    document: Document,
+    user: UserRequest,
+  ): void {
+    if (!userCanEditDocumentContent(user.id, document)) {
+      throw new BadRequestException(documentHttpError("DOC_126"));
+    }
+  }
+
+  private mapContentContributors(
+    rows: DocumentContentContributor[] | undefined,
+  ) {
+    return (rows ?? [])
+      .flatMap((row) => {
+        const person = row.user;
+        if (!person?.id) {
+          return [];
+        }
+        return [
+          {
+            id: person.id,
+            fname: person.fname,
+            lname: person.lname,
+            email: person.email,
+          },
+        ];
+      })
+      .sort((a, b) =>
+        `${a.fname} ${a.lname}`.localeCompare(`${b.fname} ${b.lname}`),
+      );
+  }
+
+  private async assertDocumentOwner(
+    documentId: string,
+    user: UserRequest,
+  ): Promise<Document> {
+    const document = await this.getDocumentById(documentId, user);
+    if (document.createdBy?.id !== user.id) {
+      throw new BadRequestException(documentHttpError("DOC_125"));
+    }
+    return document;
+  }
+
+  async addContentContributors(
+    documentId: string,
+    userIds: string[],
+    user: UserRequest,
+  ) {
+    const document = await this.assertDocumentOwner(documentId, user);
+    const eligible = await this.permissionService.usersWithAccess(
+      [document.team.id],
+      { id: "", username: "", teamIds: [] } as UserRequest,
+      DocumentPermission.subject,
+      false,
+      userIds.join(","),
+      [{ subject: DocumentPermission.subject, action: "update" }],
+    );
+    const plan = planContentContributorAdd({
+      ownerId: document.createdBy?.id,
+      existingIds: (document.contentContributors ?? [])
+        .map((row) => row.user?.id)
+        .filter((id): id is string => !!id),
+      requestedIds: userIds,
+      eligibleIds: eligible.map((person) => person.id),
+    });
+    if (!plan.ok) {
+      throw new BadRequestException(
+        documentHttpError(plan.reason === "includes_owner" ? "DOC_128" : "DOC_127"),
+      );
+    }
+
+    for (const userId of plan.userIds) {
+      try {
+        await this.contentContributorRepo.save(
+          this.contentContributorRepo.create({
+            documentId: document.id,
+            userId,
+          }),
+        );
+      } catch (error) {
+        if (!this.isDuplicateKey(error)) {
+          throw error;
+        }
+      }
+    }
+
+    return this.listContentContributors(document.id);
+  }
+
+  async removeContentContributor(
+    documentId: string,
+    contributorUserId: string,
+    user: UserRequest,
+  ) {
+    const document = await this.assertDocumentOwner(documentId, user);
+    const row = await this.contentContributorRepo.findOne({
+      where: { documentId: document.id, userId: contributorUserId },
+    });
+    if (!row) {
+      throw new NotFoundException(documentHttpError("DOC_129"));
+    }
+    await this.contentContributorRepo.remove(row);
+    return this.listContentContributors(document.id);
+  }
+
+  private async listContentContributors(documentId: string) {
+    const rows = await this.contentContributorRepo.find({
+      where: { documentId },
+      relations: ["user"],
+    });
+    return this.mapContentContributors(rows);
+  }
+
+  private isDuplicateKey(error: unknown): boolean {
+    const driverError = (error as { driverError?: { code?: string }; code?: string })
+      ?.driverError;
+    const code =
+      driverError?.code ?? (error as { code?: string })?.code;
+    return code === "ER_DUP_ENTRY";
+  }
+
   async createNewVersion(
     documentId: string,
     dto: CreateDocumentVersionDto,
@@ -4475,6 +4625,8 @@ export class DocumentService implements NotificationInfo {
       if (!document) {
         throw new NotFoundException(documentHttpError("DOC_007"));
       }
+
+      this.assertCanEditDocumentContent(document, user);
 
       if (!document.approvalStrategy) {
         throw new BadRequestException(documentHttpError("DOC_008"));
@@ -4724,6 +4876,8 @@ export class DocumentService implements NotificationInfo {
         throw new NotFoundException(documentHttpError("DOC_007"));
       }
 
+      this.assertCanEditDocumentContent(document, user);
+
       if (document.contentType === ContentType.CHECKLIST) {
         throw new BadRequestException(documentHttpError("DOC_117"));
       }
@@ -4872,6 +5026,7 @@ export class DocumentService implements NotificationInfo {
       if (!document) {
         throw new NotFoundException(documentHttpError("DOC_007"));
       }
+      this.assertCanEditDocumentContent(document, user);
       if (document.contentType !== ContentType.EDITOR) {
         throw new BadRequestException(documentHttpError("DOC_069"));
       }
@@ -4964,6 +5119,7 @@ export class DocumentService implements NotificationInfo {
       if (!document) {
         throw new NotFoundException(documentHttpError("DOC_007"));
       }
+      this.assertCanEditDocumentContent(document, user);
       if (document.contentType !== ContentType.CHECKLIST) {
         throw new BadRequestException(documentHttpError("DOC_114"));
       }

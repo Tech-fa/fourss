@@ -36,21 +36,32 @@ const dialogStore = useDialog()
 <style>
 @font-face {
     font-family: 'Nunito';
-    src: url('@/assets/fonts/Nunito-VariableFont_wght.ttf');
+    src: url('@/assets/fonts/Nunito-VariableFont_wght.ttf') format('truetype');
+    font-weight: 200 1000;
+    font-style: normal;
+    font-display: swap;
 }
 @font-face {
     font-family: 'HelveticaNeue';
-    src: url('@/assets/fonts/HelveticaNeueBlack.otf');
+    src: url('@/assets/fonts/HelveticaNeueBlack.otf') format('opentype');
+    font-display: swap;
 }
 @font-face {
     font-family: 'best-font';
-    src: url('@/assets/fonts/Line-Awesome.ttf');
+    src: url('@/assets/fonts/Line-Awesome.ttf') format('truetype');
+    font-display: swap;
 }
 @font-face {
     font-family: 'best-font2';
-    src: url('@/assets/fonts/Material-Icons.ttf');
+    src: url('@/assets/fonts/Material-Icons.ttf') format('truetype');
+    font-display: swap;
 }
 /* Custom scrollbar styles */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;

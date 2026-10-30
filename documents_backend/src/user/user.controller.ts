@@ -171,7 +171,6 @@ export class UserController {
           phone: true,
           isActive: true,
           isTopManagement: true,
-          interestedPartyId: true,
           createdAt: true,
           deleted: true,
           verifiedAt: true,

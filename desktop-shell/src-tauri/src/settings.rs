@@ -5,6 +5,7 @@ use std::path::{Component, Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+pub const APP_NAME: &str = "Buho";
 pub const MANIFEST_FILE: &str = "shell.manifest.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -206,7 +207,7 @@ pub fn empty_view(status: &str) -> AppView {
         ui_path: String::new(),
         ui_source: "none".into(),
         manifest_found: false,
-        app_name: "App Shell".into(),
+        app_name: APP_NAME.into(),
         app_id: String::new(),
         config_file: "config.json".into(),
         fields: Vec::new(),

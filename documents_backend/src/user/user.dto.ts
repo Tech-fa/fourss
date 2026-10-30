@@ -56,11 +56,6 @@ export class UserDTO {
   @IsNotEmpty()
   email: string;
 
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  password: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
@@ -81,7 +76,9 @@ export class UserDTO {
 }
 
 export class UserSearchQueryDto {
-  @ApiPropertyOptional({ description: "Matches first name, last name, or full name." })
+  @ApiPropertyOptional({
+    description: "Matches first name, last name, or full name.",
+  })
   @IsOptional()
   @IsString()
   name?: string;
@@ -211,6 +208,11 @@ export class UpdateUserDTO extends UserDTO {
   @IsString()
   @IsNotEmpty()
   active: boolean;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  password: string;
 }
 export class BaseUserDTO {
   @IsUUID("4")

@@ -2,7 +2,12 @@ export type PageNumberAlignment = 'left' | 'center' | 'right'
 
 export type PageNumberInsertOption = PageNumberAlignment | 'custom'
 
-const PAGE_NUMBER_CC_TAG = '4es:auto-page-number'
+const PAGE_NUMBER_CC_TAG = '4ss:auto-page-number'
+const LEGACY_PAGE_NUMBER_CC_TAG = '4es:auto-page-number'
+
+function isPageNumberTag(tag: unknown): boolean {
+  return tag === PAGE_NUMBER_CC_TAG || tag === LEGACY_PAGE_NUMBER_CC_TAG
+}
 
 type ContentControlTarget = {
   kind: 'block'
@@ -83,21 +88,24 @@ function findSdtNodeById(doc: any, nodeId: string): { node: any; pos: number } |
 function findManagedPageNumber(editor: any): ManagedPageNumber | null {
   if (!editor?.doc?.contentControls?.selectByTag) return null
 
-  try {
-    const result = editor.doc.contentControls.selectByTag({ tag: PAGE_NUMBER_CC_TAG })
-    const item = result?.items?.[0]
-    if (!item?.target) return null
+  for (const tag of [PAGE_NUMBER_CC_TAG, LEGACY_PAGE_NUMBER_CC_TAG]) {
+    try {
+      const result = editor.doc.contentControls.selectByTag({ tag })
+      const item = result?.items?.[0]
+      if (!item?.target) continue
 
-    const located = findSdtNodeById(editor.state.doc, item.target.nodeId)
-    if (!located) return null
+      const located = findSdtNodeById(editor.state.doc, item.target.nodeId)
+      if (!located) continue
 
-    return {
-      alignment: readAlignmentFromSdtNode(located.node),
-      target: item.target as ContentControlTarget,
+      return {
+        alignment: readAlignmentFromSdtNode(located.node),
+        target: item.target as ContentControlTarget,
+      }
+    } catch {
+      continue
     }
-  } catch {
-    return null
   }
+  return null
 }
 
 function isInsideManagedPageNumberBlock(editor: any, pageNumberPos: number) {
@@ -106,7 +114,7 @@ function isInsideManagedPageNumberBlock(editor: any, pageNumberPos: number) {
     const ancestor = $pos.node(depth)
     if (
       ancestor.type?.name === 'structuredContentBlock' &&
-      ancestor.attrs?.tag === PAGE_NUMBER_CC_TAG
+      isPageNumberTag(ancestor.attrs?.tag)
     ) {
       return true
     }

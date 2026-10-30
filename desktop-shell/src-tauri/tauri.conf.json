@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "App Shell",
+  "productName": "Buho",
   "version": "0.1.0",
   "identifier": "com.appshell.desktop",
   "build": {
@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "App Shell",
+        "title": "Buho",
         "width": 960,
         "height": 720,
         "minWidth": 720,

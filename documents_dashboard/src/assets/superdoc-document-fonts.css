@@ -1,6 +1,6 @@
 /**
  * SuperDoc layout-engine font fallbacks when a run uses a toolbar label as font-family.
- * Web faces load from index.html (same URL as 4es-dashboard document editor).
+ * Web faces load from index.html (same URL as the 4SS dashboard document editor).
  * Scoped under .superdoc-editor so other UI is unaffected.
  */
 

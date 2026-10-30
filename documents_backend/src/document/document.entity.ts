@@ -15,6 +15,7 @@ import { ApprovalStrategy } from "./approval-strategy.entity";
 import { DocumentAcknowledgement } from "./document-acknowledgement.entity";
 import { DocumentComment } from "./document-comment.entity";
 import { DocumentContributor } from "./document-contributor.entity";
+import { DocumentContentContributor } from "./document-content-contributor.entity";
 import { ExcludeField, TrackChanges } from "../history/track-changes.decorator";
 import { ChangeRequestDocument } from "./change-request-document.entity";
 import { DocumentTemplate } from "./document-template.entity";
@@ -108,6 +109,13 @@ export class Document {
   @OneToMany(() => DocumentContributor, (contributor) => contributor.document)
   @ExcludeField()
   contributors: DocumentContributor[];
+
+  @OneToMany(
+    () => DocumentContentContributor,
+    (contributor) => contributor.document,
+  )
+  @ExcludeField()
+  contentContributors: DocumentContentContributor[];
 
   @Column({ type: "tinyint", default: 0 })
   deleted: boolean;

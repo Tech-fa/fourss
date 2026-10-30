@@ -1125,6 +1125,22 @@ function insertContent(content: string, contentType: SuperDocAiWriteResult['cont
   return inserted
 }
 
+function replaceContent(content: string, contentType: SuperDocAiWriteResult['contentType'] = 'markdown') {
+  const editor = getActiveEditor()
+  if (!editor) return false
+  try {
+    editor.chain?.().focus?.().selectAll?.().deleteSelection?.().run?.()
+  } catch {
+    try {
+      editor.commands?.selectAll?.()
+      editor.commands?.deleteSelection?.()
+    } catch {
+      // Insert will append if the document cannot be cleared.
+    }
+  }
+  return insertContent(content, contentType)
+}
+
 let lastSelectedCommentId = ''
 
 function selectComment(commentId: string | null | undefined) {
@@ -1419,6 +1435,7 @@ defineExpose({
   isEmpty,
   isReady,
   insertContent,
+  replaceContent,
   getPageStyles,
   updatePageStyle,
   setPageMargin,

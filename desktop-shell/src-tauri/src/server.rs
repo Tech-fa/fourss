@@ -116,7 +116,7 @@ fn build_response(session: &Session, url: &str) -> Built {
         return plain_built(400, "Bad path");
     };
     let (Some(ui_dir), Some(loaded)) = (session.ui_dir.as_ref(), session.loaded.as_ref()) else {
-        return plain_built(503, "Choose a web app bundle in App Shell.");
+        return plain_built(503, "Choose a web app bundle in Buho.");
     };
     if relative == loaded.manifest.config_file && loaded.source == ConfigSource::Persisted {
         let body = serde_json::to_vec_pretty(&Value::Object(loaded.stored.clone()))

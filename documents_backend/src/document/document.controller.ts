@@ -32,6 +32,7 @@ import {
   ReviewChangeRequestDto,
   UploadVersionEditorContentDto,
   UploadVersionChecklistDto,
+  AddDocumentContentContributorsDto,
   ChangeRequestFilterDto,
   CreateDocumentTemplateDto,
   DocumentTemplateFilterDto,
@@ -40,6 +41,7 @@ import {
   DocumentDraftFilterDto,
   AssistDocumentWriteDto,
 } from "./dtos";
+import { AgentRulesService } from "./agent-rules.service";
 import { hasPermission } from "../authentication/permission.decorator";
 import {
   DocumentTypePermission,
@@ -57,7 +59,10 @@ import { HistoryInterceptor } from "../history/history.interceptor";
 @ApiBearerAuth()
 @Controller("documents")
 export class DocumentController {
-  constructor(private readonly documentService: DocumentService) {}
+  constructor(
+    private readonly documentService: DocumentService,
+    private readonly agentRulesService: AgentRulesService,
+  ) {}
   private readonly logger = new Logger(DocumentController.name);
 
   // Approval Strategy Endpoints
@@ -780,6 +785,32 @@ export class DocumentController {
     );
   }
 
+  @Get("agent/rules")
+  @ApiOperation({ summary: "Get the rules file the agent follows." })
+  @hasPermission({ subject: DocumentPermission.subject, actions: ["read"] })
+  async getAgentRules(@Res() res) {
+    return formatResponse(
+      this.logger,
+      this.agentRulesService.getRules(),
+      res,
+      "Agent rules fetched successfully",
+    );
+  }
+
+  @Get(":id/text")
+  @ApiOperation({
+    summary: "Get the extracted text of a document when extraction is ready.",
+  })
+  @hasPermission({ subject: DocumentPermission.subject, actions: ["read"] })
+  async getDocumentText(@Param("id") id: string, @Req() req, @Res() res) {
+    return formatResponse(
+      this.logger,
+      this.documentService.getDocumentText(id, req.user),
+      res,
+      "Document text fetched successfully",
+    );
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "Get one document." })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["read"] })
@@ -800,6 +831,44 @@ export class DocumentController {
       this.documentService.viewDocument(id, req.user, options),
       res,
       "Document fetched successfully",
+    );
+  }
+
+  @Post(":id/content-contributors")
+  @ApiOperation({
+    summary: "Add people who can edit this document and create new versions.",
+  })
+  @hasPermission({ subject: DocumentPermission.subject, actions: ["update"] })
+  async addContentContributors(
+    @Param("id") id: string,
+    @Body() dto: AddDocumentContentContributorsDto,
+    @Req() req,
+    @Res() res,
+  ) {
+    return formatResponse(
+      this.logger,
+      this.documentService.addContentContributors(id, dto.userIds, req.user),
+      res,
+      "Document contributors added successfully",
+    );
+  }
+
+  @Delete(":id/content-contributors/:userId")
+  @ApiOperation({
+    summary: "Remove a person who can edit this document.",
+  })
+  @hasPermission({ subject: DocumentPermission.subject, actions: ["update"] })
+  async removeContentContributor(
+    @Param("id") id: string,
+    @Param("userId") userId: string,
+    @Req() req,
+    @Res() res,
+  ) {
+    return formatResponse(
+      this.logger,
+      this.documentService.removeContentContributor(id, userId, req.user),
+      res,
+      "Document contributor removed successfully",
     );
   }
 

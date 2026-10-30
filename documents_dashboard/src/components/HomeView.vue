@@ -34,7 +34,7 @@
             leave-from="translate-x-0"
             :leave-to="isRTL ? 'translate-x-full' : '-translate-x-full'"
           >
-            <DialogPanel class="relative me-16 flex w-full max-w-xs flex-1">
+            <DialogPanel class="relative me-16 flex w-full min-w-0 max-w-xs flex-1 overflow-x-clip ring-1 ring-white/10">
               <TransitionChild
                 as="template"
                 enter="ease-in-out duration-300"
@@ -59,15 +59,22 @@
               </TransitionChild>
               <!-- Sidebar component, swap this element with another sidebar if you like -->
               <div
-                class="flex grow flex-col gap-y-5 overflow-y-auto dark:bg-gray-900 bg-white px-6 ring-1 ring-white/10"
+                class="flex min-h-0 min-w-0 w-full grow flex-col gap-y-5 overflow-x-clip overflow-y-auto bg-white dark:bg-gray-900"
               >
                 <div
-                  class="flex h-16 shrink-0 items-center -mx-6 px-6 border-b border-neutral-200"
-                ></div>
-                <nav class="flex flex-1 flex-col mt-2">
-                  <ul role="list" class="flex flex-1 flex-col gap-y-7">
+                  class="flex h-16 shrink-0 items-center gap-2.5 border-b border-neutral-200 px-6"
+                >
+                  <img
+                    src="@/assets/img/4ss-logo.svg?url"
+                    alt=""
+                    class="h-9 w-9 shrink-0"
+                  />
+                  <span class="text-base font-bold tracking-wide text-neutral-900 dark:text-white">4SS</span>
+                </div>
+                <nav class="mt-2 flex min-h-0 min-w-0 flex-1 flex-col px-6">
+                  <ul role="list" class="flex min-h-0 min-w-0 flex-1 flex-col gap-y-7">
                     <li>
-                      <ul role="list" class="-mx-2 space-y-1">
+                      <ul role="list" class="-mx-2 min-w-0 space-y-1">
                         <li v-for="item in visibleNavigations" :key="item.path">
                           <span
                             v-if="!item.menuItems?.length"
@@ -147,11 +154,11 @@
                       </ul>
                     </li>
 
-                    <li class="-mx-6 mt-auto">
+                    <li class="mt-auto min-w-0">
                       <div class="flex flex-col gap-y-2">
                         <!-- Language -->
                         <div
-                          class="flex items-center gap-x-3 px-6 py-3 text-sm font-semibold text-black dark:text-gray-400"
+                          class="flex w-full min-w-0 items-center gap-x-3 px-6 py-3 text-sm font-semibold text-black dark:text-gray-400"
                         >
                           <Select2
                             :placeholder="t('common.language')"
@@ -230,17 +237,25 @@
       >
         <div
           :class="[
-            'hidden xl:fixed xl:inset-y-0 xl:left-0 rtl:xl:left-auto rtl:xl:right-0 xl:z-50 xl:flex xl:w-56 xl:flex-col bg-white  ',
+            'hidden xl:fixed xl:inset-y-0 xl:left-0 rtl:xl:left-auto rtl:xl:right-0 xl:z-50 xl:flex xl:w-56 xl:min-w-0 xl:flex-col overflow-x-clip bg-white ring-1 ring-white/5',
           ]"
         >
           <!-- Sidebar component, swap this element with another sidebar if you like -->
           <div
-            class="border-r flex grow flex-col gap-y-5 overflow-y-auto bg-white dark:bg-gray-900 px-6 ring-1 ring-white/5"
+            class="flex min-h-0 min-w-0 w-full grow flex-col gap-y-5 overflow-x-clip overflow-y-auto border-r bg-white dark:bg-gray-900"
           >
             <div
-              class="flex flex-row items-center justify-between border-b bg-gray-50 -mx-6 h-16 py-2.5 px-6"
+              class="flex h-16 flex-row items-center justify-between gap-2 border-b bg-gray-50 px-4 py-2.5"
             >
-              <button type="button" @click="open = false">
+              <div class="flex min-w-0 items-center gap-2">
+                <img
+                  src="@/assets/img/4ss-logo.svg?url"
+                  alt=""
+                  class="h-8 w-8 shrink-0"
+                />
+                <span class="truncate text-sm font-bold tracking-wide text-neutral-900">4SS</span>
+              </div>
+              <button type="button" class="shrink-0" @click="open = false">
                 <span class="sr-only">Close sidebar</span>
                 <Bars3Icon
                   :class="[
@@ -254,10 +269,10 @@
               </button>
             </div>
 
-            <nav class="flex flex-1 flex-col">
-              <ul role="list" class="flex flex-1 flex-col gap-y-7">
+            <nav class="flex min-h-0 min-w-0 flex-1 flex-col px-6">
+              <ul role="list" class="flex min-h-0 min-w-0 flex-1 flex-col gap-y-7">
                 <li>
-                  <ul role="list" class="-mx-2 space-y-1">
+                  <ul role="list" class="-mx-2 min-w-0 space-y-1">
                     <li v-for="item in visibleNavigations" :key="item.path">
                       <span
                         v-if="!item.menuItems?.length"
@@ -338,11 +353,11 @@
                   </ul>
                 </li>
 
-                <li class="-mx-6 mt-auto">
+                <li class="mt-auto min-w-0">
                   <div class="flex flex-col gap-y-2">
                     <!-- Language -->
                     <div
-                      class="flex items-center gap-x-3 px-6 py-3 text-sm font-semibold text-black dark:text-gray-400"
+                      class="flex w-full min-w-0 items-center gap-x-3 px-6 py-3 text-sm font-semibold text-black dark:text-gray-400"
                     >
                       <Select2
                         :placeholder="t('common.language')"

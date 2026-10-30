@@ -2,7 +2,7 @@
     <div id="main-container" class="min-h-screen bg-neutral-50">
         <BreadCrums :crumbs="crums" test-id="breadcrumbs">
             <div class="flex gap-2">
-                <Can v-if="documentData && !editorVersionHasContent(documentData?.versions[documentData?.versions.length - 1] as DocumentVersion) && documentData?.contentType == ContentType.EDITOR && documentData?.createdBy?.id === authStore.state.userDetails.id"
+                <Can v-if="documentData && !editorVersionHasContent(documentData?.versions[documentData?.versions.length - 1] as DocumentVersion) && documentData?.contentType == ContentType.EDITOR && canEditDocumentContent"
                     subject="documents" :actions="['update']">
                     <IconTooltipButton buttonStyle="secondary" class="px-2 py-1 text-sm"
                         :href="`/plan/documents/${documentId}/new-version?fillPendingVersion=${documentData?.versions.find(v => v.versionNumber === currentVersion)?.id}&redirect=${encodeURIComponent(`/plan/documents/${documentId}`)}`"
@@ -10,7 +10,7 @@
                             " :title="t('document.view.add_content_title')" test-id="add-content-version-button"
                         icon-class="fa-solid fa-plus" :text="t('document.view.add_content')" tooltip-placement="left" />
                 </Can>
-                <Can v-if="documentData && !checklistVersionHasContent(documentData?.versions[documentData?.versions.length - 1] as DocumentVersion) && documentData?.contentType == ContentType.CHECKLIST && documentData?.createdBy?.id === authStore.state.userDetails.id"
+                <Can v-if="documentData && !checklistVersionHasContent(documentData?.versions[documentData?.versions.length - 1] as DocumentVersion) && documentData?.contentType == ContentType.CHECKLIST && canEditDocumentContent"
                     subject="documents" :actions="['update']">
                     <IconTooltipButton buttonStyle="secondary" class="px-2 py-1 text-sm"
                         :href="checklistVersionUrl(documentData?.versions.find(v => v.versionNumber === currentVersion)?.id)"
@@ -28,7 +28,7 @@
                     </IconTooltipButton>
                 </Can>
                 <Can subject="documents" :actions="['update']" v-if="
-                    documentData?.createdBy?.id === authStore.state.userDetails.id &&
+                    canEditDocumentContent &&
                     (documentData?.versions[documentData?.versions.length - 1].versionNumber !==
                         documentData?.currentVersion || (
                             documentData.contentType === ContentType.FILE && (
@@ -121,7 +121,7 @@
                     <div class="space-y-6">
                         <div class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2.5fr)_minmax(0,1fr)] lg:items-start">
                             <div v-if="showLatestVersionPreview"
-                                class="overflow-x-auto flex max-h-[800px] min-h-0 min-w-0 flex-col rounded-lg border border-neutral-200 bg-white p-4 lg:sticky lg:top-6 lg:max-h-[calc(100vh-5rem)]"
+                                class="overflow-x-auto flex max-h-[800px] min-h-0 min-w-0 flex-col rounded-lg border border-neutral-200 bg-white p-4 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-5rem)]"
                                 test-id="latest-version-preview-section">
                                 <h2 class="shrink-0 text-lg mb-4 flex flex-wrap items-center justify-between gap-2"
                                     test-id="latest-version-preview-heading">
@@ -372,6 +372,76 @@
                                             </div>
                                         </div>
 
+                                        <div
+                                            v-if="showContentContributors"
+                                            test-id="content-contributors-field"
+                                        >
+                                            <div class="flex items-center justify-between gap-2 mb-2">
+                                                <h3
+                                                    class="text-sm text-neutral-500"
+                                                    test-id="content-contributors-label"
+                                                >
+                                                    {{ t('document.view.label_contributors') }}
+                                                </h3>
+                                                <Can
+                                                    v-if="isDocumentCreator"
+                                                    subject="documents"
+                                                    :actions="['update']"
+                                                >
+                                                    <AppButton
+                                                        buttonStyle="secondary"
+                                                        class="px-2 py-1 text-xs gap-2"
+                                                        test-id="add-contributors-button"
+                                                        @click="openAddContributors"
+                                                    >
+                                                        <i class="fa-solid fa-user-plus"></i>
+                                                        {{ t('document.view.add_contributors') }}
+                                                    </AppButton>
+                                                </Can>
+                                            </div>
+                                            <p class="text-xs text-neutral-500 mb-2">
+                                                {{ t('document.view.contributors_hint') }}
+                                            </p>
+                                            <p
+                                                v-if="!contentContributorList.length"
+                                                class="text-sm text-neutral-500"
+                                                test-id="no-contributors"
+                                            >
+                                                {{ t('document.view.no_contributors') }}
+                                            </p>
+                                            <div v-else class="space-y-2" test-id="content-contributors-list">
+                                                <div
+                                                    v-for="(person, index) in contentContributorList"
+                                                    :key="person.id"
+                                                    class="flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-neutral-50"
+                                                    :test-id="`content-contributor-${person.id}`"
+                                                >
+                                                    <div class="flex items-center gap-2">
+                                                        <MemberIcon
+                                                            :member="{
+                                                                fname: person.fname || '',
+                                                                lname: person.lname || '',
+                                                                image: '',
+                                                                index
+                                                            }"
+                                                        />
+                                                        <span class="text-sm">
+                                                            {{ person.fname }} {{ person.lname }}
+                                                        </span>
+                                                    </div>
+                                                    <button
+                                                        v-if="isDocumentCreator"
+                                                        type="button"
+                                                        class="text-xs text-neutral-500 hover:text-red-600"
+                                                        :test-id="`remove-contributor-${person.id}`"
+                                                        @click="removeContentContributor(person.id)"
+                                                    >
+                                                        {{ t('document.view.remove_contributor') }}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <div v-if="reviewersWithStatus?.length" test-id="reviewers-field">
                                             <h3 class="text-sm text-neutral-500 mb-2" test-id="reviewers-label">
                                                 {{ t('document.view.label_reviewers') }}
@@ -614,7 +684,7 @@
                                                     tooltip-placement="right"
                                                 />
                                                 <template v-if="documentData?.contentType === ContentType.EDITOR">
-                                                    <Can v-if="!editorVersionHasContent(version)" subject="documents"
+                                                    <Can v-if="canEditDocumentContent && !editorVersionHasContent(version)" subject="documents"
                                                         :actions="['update']">
                                                         <IconTooltipButton buttonStyle="primary"
                                                             class="px-2 py-1 text-sm"
@@ -678,7 +748,7 @@
                                                     </template>
                                                 </template>
                                                 <template v-else-if="documentData?.contentType === ContentType.CHECKLIST">
-                                                    <Can v-if="!checklistVersionHasContent(version)" subject="documents"
+                                                    <Can v-if="canEditDocumentContent && !checklistVersionHasContent(version)" subject="documents"
                                                         :actions="['update']">
                                                         <IconTooltipButton buttonStyle="primary"
                                                             class="px-2 py-1 text-sm"
@@ -741,6 +811,7 @@
                                                     :text="t('document.view.download_short')"
                                                     tooltip-placement="right" />
                                                 <Can subject="documents" :actions="['update']" v-if="
+                                                    canEditDocumentContent &&
                                                     documentData?.contentType === ContentType.FILE &&
                                                     (!version.file ||
                                                         !String(version.file).trim() ||
@@ -832,6 +903,8 @@ import DocumentChecklistViewer from './DocumentChecklistViewer.vue'
 import SuperDocEditor from '../SuperDocEditor.vue'
 import IconTooltipButton from '../IconTooltipButton.vue'
 import Notice from '../Notice.vue'
+import AddContentContributorsDialog from './AddContentContributorsDialog.vue'
+import { userCanEditDocumentContent } from './document-content-access'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -968,7 +1041,7 @@ function checklistVersionUrl(versionId?: number) {
 
 const canCreateNewVersion = computed(() => {
     const doc = documentData.value
-    if (!doc || !isDocumentCreator.value) return false
+    if (!doc || !userCanEditDocumentContent(authStore.state.userDetails.id, doc)) return false
     if (changeRequest.value) return false
     if (!['published', 'obsolete'].includes(documentStatus.value || '')) return false
     if (doc.currentVersion !== doc.versions[doc.versions.length - 1].versionNumber) return false
@@ -1256,6 +1329,80 @@ watch([routeNodeId, routeNodeOffset], ([nodeId]) => {
 const isDocumentCreator = computed(
     () => documentData.value?.createdBy?.id === authStore.state.userDetails.id
 )
+
+const canEditDocumentContent = computed(() =>
+    userCanEditDocumentContent(authStore.state.userDetails.id, documentData.value)
+)
+
+const contentContributorList = computed(
+    () => documentData.value?.contentContributors ?? []
+)
+
+const showContentContributors = computed(
+    () => isDocumentCreator.value || contentContributorList.value.length > 0
+)
+
+function openAddContributors() {
+    const teamId = documentData.value?.team?.id
+    if (!teamId) return
+    const excludeUserIds = [
+        documentData.value?.createdBy?.id,
+        ...contentContributorList.value.map((person) => person.id)
+    ].filter((id): id is string => !!id)
+    dialogStore.openDialog(AddContentContributorsDialog, {
+        teamId,
+        excludeUserIds,
+        onCancel: dialogStore.closeDialog,
+        onConfirm: async (userIds: string[]) => {
+            await apiPost(
+                `/documents/${documentId}/content-contributors`,
+                { userIds },
+                authStore
+            )
+            dialogStore.closeDialog()
+            toast.showToast(
+                t('common.success'),
+                t('document.view.toast_contributors_added'),
+                'success'
+            )
+            await fetchDocument(true)
+        }
+    })
+}
+
+function removeContentContributor(userId: string) {
+    dialogStore.openDialog(ConfirmDialog, {
+        message: t('document.view.remove_contributor_confirm'),
+        onConfirm: async () => {
+            try {
+                await apiDelete(
+                    `/documents/${documentId}/content-contributors/${userId}`,
+                    authStore
+                )
+                dialogStore.closeDialog()
+                toast.showToast(
+                    t('common.success'),
+                    t('document.view.toast_contributor_removed'),
+                    'success'
+                )
+                await fetchDocument(true)
+            } catch (error: unknown) {
+                dialogStore.closeDialog()
+                const raw = formatApiErrorMessage(
+                    (error as { response?: { data?: unknown } })?.response?.data,
+                    t,
+                    'errors.document'
+                )
+                toast.showToast(
+                    t('common.error'),
+                    raw || t('document.view.toast_contributors_failed'),
+                    'error'
+                )
+            }
+        },
+        onCancel: dialogStore.closeDialog
+    })
+}
 
 const showEditDocumentButton = computed(() => {
     const doc = documentData.value

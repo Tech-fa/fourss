@@ -3,8 +3,8 @@
         <header class="border-b border-neutral-200 bg-white">
             <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
                 <RouterLink to="/login" class="flex items-center gap-3" :aria-label="t('legal.backToLogin')">
-                    <img src="@/assets/img/logo-color.png" alt="4ES" class="h-10 w-10" />
-                    <span class="text-lg font-bold text-neutral-900">4ES</span>
+                    <img src="@/assets/img/4ss-logo.svg?url" alt="" class="h-10 w-10" />
+                    <span class="text-lg font-bold text-neutral-900">4SS</span>
                 </RouterLink>
                 <div class="flex items-center gap-3">
                     <label for="legal-language" class="text-sm text-neutral-600">
@@ -23,7 +23,7 @@
         </header>
 
         <article class="mx-auto max-w-4xl px-4 py-10 sm:px-6 sm:py-14">
-            <p class="text-sm font-semibold uppercase tracking-wide text-neutral-500">4ES</p>
+            <p class="text-sm font-semibold uppercase tracking-wide text-neutral-500">4SS</p>
             <h1 class="mt-2 text-3xl font-bold tracking-tight text-neutral-900 sm:text-4xl">
                 {{ document.title }}
             </h1>
@@ -60,8 +60,8 @@
                 >
                     {{ t('legal.privacyLink') }}
                 </RouterLink>
-                <a class="text-neutral-800 underline-offset-4 hover:underline" href="mailto:afawaz@4eshub.com">
-                    afawaz@4eshub.com
+                <a class="text-neutral-800 underline-offset-4 hover:underline" href="mailto:afawaz@4sshub.com">
+                    afawaz@4sshub.com
                 </a>
             </nav>
         </article>
