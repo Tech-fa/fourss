@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - documents_backend/**
+      - web_backend/**
       - desktop-shell/deploy/api.Dockerfile
       - .github/workflows/api-image.yml
   workflow_dispatch:
@@ -24,7 +24,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Read the API version
         id: version
-        run: echo "version=$(node -p "require('./documents_backend/package.json').version")" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(node -p "require('./web_backend/package.json').version")" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
           context: .
