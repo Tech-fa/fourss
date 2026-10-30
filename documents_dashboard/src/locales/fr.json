@@ -12,6 +12,7 @@
         "notificationsConfig": "Configuration des notifications",
         "plan": "Plan",
         "documents": "Documents",
+        "standards": "Normes",
         "records": "Enregistrements",
         "issues": "Problèmes",
         "interestedParties": "Parties intéressées",
@@ -2185,7 +2186,8 @@
             "stats": {
                 "active": "Mises en œuvre actives",
                 "available": "Disponibles à ajouter",
-                "evidence": "Total des preuves associées"
+                "evidence": "Total des preuves associées",
+                "documents": "Documents mis en œuvre"
             }
         },
         "form": {
@@ -2373,8 +2375,44 @@
                 "interested_parties": "Parties intéressées",
                 "processes": "Processus"
             }
+        },
+        "documents": {
+            "title": "Documents requis",
+            "subtitle": "Suivez les informations documentées que cette norme exige de maintenir ou de conserver.",
+            "catalog_title": "Normes disponibles",
+            "col_clause": "Clause",
+            "col_title": "Document",
+            "col_kind": "Type",
+            "col_status": "Statut",
+            "col_linked": "Document lié",
+            "col_progress": "Progression",
+            "kind_maintain": "Maintenir",
+            "kind_retain": "Conserver",
+            "status_not_started": "Non commencé",
+            "status_in_progress": "En cours",
+            "status_implemented": "Mis en œuvre",
+            "implementation_status_in_progress": "En cours",
+            "implementation_status_completed": "Terminé",
+            "progress": "{completed} sur {total} mis en œuvre",
+            "no_link": "Non lié",
+            "link_document": "Lier un document",
+            "create_document": "Créer un document",
+            "filter_all_kinds": "Tous les types",
+            "filter_all_statuses": "Tous les statuts",
+            "toast_status_updated": "Statut du document mis à jour",
+            "toast_status_failed": "Échec de la mise à jour du statut",
+            "toast_link_updated": "Document lié",
+            "toast_link_failed": "Échec de la liaison du document",
+            "delete_implementation": "Supprimer la mise en œuvre",
+            "delete_confirm": "Supprimer cette mise en œuvre ? La progression du suivi sera perdue.",
+            "toast_deleted": "Mise en œuvre supprimée",
+            "toast_delete_failed": "Échec de la suppression de la mise en œuvre",
+            "required_count": "{count} documents requis",
+            "implement": "Mettre en œuvre",
+            "continue": "Continuer le suivi"
         }
     },
+
     "issues": {
         "main": {
             "add_button": "Ajouter un problème",
@@ -9001,6 +9039,10 @@
             "STANDARD_004": "Une mise en œuvre existe déjà pour cette norme",
             "STANDARD_005": "Mise en œuvre introuvable",
             "STANDARD_006": "Échec de la création de la mise en œuvre",
+            "STANDARD_007": "Document de mise en œuvre introuvable",
+            "STANDARD_008": "Document lié introuvable",
+            "STANDARD_009": "Échec de la mise à jour du document de mise en œuvre",
+            "STANDARD_010": "Échec de la suppression de la mise en œuvre",
             "STANDARD_011": "Échec de l'ajout de la définition de contrôle",
             "STANDARD_012": "Définition de contrôle introuvable",
             "STANDARD_013": "Les contrôles modèle ne peuvent pas être supprimés",

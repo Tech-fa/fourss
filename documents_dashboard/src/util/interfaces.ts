@@ -3640,3 +3640,65 @@ export interface BulkProviderDocumentPayload {
     supportingDocumentId: string
     documentDate?: number
 }
+
+export type RequiredDocumentKind = 'maintain' | 'retain'
+export type ImplementationStatus = 'in_progress' | 'completed'
+export type ImplementationDocumentStatus = 'not_started' | 'in_progress' | 'implemented'
+
+export interface StandardRequiredDocument {
+    key: string
+    title: string
+    clause: string
+    kind: RequiredDocumentKind
+    description: string
+}
+
+export interface StandardCatalogItem {
+    key: string
+    name: string
+    shortName: string
+    year: number
+    family: string
+    description: string
+    requiredDocuments: StandardRequiredDocument[]
+    implementation: {
+        id: number
+        status: ImplementationStatus
+        completedCount: number
+        totalCount: number
+    } | null
+}
+
+export interface StandardImplementationDocument {
+    id: number
+    documentKey: string
+    title: string
+    clause: string
+    description: string
+    kind: RequiredDocumentKind
+    status: ImplementationDocumentStatus
+    sortOrder: number
+    linkedDocument: {
+        id: string
+        title: string
+        documentCode: string
+    } | null
+    updatedAt: number
+}
+
+export interface StandardImplementation {
+    id: number
+    standardKey: string
+    standardName: string
+    status: ImplementationStatus
+    createdAt: number
+    updatedAt: number
+    createdBy: {
+        id: string
+        fname: string
+        lname: string
+    } | null
+    completedCount: number
+    totalCount: number
+    documents: StandardImplementationDocument[]
+}

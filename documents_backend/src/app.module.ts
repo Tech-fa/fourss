@@ -14,6 +14,7 @@ import { JwtAuthGuard } from "./authentication/jwt-auth.gard";
 import { PermissionsGuard } from "./authentication/permission.guard";
 import { TeamModule } from "./teams/team.module";
 import { DocumentModule } from "./document/document.module";
+import { StandardsModule } from "./standards/standards.module";
 import { DocumentAiIndexHandlerModule } from "./document/handler/document-ai-index-handler.module";
 import { CachingModule } from "./cache/cache.module";
 import { PermissionModule } from "./permissions/permission.module";
@@ -56,6 +57,7 @@ import { BootstrapService } from "./bootstrap.service";
     UsersModule,
     TeamModule,
     DocumentModule,
+    StandardsModule,
     DocumentAiIndexHandlerModule,
     CachingModule,
     PermissionModule,

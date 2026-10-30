@@ -12,6 +12,7 @@
         "notificationsConfig": "Notifications Config",
         "plan": "Plan",
         "documents": "Documents",
+        "standards": "Standards",
         "records": "Records",
         "issues": "Issues",
         "interestedParties": "Interested Parties",
@@ -6315,7 +6316,8 @@
             "stats": {
                 "active": "Active implementations",
                 "available": "Available to add",
-                "evidence": "Total evidence linked"
+                "evidence": "Total evidence linked",
+                "documents": "Documents implemented"
             }
         },
         "form": {
@@ -6503,6 +6505,41 @@
                 "interested_parties": "Interested parties",
                 "processes": "Processes"
             }
+        },
+        "documents": {
+            "title": "Required documents",
+            "subtitle": "Track the documented information this standard requires you to maintain or retain.",
+            "catalog_title": "Available standards",
+            "col_clause": "Clause",
+            "col_title": "Document",
+            "col_kind": "Type",
+            "col_status": "Status",
+            "col_linked": "Linked document",
+            "col_progress": "Progress",
+            "kind_maintain": "Maintain",
+            "kind_retain": "Retain",
+            "status_not_started": "Not started",
+            "status_in_progress": "In progress",
+            "status_implemented": "Implemented",
+            "implementation_status_in_progress": "In progress",
+            "implementation_status_completed": "Completed",
+            "progress": "{completed} of {total} implemented",
+            "no_link": "Not linked",
+            "link_document": "Link document",
+            "create_document": "Create document",
+            "filter_all_kinds": "All types",
+            "filter_all_statuses": "All statuses",
+            "toast_status_updated": "Document status updated",
+            "toast_status_failed": "Failed to update document status",
+            "toast_link_updated": "Document linked",
+            "toast_link_failed": "Failed to link document",
+            "delete_implementation": "Delete implementation",
+            "delete_confirm": "Delete this implementation? Tracking progress will be lost.",
+            "toast_deleted": "Implementation deleted",
+            "toast_delete_failed": "Failed to delete implementation",
+            "required_count": "{count} required documents",
+            "implement": "Implement",
+            "continue": "Continue tracking"
         }
     },
     "issues": {
@@ -9397,6 +9434,10 @@
             "STANDARD_004": "Implementation already exists for this standard",
             "STANDARD_005": "Implementation not found",
             "STANDARD_006": "Failed to create implementation",
+            "STANDARD_007": "Implementation document not found",
+            "STANDARD_008": "Linked document not found",
+            "STANDARD_009": "Failed to update implementation document",
+            "STANDARD_010": "Failed to delete implementation",
             "STANDARD_011": "Failed to add control definition",
             "STANDARD_012": "Control definition not found",
             "STANDARD_013": "Template controls cannot be deleted",

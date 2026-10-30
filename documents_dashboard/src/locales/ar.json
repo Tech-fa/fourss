@@ -19,6 +19,7 @@
         "notificationsConfig": "إعدادات الإشعارات",
         "plan": "تخطيط",
         "documents": "المستندات",
+        "standards": "المعايير",
         "records": "السجلات",
         "riskManagement": "إدارة المخاطر",
         "implementations": "تطبيقات المعايير",
@@ -6465,7 +6466,8 @@
             "stats": {
                 "active": "التطبيقات النشطة",
                 "available": "متاحة للإضافة",
-                "evidence": "إجمالي الأدلة المرتبطة"
+                "evidence": "إجمالي الأدلة المرتبطة",
+                "documents": "المستندات المنفذة"
             }
         },
         "form": {
@@ -6653,6 +6655,41 @@
                 "interested_parties": "الأطراف المعنية",
                 "processes": "العمليات"
             }
+        },
+        "documents": {
+            "title": "المستندات المطلوبة",
+            "subtitle": "تتبع المعلومات الموثقة التي يتطلب هذا المعيار الاحتفاظ بها أو صيانتها.",
+            "catalog_title": "المعايير المتاحة",
+            "col_clause": "البند",
+            "col_title": "المستند",
+            "col_kind": "النوع",
+            "col_status": "الحالة",
+            "col_linked": "المستند المرتبط",
+            "col_progress": "التقدم",
+            "kind_maintain": "صيانة",
+            "kind_retain": "احتفاظ",
+            "status_not_started": "لم يبدأ",
+            "status_in_progress": "قيد التنفيذ",
+            "status_implemented": "منفّذ",
+            "implementation_status_in_progress": "قيد التنفيذ",
+            "implementation_status_completed": "مكتمل",
+            "progress": "{completed} من {total} منفّذة",
+            "no_link": "غير مرتبط",
+            "link_document": "ربط مستند",
+            "create_document": "إنشاء مستند",
+            "filter_all_kinds": "كل الأنواع",
+            "filter_all_statuses": "كل الحالات",
+            "toast_status_updated": "تم تحديث حالة المستند",
+            "toast_status_failed": "تعذّر تحديث حالة المستند",
+            "toast_link_updated": "تم ربط المستند",
+            "toast_link_failed": "تعذّر ربط المستند",
+            "delete_implementation": "حذف التطبيق",
+            "delete_confirm": "حذف هذا التطبيق؟ سيتم فقدان تقدم التتبع.",
+            "toast_deleted": "تم حذف التطبيق",
+            "toast_delete_failed": "تعذّر حذف التطبيق",
+            "required_count": "{count} مستندات مطلوبة",
+            "implement": "تطبيق",
+            "continue": "متابعة التتبع"
         }
     },
     "issues": {
@@ -9547,6 +9584,10 @@
             "STANDARD_004": "يوجد تطبيق بالفعل لهذا المعيار",
             "STANDARD_005": "التطبيق غير موجود",
             "STANDARD_006": "تعذّر إنشاء التطبيق",
+            "STANDARD_007": "مستند التطبيق غير موجود",
+            "STANDARD_008": "المستند المرتبط غير موجود",
+            "STANDARD_009": "تعذّر تحديث مستند التطبيق",
+            "STANDARD_010": "تعذّر حذف التطبيق",
             "STANDARD_011": "تعذّر إضافة تعريف الضابط",
             "STANDARD_012": "تعريف الضابط غير موجود",
             "STANDARD_013": "لا يمكن حذف ضوابط القالب",

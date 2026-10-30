@@ -662,6 +662,12 @@ const navigations = computed<NavItem[]>(() => [
         subject: 'documents',
         icon: h('i', { class: 'fa-solid fa-file-lines text-neutral-700 ' })
     },
+    {
+        name: t('nav.standards'),
+        path: '/plan/standards',
+        subject: 'standards',
+        icon: h('i', { class: 'fa-solid fa-certificate text-neutral-700 ' })
+    },
 ])
 
 const canSeeNavItem = (item: NavItem) => {

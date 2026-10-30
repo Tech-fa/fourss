@@ -99,6 +99,17 @@ export const DocumentPermission = {
   management_review_data_included: true,
 };
 
+export const standardsPermission = {
+  subject: "standards",
+  label: "Standard",
+  actions: actions,
+  service_tag: "standards",
+  base_route: "plan/standards",
+  entity_route: "plan/standards/@@id@@",
+  entityName: "StandardImplementation",
+  module_included: true,
+};
+
 interface PermissionTree {
   subject: string;
   label: string;
@@ -128,6 +139,7 @@ export const permissions: {
   approvalStrategyPermission,
   documentAcknowledgementPermission,
   changeRequestPermission,
+  standardsPermission,
 };
 
 export const permissionTree: {
@@ -137,9 +149,13 @@ export const permissionTree: {
   permissionPermission,
   DocumentPermission,
   teamsPermission,
+  standardsPermission,
 };
 
-export const processOwnerModules: PermissionTree[] = [DocumentPermission];
+export const processOwnerModules: PermissionTree[] = [
+  DocumentPermission,
+  standardsPermission,
+];
 
 export const defaultRoles = [
   {
