@@ -8,6 +8,17 @@ const authRouteNames = new Set(AuthRoutes.map((route) => String(route.name)))
 const DOCUMENT_BODY_FIELDS = new Set(['document body', 'editor content'])
 
 export function installAgentPageLinks(router: Router) {
+    window.__bindAgentPageLinks = () => {
+        bindAgentPageLinks(router)
+    }
+    bindAgentPageLinks(router)
+}
+
+function bindAgentPageLinks(router: Router) {
+    const control = window.__appControl
+    if (!control) return false
+    if (control.__agentPatched) return true
+
     const hooks = (window.__appControlHooks ??= {})
     hooks.list_pages = () => {
         const auth = useAuthStore()
@@ -28,15 +39,6 @@ export function installAgentPageLinks(router: Router) {
                 pageLinks: linksOnPage(document, window.location.href)
             })
         }
-    }
-    patchAppControl()
-}
-
-function patchAppControl() {
-    const control = window.__appControl
-    if (!control) {
-        queueMicrotask(patchAppControl)
-        return
     }
     if (!control.__agentOriginalCall) {
         control.__agentOriginalCall = control.call.bind(control)
@@ -70,6 +72,7 @@ function patchAppControl() {
         }
         return originalCall(name, args)
     }
+    return true
 }
 
 function toAgentRoute(route: {
@@ -118,6 +121,7 @@ function allowed(
 
 declare global {
     interface Window {
+        __bindAgentPageLinks?: () => void
         __appControlHooks?: Record<string, (args: Record<string, unknown>) => unknown>
         __appControl?: {
             call: (name: string, args?: Record<string, unknown>) => Promise<unknown> | unknown

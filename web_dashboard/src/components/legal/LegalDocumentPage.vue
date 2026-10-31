@@ -3,7 +3,7 @@
         <header class="border-b border-neutral-200 bg-white">
             <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
                 <RouterLink to="/login" class="flex items-center gap-3" :aria-label="t('legal.backToLogin')">
-                    <img src="@/assets/img/4ss-logo.svg?url" alt="" class="h-10 w-10" />
+                    <img src="@/assets/img/4ss-logo.png?url" alt="" class="h-10 w-10" />
                     <span class="text-lg font-bold text-neutral-900">4SS</span>
                 </RouterLink>
                 <div class="flex items-center gap-3">

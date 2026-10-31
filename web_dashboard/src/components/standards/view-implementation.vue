@@ -83,40 +83,50 @@
                 </div>
             </div>
 
-            <div class="bg-white border border-neutral-200 rounded-lg overflow-visible">
-                <table class="min-w-full">
-                    <thead class="bg-neutral-50 text-start text-sm text-neutral-600">
+            <div class="bg-white overflow-visible w-full relative rounded-t-lg">
+                <table class="min-w-full w-max rounded-t-lg">
+                    <thead class="bg-primary rounded-t-lg">
                         <tr>
-                            <th class="px-4 py-3 font-medium">{{ t('implementations.documents.col_clause') }}</th>
-                            <th class="px-4 py-3 font-medium">{{ t('implementations.documents.col_title') }}</th>
-                            <th class="px-4 py-3 font-medium">{{ t('implementations.documents.col_kind') }}</th>
-                            <th class="px-4 py-3 font-medium">{{ t('implementations.documents.col_status') }}</th>
-                            <th class="px-4 py-3 font-medium">{{ t('implementations.documents.col_linked') }}</th>
+                            <th scope="col" class="px-6 py-2 text-start text-sm text-opposite">
+                                {{ t('implementations.documents.col_clause') }}
+                            </th>
+                            <th scope="col" class="px-6 py-2 text-start text-sm text-opposite min-w-64">
+                                {{ t('implementations.documents.col_title') }}
+                            </th>
+                            <th scope="col" class="px-6 py-2 text-start text-sm text-opposite">
+                                {{ t('implementations.documents.col_kind') }}
+                            </th>
+                            <th scope="col" class="px-6 py-2 text-start text-sm text-opposite min-w-44">
+                                {{ t('implementations.documents.col_status') }}
+                            </th>
+                            <th scope="col" class="px-6 py-2 text-start text-sm text-opposite min-w-64">
+                                {{ t('implementations.documents.col_linked') }}
+                            </th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="divide-y divide-black relative border-l border-r">
                         <tr v-if="visibleDocuments.length === 0">
-                            <td colspan="5" class="px-4 py-8 text-center text-sm text-neutral-500">
+                            <td colspan="5" class="px-6 py-8 text-center 2xl:text-sm text-xs text-neutral-500">
                                 {{ t('common.no_records_found_for', { entity: t('implementations.documents.title') }) }}
                             </td>
                         </tr>
                         <tr
                             v-for="document in visibleDocuments"
                             :key="document.id"
-                            class="border-t border-neutral-200 align-top"
+                            class="hover:bg-neutral-50 align-middle"
                             :test-id="`implementation-document-${document.id}`"
                         >
-                            <td class="px-4 py-3 text-sm font-medium text-neutral-900 whitespace-nowrap">
+                            <td class="px-6 py-7  2xl:text-sm text-xs font-medium whitespace-nowrap my-auto">
                                 {{ document.clause }}
                             </td>
-                            <td class="px-4 py-3 text-sm text-neutral-800">
+                            <td class="px-6 py-7 text-start 2xl:text-sm text-xs min-w-64">
                                 <div class="font-medium">{{ document.title }}</div>
                                 <p class="mt-1 text-neutral-500">{{ document.description }}</p>
                             </td>
-                            <td class="px-4 py-3 text-sm text-neutral-700 whitespace-nowrap">
+                            <td class="px-6 py-7  2xl:text-sm text-xs whitespace-nowrap">
                                 {{ kindLabel(document.kind) }}
                             </td>
-                            <td class="px-4 py-3 min-w-44">
+                            <td class="px-6 py-7 text-start min-w-44">
                                 <Can subject="standards" :actions="['update']">
                                     <Select2
                                         :model-value="statusOption(document.status)"
@@ -126,38 +136,48 @@
                                         @update:modelValue="(value) => updateStatus(document, value)"
                                     />
                                 </Can>
-                                <span v-if="!canUpdate" class="text-sm text-neutral-700">
+                                <span v-if="!canUpdate" class="2xl:text-sm text-xs">
                                     {{ statusLabel(document.status) }}
                                 </span>
                             </td>
-                            <td class="px-4 py-3 min-w-56">
-                                <Can subject="documents" :actions="['read']">
-                                    <Select2
-                                        :model-value="linkedOption(document)"
-                                        :values="documentOptions"
-                                        :display="(item: { name?: string }) => item?.name ?? ''"
-                                        :placeholder="t('implementations.documents.link_document')"
-                                        :optional="true"
-                                        @update:modelValue="(value) => updateLinkedDocument(document, value)"
-                                    />
-                                </Can>
-                                <a
-                                    v-if="document.linkedDocument"
-                                    class="mt-2 inline-flex text-sm text-neutral-700 underline"
-                                    :href="`/plan/documents/${document.linkedDocument.id}`"
-                                    @click.prevent="router.push(`/plan/documents/${document.linkedDocument.id}`)"
-                                >
-                                    {{ document.linkedDocument.title }}
-                                </a>
-                                <Can subject="documents" :actions="['create']">
-                                    <AppButton
-                                        class="mt-2"
-                                        buttonStyle="void"
-                                        :href="`/plan/documents/add?redirect=${encodeURIComponent(`/plan/standards/${implementation.id}`)}`"
-                                    >
-                                        {{ t('implementations.documents.create_document') }}
-                                    </AppButton>
-                                </Can>
+                            <td class="px-6 py-7 text-start min-w-64 relative">
+                                <div class="flex items-start gap-2">
+                                    <div class="min-w-0 flex-1">
+
+                                            <Can subject="documents" :actions="['create']">
+                                                <span class="absolute right-6 top-2">
+                                                <AddAndReload
+                                                    href="/plan/documents/add"
+                                                    :add-text="t('implementations.documents.create_document')"
+                                                    :reload-loading="documentsLoading"
+                                                    :add-test-id="`create-document-${document.id}`"
+                                                    :reload-test-id="`reload-documents-${document.id}`"
+                                                    @reload="reloadDocuments"
+                                                />
+                                            </span>
+                                            </Can>
+                                        <Can subject="documents" :actions="['read']">
+
+                                            <Select2
+                                                :model-value="linkedOption(document)"
+                                                :values="documentOptions"
+                                                :display="(item: { name?: string }) => item?.name ?? ''"
+                                                :placeholder="t('implementations.documents.link_document')"
+                                                :optional="true"
+                                                @update:modelValue="(value) => updateLinkedDocument(document, value)"
+                                            />
+                                        </Can>
+                                        <a
+                                            v-if="document.linkedDocument"
+                                            class="mt-2 inline-flex 2xl:text-sm text-xs text-primary hover:text-primary/70"
+                                            :href="`/plan/documents/${document.linkedDocument.id}`"
+                                            @click.prevent="router.push(`/plan/documents/${document.linkedDocument.id}`)"
+                                        >
+                                            {{ document.linkedDocument.title }}
+                                        </a>
+                                    </div>
+                                 
+                                </div>
                             </td>
                         </tr>
                     </tbody>
@@ -172,6 +192,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import Breadcrumb from '../breadCrums.vue'
+import AddAndReload from '../AddAndReload.vue'
 import AppButton from '../AppButton.vue'
 import Can from '../Can.vue'
 import Select2 from '../Select2.vue'
@@ -195,6 +216,7 @@ const toast = useToast()
 
 const loading = ref(true)
 const deleting = ref(false)
+const documentsLoading = ref(false)
 const implementation = ref<StandardImplementation | null>(null)
 const documents = ref<Document[]>([])
 const kindFilter = ref<{ id: string; name: string }>({ id: '', name: '' })
@@ -292,13 +314,7 @@ const fetchImplementation = async () => {
             `/standards/implementations/${implementationId.value}`,
             authStore
         )
-        if (authStore.hasPermissions({ subject: 'documents', actions: ['read'] })) {
-            const response = await apiGet<PaginatedResponse<Document>>(
-                '/documents?perPage=50&page=1',
-                authStore
-            )
-            documents.value = response.data
-        }
+        await loadDocuments()
         kindFilter.value = kindOptions.value[0]
         statusFilter.value = statusFilterOptions.value[0]
     } catch (error: any) {
@@ -313,6 +329,31 @@ const fetchImplementation = async () => {
         router.replace('/plan/standards')
     } finally {
         loading.value = false
+    }
+}
+
+const loadDocuments = async () => {
+    if (!authStore.hasPermissions({ subject: 'documents', actions: ['read'] })) return
+    const response = await apiGet<PaginatedResponse<Document>>(
+        '/documents?perPage=50&page=1',
+        authStore
+    )
+    documents.value = response.data
+}
+
+const reloadDocuments = async () => {
+    documentsLoading.value = true
+    try {
+        await loadDocuments()
+    } catch (error: any) {
+        const raw = formatApiErrorMessage(error.response?.data, t, 'errors.standard')
+        toast.showToast(
+            t('common.error'),
+            raw || t('implementations.view.toast_fetch_failed'),
+            'error'
+        )
+    } finally {
+        documentsLoading.value = false
     }
 }
 

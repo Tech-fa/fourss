@@ -6,7 +6,7 @@
 
         <div class="relative z-10 w-full max-w-[520px] max-h-full overflow-y-auto">
             <div class="login-card relative bg-white rounded-2xl shadow-2xl border border-white/20 overflow-hidden">
-                <img src="@/assets/img/4ss-logo.svg?url" alt="4SS. See, Shape, Secure, Sustain."
+                <img src="@/assets/img/4ss-logo.png?url" alt="4SS. See, Shape, Secure, Sustain."
                     class="login-card__logo absolute top-6 left-8 sm:top-8 sm:left-10 w-14 h-14" />
                 <div class="absolute top-6 right-8 sm:top-8 sm:right-10 flex items-center gap-1 text-sm font-semibold">
                     <Select2 :placeholder="t('common.language')" v-model="selectedLocale" :values="localeOptions"

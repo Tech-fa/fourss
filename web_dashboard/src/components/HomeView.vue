@@ -65,7 +65,7 @@
                   class="flex h-16 shrink-0 items-center gap-2.5 border-b border-neutral-200 px-6"
                 >
                   <img
-                    src="@/assets/img/4ss-logo.svg?url"
+                    src="@/assets/img/4ss-logo.png?url"
                     alt=""
                     class="h-9 w-9 shrink-0"
                   />
@@ -249,7 +249,7 @@
             >
               <div class="flex min-w-0 items-center gap-2">
                 <img
-                  src="@/assets/img/4ss-logo.svg?url"
+                  src="@/assets/img/4ss-logo.png?url"
                   alt=""
                   class="h-8 w-8 shrink-0"
                 />

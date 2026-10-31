@@ -73,8 +73,9 @@
                             <Can v-else subject="standards" :actions="['create']">
                                 <AppButton
                                     buttonStyle="primary"
-                                    :href="`/plan/standards/add?standard=${standard.key}`"
+                                    :loading="creatingKey === standard.key"
                                     :test-id="`implement-standard-${standard.key}`"
+                                    @click="implementStandard(standard.key)"
                                 >
                                     {{ t('implementations.documents.implement') }}
                                 </AppButton>
@@ -138,6 +139,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import Breadcrumb from '../breadCrums.vue'
 import AppButton from '../AppButton.vue'
 import Can from '../Can.vue'
@@ -145,15 +147,17 @@ import Spinner from '../Spinner.vue'
 import Table from '../Table.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from '@/stores/notification'
-import { apiGet } from '@/util/api'
+import { apiGet, apiPost } from '@/util/api'
 import { formatApiErrorMessage } from '@/util/util'
 import type { StandardCatalogItem, StandardImplementation } from '@/util/interfaces'
 
 const { t } = useI18n()
+const router = useRouter()
 const authStore = useAuthStore()
 const toast = useToast()
 
 const loading = ref(true)
+const creatingKey = ref<string | null>(null)
 const standards = ref<StandardCatalogItem[]>([])
 const implementations = ref<StandardImplementation[]>([])
 
@@ -215,6 +219,29 @@ const mapStatusStyle = (status: string) => {
         return 'bg-green-100 text-green-800'
     }
     return 'bg-yellow-100 text-yellow-800'
+}
+
+const implementStandard = async (standardKey: string) => {
+    if (creatingKey.value) return
+    creatingKey.value = standardKey
+    try {
+        const created = await apiPost<StandardImplementation>(
+            '/standards/implementations',
+            { standardKey },
+            authStore
+        )
+        toast.showToast(t('common.success'), t('implementations.form.toast_created'), 'success')
+        await router.push(`/plan/standards/${created.id}`)
+    } catch (error: any) {
+        const raw = formatApiErrorMessage(error.response?.data, t, 'errors.standard')
+        toast.showToast(
+            t('common.error'),
+            raw || t('implementations.form.toast_create_failed'),
+            'error'
+        )
+    } finally {
+        creatingKey.value = null
+    }
 }
 
 const fetchPage = async () => {
