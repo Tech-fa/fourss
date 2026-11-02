@@ -3702,3 +3702,66 @@ export interface StandardImplementation {
     totalCount: number
     documents: StandardImplementationDocument[]
 }
+
+export interface SharedImplementationDocument {
+    clause: string
+    title: string
+    description: string
+    kind: RequiredDocumentKind
+    status: ImplementationDocumentStatus
+    linkedTitle: string | null
+    linkedCode: string | null
+    versionNumber: number | null
+    publishedAt: number | null
+    viewCode: string
+}
+
+export interface SharedImplementation {
+    standardName: string
+    status: ImplementationStatus
+    completedCount: number
+    totalCount: number
+    expiresAt: number
+    documents: SharedImplementationDocument[]
+}
+
+export type SharedContentKind =
+    | 'pdf'
+    | 'image'
+    | 'docx'
+    | 'html'
+    | 'json'
+    | 'text'
+    | 'checklist'
+    | 'none'
+    | 'unsupported'
+    | 'too_large'
+
+export interface SharedDocumentLink {
+    title: string
+    documentCode: string
+    versionNumber: number | null
+    publishedAt: number | null
+    contentKind: SharedContentKind
+    mime: string | null
+    byteLength: number
+    chunkCount: number
+    sessionId: string | null
+}
+
+export interface SharedStandardDocument {
+    standardName: string
+    clause: string
+    title: string
+    description: string
+    kind: string
+    status: string
+    expiresAt: number
+    linked: SharedDocumentLink | null
+}
+
+export interface CreateImplementationShareResult {
+    sent: boolean
+    expiresAt: number
+    previewLink?: string
+}

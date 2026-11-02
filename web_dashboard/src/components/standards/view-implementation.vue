@@ -1,16 +1,27 @@
 <template>
     <Breadcrumb :crumbs="breadcrumbCrumbs">
-        <Can subject="standards" :actions="['delete']">
-            <AppButton
-                buttonStyle="danger"
-                :warn-before="t('implementations.documents.delete_confirm')"
-                :loading="deleting"
-                test-id="delete-implementation-button"
-                @click="deleteImplementation"
-            >
-                {{ t('implementations.documents.delete_implementation') }}
-            </AppButton>
-        </Can>
+        <div class="flex items-center gap-2">
+            <Can subject="standards" :actions="['update']">
+                <AppButton
+                    buttonStyle="secondary"
+                    test-id="share-implementation-button"
+                    @click="openShareDialog"
+                >
+                    {{ t('implementations.share.button') }}
+                </AppButton>
+            </Can>
+            <Can subject="standards" :actions="['delete']">
+                <AppButton
+                    buttonStyle="danger"
+                    :warn-before="t('implementations.documents.delete_confirm')"
+                    :loading="deleting"
+                    test-id="delete-implementation-button"
+                    @click="deleteImplementation"
+                >
+                    {{ t('implementations.documents.delete_implementation') }}
+                </AppButton>
+            </Can>
+        </div>
     </Breadcrumb>
 
     <main id="main-content" class="p-6">
@@ -117,30 +128,9 @@
                             :test-id="`implementation-document-${document.id}`"
                         >
                             <td class="px-6 py-7  2xl:text-sm text-xs font-medium whitespace-nowrap my-auto">
+                                <div>
                                 {{ document.clause }}
-                            </td>
-                            <td class="px-6 py-7 text-start 2xl:text-sm text-xs min-w-64">
-                                <div class="font-medium">{{ document.title }}</div>
-                                <p class="mt-1 text-neutral-500">{{ document.description }}</p>
-                            </td>
-                            <td class="px-6 py-7  2xl:text-sm text-xs whitespace-nowrap">
-                                {{ kindLabel(document.kind) }}
-                            </td>
-                            <td class="px-6 py-7 text-start min-w-44">
-                                <Can subject="standards" :actions="['update']">
-                                    <Select2
-                                        :model-value="statusOption(document.status)"
-                                        :values="statusOptions"
-                                        :display="(item: { name?: string }) => item?.name ?? ''"
-                                        :placeholder="t('implementations.documents.col_status')"
-                                        @update:modelValue="(value) => updateStatus(document, value)"
-                                    />
-                                </Can>
-                                <span v-if="!canUpdate" class="2xl:text-sm text-xs">
-                                    {{ statusLabel(document.status) }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-7 text-start min-w-64 relative">
+                                </div>
                                 <div class="flex items-start gap-2">
                                     <div class="min-w-0 flex-1">
 
@@ -178,6 +168,31 @@
                                     </div>
                                  
                                 </div>
+
+                            </td>
+                            <td class="px-6 py-7 text-start 2xl:text-sm text-xs min-w-64">
+                                <div class="font-medium">{{ document.title }}</div>
+                                <p class="mt-1 text-neutral-500">{{ document.description }}</p>
+                            </td>
+                            <td class="px-6 py-7  2xl:text-sm text-xs whitespace-nowrap">
+                                {{ kindLabel(document.kind) }}
+                            </td>
+                            <td class="px-6 py-7 text-start min-w-44">
+                                <Can subject="standards" :actions="['update']">
+                                    <Select2
+                                        :model-value="statusOption(document.status)"
+                                        :values="statusOptions"
+                                        :display="(item: { name?: string }) => item?.name ?? ''"
+                                        :placeholder="t('implementations.documents.col_status')"
+                                        @update:modelValue="(value) => updateStatus(document, value)"
+                                    />
+                                </Can>
+                                <span v-if="!canUpdate" class="2xl:text-sm text-xs">
+                                    {{ statusLabel(document.status) }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-7 text-start min-w-64 relative">
+                             
                             </td>
                         </tr>
                     </tbody>
@@ -197,7 +212,9 @@ import AppButton from '../AppButton.vue'
 import Can from '../Can.vue'
 import Select2 from '../Select2.vue'
 import Spinner from '../Spinner.vue'
+import ShareImplementationDialog from './share-implementation-dialog.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useDialog } from '@/stores/dialog'
 import { useToast } from '@/stores/notification'
 import { apiDelete, apiGet, apiPatch } from '@/util/api'
 import { formatApiErrorMessage } from '@/util/util'
@@ -212,6 +229,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const dialog = useDialog()
 const toast = useToast()
 
 const loading = ref(true)
@@ -305,6 +323,14 @@ const linkedOption = (document: StandardImplementationDocument) => {
             name: document.linkedDocument.title
         }
     )
+}
+
+const openShareDialog = () => {
+    dialog.openDialog(ShareImplementationDialog, {
+        implementationId: implementationId.value,
+        standardName: implementation.value?.standardName || '',
+        onCancel: () => dialog.closeDialog(),
+    })
 }
 
 const fetchImplementation = async () => {

@@ -9,6 +9,10 @@ export const STANDARD_ERROR_MAP = {
   STANDARD_008: { message: "Linked document not found" },
   STANDARD_009: { message: "Failed to update implementation document" },
   STANDARD_010: { message: "Failed to delete implementation" },
+  STANDARD_031: { message: "This share link is invalid or has expired" },
+  STANDARD_032: { message: "The document view could not be loaded" },
+  STANDARD_033: { message: "The document view is not ready yet" },
+  STANDARD_034: { message: "Failed to send the share link" },
 } as const;
 
 export type StandardErrorCode = keyof typeof STANDARD_ERROR_MAP;

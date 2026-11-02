@@ -1,10 +1,12 @@
 import { Type } from "class-transformer";
 import {
+  IsEmail,
   IsEnum,
   IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
+  MaxLength,
   ValidateIf,
 } from "class-validator";
 import { ImplementationDocumentStatus } from "./standards.enums";
@@ -27,4 +29,18 @@ export class UpdateImplementationDocumentDto {
   @IsString()
   @Type(() => String)
   linkedDocumentId?: string | null;
+}
+
+export class CreateImplementationShareDto {
+  @IsEmail()
+  @IsNotEmpty()
+  @MaxLength(320)
+  email: string;
+}
+
+export class OpenShareCodeDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(4096)
+  code: string;
 }

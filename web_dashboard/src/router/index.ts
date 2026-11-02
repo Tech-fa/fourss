@@ -6,7 +6,7 @@ import { usersRoutes } from "@/components/admin/users/routes";
 import { ref } from "vue";
 import { permissionsRoutes } from "@/components/admin/permissions/routes";
 import { documentRoutes } from "@/components/document/routes";
-import { standardsRoutes } from "@/components/standards/routes";
+import { sharedStandardsRoutes, SHARED_STANDARD_DOCUMENT, SHARED_STANDARD_LIST, standardsRoutes } from "@/components/standards/routes";
 
 export const isRouteChanging = ref(false);
 
@@ -37,15 +37,22 @@ const router = createRouter({
       component: () => import("../components/NotFound.vue"),
     },
     ...AuthRoutes,
+    ...sharedStandardsRoutes,
   ],
 });
+
+const publicRouteNames = new Set([
+  ...AuthRoutes.map((route) => route.name),
+  SHARED_STANDARD_LIST,
+  SHARED_STANDARD_DOCUMENT,
+]);
 
 router.beforeEach(async (to) => {
   isRouteChanging.value = true;
   const authStore = useAuthStore();
   if (
     !authStore.state.isLoggedIn &&
-    !AuthRoutes.map((route) => route.name).includes(to.name as string)
+    !publicRouteNames.has(to.name as string)
   ) {
     return {
       name: "Login",

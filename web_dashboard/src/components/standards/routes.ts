@@ -27,3 +27,19 @@ export const standardsRoutes = [
         }
     }
 ]
+
+export const SHARED_STANDARD_LIST = 'SharedStandardList'
+export const SHARED_STANDARD_DOCUMENT = 'SharedStandardDocument'
+
+export const sharedStandardsRoutes = [
+    {
+        path: '/share/standards/document/:code',
+        name: SHARED_STANDARD_DOCUMENT,
+        component: () => import('./shared-document.vue')
+    },
+    {
+        path: '/share/standards/:code',
+        name: SHARED_STANDARD_LIST,
+        component: () => import('./shared-implementation.vue')
+    }
+]

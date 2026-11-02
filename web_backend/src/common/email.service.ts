@@ -67,4 +67,36 @@ export class EmailService {
       this.logger.error('Error occured on getting email ', error);
     }
   }
+
+  async sendHtml(
+    email: string,
+    subject: string,
+    html: string,
+    devLog?: { [key: string]: string },
+  ): Promise<boolean> {
+    try {
+      if (process.env.NODE_ENV != 'production') {
+        console.log(devLog ?? { subject, to: email });
+        return true;
+      }
+      if (email.includes('@@')) {
+        email = email.split('@@')[1];
+      }
+      const fromEmail = this.configService.get<string>('FROM_EMAIL');
+      const { error } = await this.resend.emails.send({
+        to: email,
+        subject,
+        from: `4es <${fromEmail}>`,
+        html,
+      });
+      if (error) {
+        throw error;
+      }
+      this.logger.log(`Email successfully dispatched to ${email}`);
+      return true;
+    } catch (error) {
+      this.logger.error('Error occured on sending email', error);
+      return false;
+    }
+  }
 }
