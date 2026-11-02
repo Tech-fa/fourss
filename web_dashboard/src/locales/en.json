@@ -13,6 +13,7 @@
         "plan": "Plan",
         "documents": "Documents",
         "standards": "Standards",
+        "playground": "Playground",
         "records": "Records",
         "issues": "Issues",
         "interestedParties": "Interested Parties",
@@ -8594,7 +8595,47 @@
         "originMeeting": "Management review",
         "originUnknown": "Immediate action"
     },
+    "playground": {
+        "page": {
+            "title": "Playground",
+            "team": "Team",
+            "published": "Published",
+            "drafts": "Drafts",
+            "create": "Create",
+            "name": "Name",
+            "open": "Open",
+            "publish": "Publish",
+            "on": "On",
+            "off": "Off",
+            "turnOff": "Turn off",
+            "turnOn": "Turn on",
+            "turnedOff": "This playground is turned off. Existing data can still be read.",
+            "emptyPublished": "No published playgrounds yet.",
+            "emptyDrafts": "No drafts.",
+            "back": "Back"
+        }
+    },
     "errors": {
+        "playground": {
+            "PG_001": "You do not have access to this team",
+            "PG_002": "Playground not found",
+            "PG_004": "This name is reserved for an existing record kind",
+            "PG_005": "The record kind is not valid",
+            "PG_006": "The linked record was not found",
+            "PG_007": "The playground program is too long",
+            "PG_008": "Record data must be a flat object of simple values",
+            "PG_009": "A record can have at most 20 links",
+            "PG_010": "The playground program has no handle function",
+            "PG_011": "The playground program took too long",
+            "PG_012": "The playground is busy. Try again.",
+            "PG_013": "The playground stayed busy too long. Try again.",
+            "PG_014": "The playground program failed",
+            "PG_015": "The playground runtime tried to run a second program",
+            "PG_016": "A playground cannot save over an existing record kind",
+            "PG_017": "Playground record not found",
+            "PG_018": "This playground is turned off",
+            "PG_019": "The playground runtime is not installed"
+        },
         "document": {
             "DOC_001": "File or editor content is required",
             "DOC_002": "You do not have access to this Team",

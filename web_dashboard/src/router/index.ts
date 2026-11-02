@@ -7,6 +7,7 @@ import { ref } from "vue";
 import { permissionsRoutes } from "@/components/admin/permissions/routes";
 import { documentRoutes } from "@/components/document/routes";
 import { standardsRoutes } from "@/components/standards/routes";
+import { playgroundRoutes } from "@/components/playground/routes";
 
 export const isRouteChanging = ref(false);
 
@@ -29,6 +30,7 @@ const router = createRouter({
         ...permissionsRoutes,
         ...documentRoutes,
         ...standardsRoutes,
+        ...playgroundRoutes,
       ],
     },
     {
