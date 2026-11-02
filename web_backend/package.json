@@ -1,6 +1,6 @@
 {
   "name": "fourss-backend",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Documents app API: documents, authentication, and permissions.",
   "author": "",
   "private": true,
