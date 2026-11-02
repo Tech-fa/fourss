@@ -46,6 +46,12 @@ function bindAgentPageLinks(router: Router) {
     const originalCall = control.__agentOriginalCall
     control.__agentPatched = true
     control.call = async (name, args = {}) => {
+        if (name === 'apply_playground') {
+            const source = typeof args.source === 'string' ? args.source : ''
+            const apply = window.__agentApplyPlayground
+            if (!apply) throw new Error('The playground is not open.')
+            return apply(source)
+        }
         if (name === 'submit_form' && typeof args.button === 'string' && args.button.trim()) {
             const clicked = clickLabeled(args.button)
             if (clicked) return { submitted: true, button: clicked }
@@ -129,5 +135,6 @@ declare global {
             __agentPatched?: boolean
         }
         __agentInsertDocumentContent?: (markdown: string) => Promise<boolean | void> | boolean | void
+        __agentApplyPlayground?: (source: string) => Promise<unknown> | unknown
     }
 }

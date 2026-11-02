@@ -7,6 +7,8 @@ import { Role } from "./permissions/role.entity";
 import { Team } from "./teams/team.entity";
 import { TeamMember } from "./teams/team-member.entity";
 import { defaultRoles } from "./permissions/permissions";
+import { CACHE_PREFIX } from "./permissions/dto";
+import { CacheService } from "./cache/cache.service";
 import { hashPassword } from "./util/helper-util";
 
 @Injectable()
@@ -22,6 +24,7 @@ export class BootstrapService implements OnModuleInit {
     private readonly teamRepository: Repository<Team>,
     @InjectRepository(TeamMember)
     private readonly teamMemberRepository: Repository<TeamMember>,
+    private readonly cacheService: CacheService,
   ) {}
 
   async onModuleInit() {
@@ -41,6 +44,7 @@ export class BootstrapService implements OnModuleInit {
         existing.custom = false;
         existing.deleted = false;
         await this.roleRepository.save(existing);
+        await this.evictRoleMembers(existing.id);
         this.logger.log(`Updated default role ${role.name}`);
         continue;
       }
@@ -54,6 +58,23 @@ export class BootstrapService implements OnModuleInit {
         }),
       );
       this.logger.log(`Created default role ${role.name}`);
+    }
+  }
+
+  private async evictRoleMembers(roleId: number) {
+    try {
+      const members = await this.teamMemberRepository.find({
+        where: { roleId },
+      });
+      for (const member of members) {
+        await this.cacheService.evictData(`${CACHE_PREFIX}_user_${member.userId}`);
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Could not refresh permission cache for role ${roleId}: ${
+          error instanceof Error ? error.message : error
+        }`,
+      );
     }
   }
 

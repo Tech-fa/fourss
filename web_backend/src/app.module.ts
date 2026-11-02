@@ -15,6 +15,7 @@ import { PermissionsGuard } from "./authentication/permission.guard";
 import { TeamModule } from "./teams/team.module";
 import { DocumentModule } from "./document/document.module";
 import { StandardsModule } from "./standards/standards.module";
+import { PlaygroundModule } from "./playground/playground.module";
 import { DocumentAiIndexHandlerModule } from "./document/handler/document-ai-index-handler.module";
 import { CachingModule } from "./cache/cache.module";
 import { PermissionModule } from "./permissions/permission.module";
@@ -58,6 +59,7 @@ import { BootstrapService } from "./bootstrap.service";
     TeamModule,
     DocumentModule,
     StandardsModule,
+    PlaygroundModule,
     DocumentAiIndexHandlerModule,
     CachingModule,
     PermissionModule,
