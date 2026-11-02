@@ -96,6 +96,7 @@ import { I18nService } from "nestjs-i18n";
 import { TeamMember } from "../teams/team-member.entity";
 import { DocumentChecklist } from "./document-checklist.entity";
 import { DocumentAiIndexService } from "./document-ai-index.service";
+import { redactMaskedDocx, restoreMaskedDocx } from "./redact-masked-docx";
 
 @Injectable()
 export class DocumentService implements NotificationInfo {
@@ -1286,7 +1287,12 @@ export class DocumentService implements NotificationInfo {
     documentId: string,
     versionId: number,
     user: UserRequest,
-  ): Promise<{ content: string | null; contentUrl?: string }> {
+    options?: { preserveMaskedText?: boolean },
+  ): Promise<{
+    content: string | null;
+    contentUrl?: string;
+    contentBase64?: string;
+  }> {
     const document = await this.getDocumentById(documentId, user);
     if (!document) {
       throw new NotFoundException(documentHttpError("DOC_007"));
@@ -1304,12 +1310,23 @@ export class DocumentService implements NotificationInfo {
       throw new NotFoundException(documentHttpError("DOC_010"));
     }
     const isDocx = version.content.toLowerCase().endsWith(".docx");
+    const preserveMaskedText =
+      options?.preserveMaskedText === true &&
+      userCanEditDocumentContent(user.id, document);
     try {
-      if (isDocx) {
+      if (isDocx && preserveMaskedText) {
         const contentUrl = await this.s3Service.getSignedUrlForDownload(
           version.content,
         );
         return { content: null, contentUrl };
+      }
+      if (isDocx) {
+        const buffer = await this.s3Service.getFileBuffer(version.content);
+        if (!buffer) {
+          throw new NotFoundException(documentHttpError("DOC_011"));
+        }
+        const redacted = await redactMaskedDocx(buffer);
+        return { content: null, contentBase64: redacted.toString("base64") };
       }
       const content = await this.s3Service.getFile(version.content);
       return { content };
@@ -5235,6 +5252,22 @@ export class DocumentService implements NotificationInfo {
         throw new NotFoundException(documentHttpError("DOC_010"));
       }
 
+      let fileToStore = file;
+      if (file.buffer && version.content.toLowerCase().endsWith(".docx")) {
+        const previous = await this.s3Service.getFileBuffer(version.content);
+        if (!previous) {
+          throw new NotFoundException(documentHttpError("DOC_011"));
+        }
+        const looksLikeZip = (buffer: Buffer) =>
+          buffer.length >= 2 && buffer[0] === 0x50 && buffer[1] === 0x4b;
+        if (looksLikeZip(previous) && looksLikeZip(file.buffer)) {
+          fileToStore = {
+            ...file,
+            buffer: await restoreMaskedDocx(previous, file.buffer),
+          };
+        }
+      }
+
       try {
         await this.s3Service.deleteFile(version.content);
       } catch (error) {
@@ -5252,7 +5285,7 @@ export class DocumentService implements NotificationInfo {
         : `${title}.docx`;
 
       const fileUrl = await this.s3Service.uploadFile({
-        ...file,
+        ...fileToStore,
         originalname,
       });
       version.content = fileUrl;

@@ -215,14 +215,18 @@ export class UpdateUserDTO extends UserDTO {
   password: string;
 }
 export class BaseUserDTO {
+  @ApiProperty({ format: "uuid" })
   @IsUUID("4")
   id: string;
+  @ApiProperty()
   @IsString()
   @IsNotEmpty()
   fname: string;
+  @ApiProperty()
   @IsString()
   @IsNotEmpty()
   lname: string;
+  @ApiProperty({ format: "email" })
   @IsEmail()
   @IsNotEmpty()
   email: string;

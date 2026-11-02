@@ -23,8 +23,6 @@
                     </h1>
                     <p class="mt-2 text-sm text-neutral-600">{{ sharedDocument.description }}</p>
                     <div class="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm text-neutral-700">
-                        <span>{{ kindLabel(sharedDocument.kind) }}</span>
-                        <span>{{ statusLabel(sharedDocument.status) }}</span>
                         <span v-if="sharedDocument.linked?.versionNumber != null">
                             {{ t('implementations.share.version_label', { version: sharedDocument.linked.versionNumber }) }}
                         </span>

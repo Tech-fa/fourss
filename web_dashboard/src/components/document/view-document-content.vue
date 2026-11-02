@@ -81,6 +81,10 @@ import DocumentContentBody from '@/components/document/DocumentContentBody.vue'
 import SuperDocEditor from '@/components/SuperDocEditor.vue'
 import AppButton from '../AppButton.vue'
 import { formatApiErrorMessage, getSuperdocUserFromAuth } from '@/util/util'
+import {
+    versionContentDocxSource,
+    type VersionContentResponse
+} from '@/util/docx-content'
 import Notice from '../Notice.vue'
 
 const { t, locale } = useI18n()
@@ -92,7 +96,7 @@ const versionId = route.query.version as string | undefined
 
 const loading = ref(true)
 const content = ref<string | null>(null)
-const docxContentUrl = ref<string | null>(null)
+const docxContentUrl = ref<string | Blob | null>(null)
 const documentData = ref<Document | null>(null)
 const activeVersionId = ref<number | null>(null)
 const acknowledgeLoading = ref(false)
@@ -332,12 +336,13 @@ onMounted(async () => {
             versionNumberForLabel.value = version ? version.versionNumber : null
             activeVersionId.value = version?.id ?? null
 
-            const data = await apiGet<{ content: string | null; contentUrl?: string }>(
+            const data = await apiGet<VersionContentResponse>(
                 `/documents/${documentId}/versions/${versionId}/content`,
                 authStore
             )
-            if (data.contentUrl) {
-                docxContentUrl.value = data.contentUrl
+            const source = versionContentDocxSource(data)
+            if (source) {
+                docxContentUrl.value = source
             } else {
                 content.value = data.content ?? null
             }
@@ -350,26 +355,37 @@ onMounted(async () => {
             documentData.value = data
             versionNumberForLabel.value = null
 
-            if (data.latestPublishedVersionContentUrl) {
-                docxContentUrl.value = data.latestPublishedVersionContentUrl
-                const latestPublished = (data.versions ?? [])
-                    .filter((v) => v.status === DocumentStatus.PUBLISHED)
-                    .reduce<Document['versions'][number] | null>((max, version) => {
-                        if (!max || version.versionNumber > max.versionNumber) return version
-                        return max
-                    }, null)
-                activeVersionId.value = latestPublished?.id ?? null
+            const latestPublished = (data.versions ?? [])
+                .filter((v) => v.status === DocumentStatus.PUBLISHED)
+                .reduce<Document['versions'][number] | null>((max, version) => {
+                    if (!max || version.versionNumber > max.versionNumber) return version
+                    return max
+                }, null)
+
+            if (data.latestPublishedVersionContentUrl && latestPublished?.id) {
+                const contentRes = await apiGet<VersionContentResponse>(
+                    `/documents/${documentId}/versions/${latestPublished.id}/content`,
+                    authStore
+                )
+                const source = versionContentDocxSource(contentRes)
+                if (source) {
+                    docxContentUrl.value = source
+                    activeVersionId.value = latestPublished.id
+                } else {
+                    content.value = contentRes.content ?? null
+                }
             } else {
                 const multiVersion = (data.versions?.length ?? 0) > 1
                 let html: string | null = data.latestPublishedVersionContent ?? null
                 const onlyOne = (data.versions?.length ?? 0) === 1
                 if (!html && data.contentType === ContentType.EDITOR && onlyOne && data.versions?.[0]?.id) {
-                    const contentRes = await apiGet<{ content: string | null; contentUrl?: string }>(
+                    const contentRes = await apiGet<VersionContentResponse>(
                         `/documents/${documentId}/versions/${data.versions[0].id}/content`,
                         authStore
                     )
-                    if (contentRes.contentUrl) {
-                        docxContentUrl.value = contentRes.contentUrl
+                    const source = versionContentDocxSource(contentRes)
+                    if (source) {
+                        docxContentUrl.value = source
                         activeVersionId.value = data.versions[0].id
                     } else {
                         html = contentRes.content ?? null

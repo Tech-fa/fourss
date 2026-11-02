@@ -1,0 +1,195 @@
+#!/bin/bash
+# Bump web_dashboard / web_backend package versions when those trees are
+# pushed to main or master.
+#
+# Patch (+0.0.1) by default. If the tip commit message contains "major"
+# (any case), bump the major version (+1.0.0) and reset minor and patch.
+#
+# The version commit is pushed on its own, then this hook stops the original
+# push so that older tip cannot overwrite it. A retry is a no-op because the
+# tip commit is the bump itself.
+#
+# Install (from the repo root):
+#   ln -sf ../../scripts/git-hooks/pre-push .git/hooks/pre-push
+
+set -euo pipefail
+
+if [[ "${FOURSS_VERSION_BUMP:-}" == "1" ]]; then
+  exit 0
+fi
+
+remote="$1"
+zero="0000000000000000000000000000000000000000"
+
+target_ref=""
+target_sha=""
+target_remote_sha=""
+local_ref_name=""
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main|refs/heads/master)
+      if [[ "$local_sha" == "$zero" ]]; then
+        continue
+      fi
+      local_ref_name="$local_ref"
+      target_ref="$remote_ref"
+      target_sha="$local_sha"
+      target_remote_sha="$remote_sha"
+      ;;
+  esac
+done
+
+if [[ -z "$target_ref" ]]; then
+  exit 0
+fi
+
+msg="$(git log -1 --format=%B "$target_sha")"
+if [[ "$msg" == "chore: bump package version"* ]]; then
+  exit 0
+fi
+
+kind="patch"
+shopt -s nocasematch
+if [[ "$msg" == *major* ]]; then
+  kind="major"
+fi
+shopt -u nocasematch
+
+if [[ "$target_remote_sha" == "$zero" ]]; then
+  changed="$(git ls-tree -r --name-only "$target_sha")"
+else
+  changed="$(git diff --name-only "$target_remote_sha" "$target_sha")"
+fi
+
+packages=()
+if grep -q '^web_dashboard/' <<<"$changed"; then
+  packages+=(web_dashboard)
+fi
+if grep -q '^web_backend/' <<<"$changed"; then
+  packages+=(web_backend)
+fi
+
+if [[ ${#packages[@]} -eq 0 ]]; then
+  exit 0
+fi
+
+work="$(mktemp -d)"
+index_file="$(mktemp)"
+cleanup() {
+  rm -rf "$work"
+  rm -f "$index_file"
+}
+trap cleanup EXIT
+
+export GIT_INDEX_FILE="$index_file"
+git read-tree "$target_sha"
+
+summaries=()
+
+for pkg in "${packages[@]}"; do
+  next=""
+  for file in package.json package-lock.json; do
+    rel="$pkg/$file"
+    git cat-file -e "$target_sha:$rel" 2>/dev/null || continue
+    mkdir -p "$work/$pkg"
+    git show "$target_sha:$rel" >"$work/$rel"
+    replacements=1
+    if [[ "$file" == "package-lock.json" ]]; then
+      replacements=2
+    fi
+    next="$(node - "$work/$rel" "$kind" "$replacements" <<'EOF'
+const fs = require("fs");
+const [dest, kind, timesRaw] = process.argv.slice(2);
+const times = Number(timesRaw);
+const text = fs.readFileSync(dest, "utf8");
+let seen = 0;
+let next = "";
+const updated = text.replace(/"version"\s*:\s*"(\d+)\.(\d+)\.(\d+)"/g, (full, a, b, c) => {
+  if (seen >= times) return full;
+  seen += 1;
+  let major = Number(a);
+  let minor = Number(b);
+  let patch = Number(c);
+  if (kind === "major") {
+    major += 1;
+    minor = 0;
+    patch = 0;
+  } else {
+    patch += 1;
+  }
+  next = `${major}.${minor}.${patch}`;
+  return full.replace(`${a}.${b}.${c}`, next);
+});
+if (!next) {
+  console.error(`no semver version field in ${dest}`);
+  process.exit(1);
+}
+fs.writeFileSync(dest, updated);
+process.stdout.write(next);
+EOF
+)"
+    blob="$(git hash-object -w "$work/$rel")"
+    git update-index --add --cacheinfo "100644,$blob,$rel"
+  done
+  if [[ -n "$next" ]]; then
+    old="$(git show "$target_sha:$pkg/package.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const m=s.match(/"version"\s*:\s*"([^"]+)"/); if(!m) process.exit(1); process.stdout.write(m[1]);});')"
+    summaries+=("$pkg $old -> $next")
+  fi
+done
+
+tree="$(git write-tree)"
+unset GIT_INDEX_FILE
+
+if [[ ${#summaries[@]} -eq 0 ]]; then
+  exit 0
+fi
+
+summary_text="$(printf '%s\n' "${summaries[@]}")"
+commit_msg="$(printf 'chore: bump package version\n\n%s\n' "$summary_text")"
+new_commit="$(git commit-tree "$tree" -p "$target_sha" -m "$commit_msg")"
+
+head_sha="$(git rev-parse HEAD)"
+clean_paths=()
+dirty_paths=()
+if [[ "$head_sha" == "$target_sha" ]]; then
+  for pkg in "${packages[@]}"; do
+    for file in package.json package-lock.json; do
+      rel="$pkg/$file"
+      git cat-file -e "$target_sha:$rel" 2>/dev/null || continue
+      if git diff --quiet "$target_sha" -- "$rel" && git diff --cached --quiet -- "$rel"; then
+        clean_paths+=("$rel")
+      else
+        dirty_paths+=("$rel")
+      fi
+    done
+  done
+fi
+
+if git rev-parse --verify --quiet "$local_ref_name" >/dev/null; then
+  git update-ref "$local_ref_name" "$new_commit" "$target_sha" || {
+    echo "pre-push: could not move $local_ref_name to the version bump commit" >&2
+    exit 1
+  }
+fi
+
+if [[ ${#clean_paths[@]} -gt 0 ]]; then
+  for rel in "${clean_paths[@]}"; do
+    git checkout "$new_commit" -- "$rel"
+  done
+fi
+if [[ ${#dirty_paths[@]} -gt 0 ]]; then
+  for rel in "${dirty_paths[@]}"; do
+    echo "pre-push: left $rel in the worktree unchanged because it has local edits" >&2
+  done
+fi
+
+echo "pre-push: $summary_text"
+echo "pre-push: pushing version bump $new_commit to $target_ref"
+if ! FOURSS_VERSION_BUMP=1 git push "$remote" "$new_commit:$target_ref"; then
+  echo "pre-push: version bump commit is local ($new_commit). Push it with the same command again." >&2
+  exit 1
+fi
+
+echo "pre-push: version bump is on $target_ref. Stopped the original push so it would not overwrite that commit."
+exit 1

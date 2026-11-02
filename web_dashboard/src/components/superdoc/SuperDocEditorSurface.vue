@@ -104,6 +104,12 @@ import {
   wireHighlightOnlyGuard,
 } from './utils/highlightOnly'
 import {
+  paintReaderMasks,
+  redactMaskedSelection,
+  selectionIsFullyMasked,
+  toggleReaderMask,
+} from './utils/readerMask'
+import {
   DOCX_MIME,
   type SuperDocAiWriteRequest,
   type SuperDocAiWriteResult,
@@ -139,6 +145,9 @@ const PAGE_NUMBER_ICON =
 const AI_WRITE_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" fill="currentColor" aria-hidden="true"><path d="M234.7 42.7L197 56.8c-3 1.1-5 4-5 7.2s2 6.1 5 7.2l37.7 14.1L248.8 123c1.1 3 4 5 7.2 5s6.1-2 7.2-5l14.1-37.7L315 71.2c3-1.1 5-4 5-7.2s-2-6.1-5-7.2L277.3 42.7 263.2 5c-1.1-3-4-5-7.2-5s-6.1 2-7.2 5L234.7 42.7zM46.1 395.4c-18.7 18.7-18.7 49.1 0 67.9l34.6 34.6c18.7 18.7 49.1 18.7 67.9 0L397.5 248.1c-28.2-23.2-52.5-47.6-75.7-75.8L46.1 395.4zM484.6 25.9C462 3.3 426.2 3.3 403.6 25.9L366.3 63.2c28.2 23.2 52.5 47.6 75.8 75.8l37.2-37.2c22.6-22.6 22.6-58.4 0-81C479.3 20.8 479.3 20.8 484.6 25.9z"/></svg>'
 
+const READER_MASK_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M2 4.5h20v3.2H2V4.5zm0 6h13.5v3.2H2v-3.2zM2 16.5h20v3H2v-3z"/></svg>'
+
 const PAGE_NUMBER_INSERT_OPTIONS: PageNumberInsertOption[] = ['custom', 'left', 'center', 'right']
 
 const props = withDefaults(
@@ -155,6 +164,7 @@ const props = withDefaults(
     trackChangesVisible?: boolean
     canComment?: boolean
     showHighlightToolbar?: boolean
+    showReaderMask?: boolean
     showAiWrite?: boolean
     generateAiContent?: (request: SuperDocAiWriteRequest) => Promise<SuperDocAiWriteResult>
     labels: SuperDocLabels
@@ -172,6 +182,7 @@ const props = withDefaults(
     trackChangesVisible: false,
     canComment: false,
     showHighlightToolbar: false,
+    showReaderMask: false,
     showAiWrite: false,
   },
 )
@@ -217,6 +228,10 @@ let activeContextMenuNodeId: string | null = null
 let activeContextMenuNodeOffset: number | null = null
 let removeNodeContextMenuListeners: (() => void) | null = null
 let lastHighlightSignature = ''
+let readerMaskObserver: MutationObserver | null = null
+let readerMaskPaintFrame = 0
+let readerMaskEditor: { on?: (event: string, handler: () => void) => void; off?: (event: string, handler: () => void) => void } | null = null
+let readerMaskSelectionHandler: (() => void) | null = null
 
 const COMMENT_COPY_LINK_ATTR = 'data-superdoc-copy-link-wired'
 const COMMENT_COPY_LINK_ICON =
@@ -719,6 +734,124 @@ function applyContextMenuHighlight(color: string | null): boolean {
   return true
 }
 
+function canEditReaderMask() {
+  return props.showReaderMask && (canMutateDocument() || isHighlightToolbarMode())
+}
+
+function readerMasksAreHidden() {
+  return props.documentMode === 'viewing'
+}
+
+function scheduleReaderMaskPaint() {
+  cancelAnimationFrame(readerMaskPaintFrame)
+  readerMaskPaintFrame = requestAnimationFrame(() => {
+    paintReaderMasks(editorRef.value, {
+      hidden: readerMasksAreHidden(),
+      hiddenLabel: props.labels.readerMaskHidden,
+    })
+  })
+}
+
+function wireReaderMaskPaint() {
+  readerMaskObserver?.disconnect()
+  const root = editorRef.value
+  if (!root) return
+  readerMaskObserver = new MutationObserver(() => scheduleReaderMaskPaint())
+  readerMaskObserver.observe(root, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['style'],
+  })
+  scheduleReaderMaskPaint()
+}
+
+function disconnectReaderMaskPaint() {
+  cancelAnimationFrame(readerMaskPaintFrame)
+  readerMaskObserver?.disconnect()
+  readerMaskObserver = null
+}
+
+function syncReaderMaskToolbar() {
+  const item = superdoc?.toolbar?.getToolbarItemByName?.('readerMask')
+  if (!item) return
+  const editor = getActiveEditor()
+  const canMask = canEditReaderMask() && hasHighlightableSelection(editor)
+  const masked = canMask && selectionIsFullyMasked(editor)
+  const label = masked ? props.labels.readerUnmask : props.labels.readerMask
+  item.setDisabled?.(!canMask)
+  if (item.active) item.active.value = masked
+  if (item.tooltip) item.tooltip.value = label
+  if (item.attributes?.value) {
+    item.attributes.value = {
+      ...item.attributes.value,
+      ariaLabel: label,
+    }
+  }
+}
+
+function unwireReaderMaskSelection() {
+  if (readerMaskEditor && readerMaskSelectionHandler) {
+    readerMaskEditor.off?.('selectionUpdate', readerMaskSelectionHandler)
+  }
+  readerMaskEditor = null
+  readerMaskSelectionHandler = null
+}
+
+function wireReaderMaskSelection() {
+  const editor = getActiveEditor()
+  if (readerMaskEditor === editor) {
+    syncReaderMaskToolbar()
+    return
+  }
+  unwireReaderMaskSelection()
+  if (!canEditReaderMask() || !editor?.on) return
+  readerMaskSelectionHandler = () => syncReaderMaskToolbar()
+  editor.on('selectionUpdate', readerMaskSelectionHandler)
+  readerMaskEditor = editor
+  syncReaderMaskToolbar()
+}
+
+function applyContextMenuReaderMask(): boolean {
+  if (!toggleReaderMask(getActiveEditor())) return false
+  nextTick(() => {
+    syncReaderMaskToolbar()
+    scheduleReaderMaskPaint()
+  })
+  return true
+}
+
+function readerMaskToolbarButton(): Record<string, unknown> {
+  return {
+    type: 'button',
+    name: 'readerMask',
+    group: 'left',
+    icon: READER_MASK_ICON,
+    tooltip: props.labels.readerMask,
+    allowWithoutEditor: false,
+    restoreEditorFocus: true,
+    suppressActiveHighlight: true,
+    command: () => {
+      if (!applyContextMenuReaderMask()) return
+      emit('update')
+    },
+    attributes: {
+      ariaLabel: props.labels.readerMask,
+      'test-id': 'document-reader-mask-button',
+    },
+  }
+}
+
+function onEditorCopy(event: ClipboardEvent) {
+  if (!readerMasksAreHidden()) return
+  const root = editorRef.value
+  if (!root) return
+  const redacted = redactMaskedSelection(root, window.getSelection())
+  if (redacted == null) return
+  event.preventDefault()
+  event.clipboardData?.setData('text/plain', redacted)
+}
+
 function getFirstSection(editor: any) {
   const list = editor.doc.sections.list()
   return list.items?.[0] ?? null
@@ -754,6 +887,8 @@ function handleEditorReady() {
   })
   isReady.value = true
   lastHighlightSignature = getHighlightSignature(getActiveEditor())
+  wireReaderMaskPaint()
+  wireReaderMaskSelection()
   emit('ready')
 }
 
@@ -797,6 +932,8 @@ function handleEditorUpdate(params: any) {
   syncPageBreakToolbar()
   syncPageNumberToolbar()
   notifyHighlightSaved()
+  wireReaderMaskSelection()
+  scheduleReaderMaskPaint()
   emit('update')
 }
 
@@ -963,15 +1100,17 @@ function buildToolbarConfig() {
   }
 
   if (isHighlightToolbarMode()) {
+    const maskButton = canEditReaderMask() ? [readerMaskToolbarButton()] : []
     return {
       ...config,
       hideButtons: false,
       responsiveToContainer: false,
       groups: {
-        left: ['highlight'],
+        left: maskButton.length ? ['highlight', 'readerMask'] : ['highlight'],
         center: [],
         right: [],
       },
+      ...(maskButton.length ? { customButtons: maskButton } : {}),
     }
   }
 
@@ -1072,6 +1211,10 @@ function buildToolbarConfig() {
         'test-id': 'document-page-number-button',
       },
     })
+  }
+
+  if (canEditReaderMask()) {
+    customButtons.push(readerMaskToolbarButton())
   }
 
   if (props.showAiWrite) {
@@ -1245,7 +1388,7 @@ function createContextMenuDivider() {
   return divider
 }
 
-function populateNodeContextMenu(options: { showCopyLink: boolean; showHighlight: boolean }) {
+function populateNodeContextMenu(options: { showCopyLink: boolean; showHighlight: boolean; showMask: boolean }) {
   const menu = ensureNodeContextMenuShell()
   menu.replaceChildren()
 
@@ -1282,8 +1425,21 @@ function populateNodeContextMenu(options: { showCopyLink: boolean; showHighlight
     )
   }
 
-  if (options.showCopyLink && activeContextMenuNodeId) {
+  if (options.showMask) {
     if (options.showHighlight) menu.appendChild(createContextMenuDivider())
+    const maskButton = createContextMenuButton(
+      selectionIsFullyMasked(getActiveEditor()) ? props.labels.readerUnmask : props.labels.readerMask,
+      () => {
+        if (applyContextMenuReaderMask()) emit('update')
+        hideNodeContextMenu()
+      }
+    )
+    maskButton.setAttribute('test-id', 'document-reader-mask-menu')
+    menu.appendChild(maskButton)
+  }
+
+  if (options.showCopyLink && activeContextMenuNodeId) {
+    if (options.showHighlight || options.showMask) menu.appendChild(createContextMenuDivider())
     menu.appendChild(
       createContextMenuButton(
         props.labels.copyParagraphLink,
@@ -1309,7 +1465,7 @@ function hideNodeContextMenu() {
 function showNodeContextMenu(
   x: number,
   y: number,
-  options: { showCopyLink: boolean; showHighlight: boolean },
+  options: { showCopyLink: boolean; showHighlight: boolean; showMask: boolean },
   nodeId: string | null = null,
   offset = 0
 ) {
@@ -1340,9 +1496,10 @@ function onEditorContextMenu(event: MouseEvent) {
     pointerTarget?.nodeId ??
     (target instanceof Element ? getNodeIdFromElement(target) : null)
   const showHighlight = isHighlightToolbarMode() && hasHighlightableSelection(getActiveEditor())
+  const showMask = canEditReaderMask() && hasHighlightableSelection(getActiveEditor())
   const showCopyLink = Boolean(nodeId)
 
-  if (!showHighlight && !showCopyLink) {
+  if (!showHighlight && !showCopyLink && !showMask) {
     hideNodeContextMenu()
     return
   }
@@ -1352,7 +1509,7 @@ function onEditorContextMenu(event: MouseEvent) {
   showNodeContextMenu(
     event.clientX,
     event.clientY,
-    { showCopyLink, showHighlight },
+    { showCopyLink, showHighlight, showMask },
     nodeId,
     pointerTarget?.offset ?? 0
   )
@@ -1522,6 +1679,7 @@ onMounted(async () => {
     document.addEventListener('click', onDocumentClick, true)
   }
   wireNodeContextMenu()
+  document.addEventListener('copy', onEditorCopy, true)
 
   const { BlankDOCX, SuperDoc } = await import('superdoc')
   if (disposed) return
@@ -1609,6 +1767,9 @@ onMounted(async () => {
 onUnmounted(() => {
   disposed = true
   document.removeEventListener('click', onDocumentClick, true)
+  document.removeEventListener('copy', onEditorCopy, true)
+  disconnectReaderMaskPaint()
+  unwireReaderMaskSelection()
   disconnectAutoDirection?.()
   disconnectAutoDirection = null
   disconnectPageNumberKeyboard?.()
@@ -1656,6 +1817,27 @@ onUnmounted(() => {
   justify-content: flex-start;
   min-height: 2.5rem;
   padding: 0.25rem 0.5rem;
+}
+
+:deep(.sd-reader-mask-marked) {
+  background-color: #f5f3ff !important;
+  box-shadow: inset 0 -2px 0 #6d28d9;
+  border-radius: 2px;
+}
+
+:deep(.sd-reader-mask-hidden) {
+  background-color: #111827 !important;
+  color: #111827 !important;
+  -webkit-text-fill-color: #111827 !important;
+  caret-color: transparent;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  border-radius: 2px;
+}
+
+:deep(.sd-reader-mask-hidden::selection) {
+  background: #111827;
+  color: #111827;
 }
 
 #toolbar {

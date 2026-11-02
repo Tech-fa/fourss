@@ -9,7 +9,6 @@
             :testId="toast.testId"
         />
         <RouterView />
-        <PwaInstallBanner />
         <Dialog
             v-model="dialogStore.isOpen"
             :title="''"
@@ -24,7 +23,6 @@ import { useToast } from '@/stores/notification'
 import { useDialog } from '@/stores/dialog'
 import Dialog from '@/components/Dialog.vue'
 import Notification from '@/components/Notification.vue'
-import PwaInstallBanner from '@/components/pwa/PwaInstallBanner.vue'
 
 const toast = useToast()
 const dialogStore = useDialog()

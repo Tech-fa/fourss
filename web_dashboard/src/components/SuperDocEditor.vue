@@ -16,6 +16,7 @@
             :track-changes-visible="trackChangesVisible"
             :can-comment="canComment"
             :show-highlight-toolbar="showHighlightToolbar"
+            :show-reader-mask="showReaderMask"
             :show-ai-write="canUseAiWrite"
             :labels="labels"
             :generate-ai-content="resolveAiContent"
@@ -74,6 +75,7 @@ const props = withDefaults(
         trackChangesVisible?: boolean
         canComment?: boolean
         showHighlightToolbar?: boolean
+        showReaderMask?: boolean
         showAiWrite?: boolean
         generateAiContent?: (request: SuperDocAiWriteRequest) => Promise<SuperDocAiWriteResult>
         initialMarkdown?: string
@@ -91,6 +93,7 @@ const props = withDefaults(
         trackChangesVisible: false,
         canComment: false,
         showHighlightToolbar: false,
+        showReaderMask: false,
         initialMarkdown: ''
     }
 )
@@ -135,6 +138,9 @@ const labels = computed<SuperDocLabels>(() => ({
     copyParagraphLink: t('document.view.copy_paragraph_link'),
     highlightText: t('document.view.highlight_text'),
     removeHighlight: t('document.view.remove_highlight'),
+    readerMask: t('document.view.reader_mask'),
+    readerUnmask: t('document.view.reader_unmask'),
+    readerMaskHidden: t('document.view.reader_mask_hidden'),
     aiWrite: t('document.form.ai_write'),
     aiWritePromptPlaceholder: t('document.form.ai_write_prompt_placeholder'),
     aiWriteGenerate: t('document.form.ai_write_generate'),
@@ -299,6 +305,7 @@ watch(
         props.trackChangesVisible,
         props.canComment,
         props.showHighlightToolbar,
+        props.showReaderMask,
         canUseAiWrite.value,
         locale.value
     ],

@@ -1090,8 +1090,11 @@ const fetchDocument = async () => {
         if (document.documentType) {
             optionsData.value.documentType = document.documentType
         }
-        if (document.organizationUnit) {
-            optionsData.value.organizationUnit = document.organizationUnit
+        if (document.team?.id) {
+            optionsData.value.organizationUnit = {
+                id: document.team.id,
+                name: document.team.name || ''
+            }
         }
         const linkedProcessIds = new Set((document.processes || []).map((process) => process.id))
         selectedProcesses.value = processes.value.filter((process) =>

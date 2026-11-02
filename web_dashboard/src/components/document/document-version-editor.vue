@@ -120,6 +120,7 @@
                 :document="superdocSource"
                 :user="superdocUser"
                 show-open-docx
+                show-reader-mask
                 @docx-selected="openDocxInSuperdoc"
                 @update="onSuperdocUpdate"
             />
@@ -142,6 +143,10 @@ import { useAuthStore } from '@/stores/auth'
 import { useDialog } from '@/stores/dialog'
 import { useToast } from '@/stores/notification'
 import { apiDelete, apiGet, apiPostFormData, apiPutFormData } from '@/util/api'
+import {
+    versionContentDocxSource,
+    type VersionContentResponse
+} from '@/util/docx-content'
 import { appendDocumentDueDate, documentDueDateFormState, formatApiErrorMessage, getSuperdocUserFromAuth } from '@/util/util'
 import type {
     Document,
@@ -301,20 +306,13 @@ function isSuperdocLoadableContent(content: string): boolean {
 
 async function resolveVersionContentUrl(
     version: NonNullable<Document['versions']>[number]
-): Promise<string> {
-    const data = await apiGet<{ content: string | null; contentUrl?: string }>(
-        `/documents/${documentId.value}/versions/${version.id}/content`,
+): Promise<string | Blob> {
+    const data = await apiGet<VersionContentResponse>(
+        `/documents/${documentId.value}/versions/${version.id}/content?preserveMaskedText=true`,
         authStore
     )
-    if (data.contentUrl) {
-        return data.contentUrl
-    }
-
-    const key = data.content?.trim() || version.content?.trim()
-    if (key?.toLowerCase().endsWith('.docx')) {
-        return apiGet<string>(`/files/${encodeURIComponent(key)}`, authStore)
-    }
-
+    const source = versionContentDocxSource(data)
+    if (source) return source
     throw new Error('LEGACY_HTML')
 }
 
@@ -499,7 +497,7 @@ const fetchDocument = async () => {
         neverExpires.value = expiry.neverExpires
         dueDate.value = expiry.dueDate
 
-        let docxUrl: string | null = null
+        let docxUrl: string | Blob | null = null
 
         if (
             fromVersionId.value != null &&

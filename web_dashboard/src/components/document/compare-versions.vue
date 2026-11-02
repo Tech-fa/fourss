@@ -238,6 +238,10 @@ import { useToast } from '@/stores/notification'
 import type { Document, DocumentVersion } from '@/util/interfaces'
 import { ContentType } from '@/util/interfaces'
 import { formatApiErrorMessage, getSuperdocUserFromAuth } from '@/util/util'
+import {
+    versionContentDocxSource,
+    type VersionContentResponse
+} from '@/util/docx-content'
 import Can from '../Can.vue'
 
 type SuperDocEditorInstance = InstanceType<typeof SuperDocEditor>
@@ -390,20 +394,14 @@ async function fetchDocxBlob(url: string): Promise<Blob> {
     return asDocxBlob(await response.blob())
 }
 
-async function resolveVersionDocxUrl(version: DocumentVersion): Promise<string> {
-    const data = await apiGet<{ content: string | null; contentUrl?: string }>(
+async function resolveVersionDocxBlob(version: DocumentVersion): Promise<Blob> {
+    const data = await apiGet<VersionContentResponse>(
         `/documents/${documentId}/versions/${version.id}/content`,
         authStore
     )
-    if (data.contentUrl) {
-        return data.contentUrl
-    }
-
-    const key = data.content?.trim() || version.content?.trim()
-    if (key?.toLowerCase().endsWith('.docx')) {
-        return apiGet<string>(`/files/${encodeURIComponent(key)}`, authStore)
-    }
-
+    const source = versionContentDocxSource(data)
+    if (source instanceof Blob) return asDocxBlob(source)
+    if (typeof source === 'string') return fetchDocxBlob(source)
     throw new Error('LEGACY_HTML')
 }
 
@@ -492,14 +490,9 @@ async function runCompare() {
     compareDone.value = false
     clearRedlinedDoc()
     try {
-        const [docxUrlA, docxUrlB] = await Promise.all([
-            resolveVersionDocxUrl(versionA.value),
-            resolveVersionDocxUrl(versionB.value)
-        ])
-
         const [docxBlobA, docxBlobB] = await Promise.all([
-            fetchDocxBlob(docxUrlA),
-            fetchDocxBlob(docxUrlB)
+            resolveVersionDocxBlob(versionA.value),
+            resolveVersionDocxBlob(versionB.value)
         ])
 
         if (!diffUtilRef.value) throw new Error('Diff editor not ready')

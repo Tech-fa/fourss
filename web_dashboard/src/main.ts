@@ -14,7 +14,26 @@ import i18n from './i18n'
 import { initializeRuntimeConfig } from './util/runtime-config'
 import { installAgentPageLinks } from './agent/install-page-links'
 
+const clearInstalledPwa = () => {
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
+        return
+    }
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => {
+            registration.unregister()
+        })
+    })
+    if ('caches' in window) {
+        caches.keys().then((keys) => {
+            keys.forEach((key) => {
+                caches.delete(key)
+            })
+        })
+    }
+}
+
 const bootstrap = async () => {
+    clearInstalledPwa()
     await initializeRuntimeConfig()
 
     const app = createApp(App as any)

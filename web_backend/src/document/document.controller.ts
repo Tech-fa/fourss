@@ -14,7 +14,19 @@ import {
   UploadedFiles,
   UploadedFile,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiBody,
+  ApiConflictResponse,
+  ApiConsumes,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from "@nestjs/swagger";
 import { formatResponse } from "../util/helper-util";
 import { DocumentService } from "./document.service";
 import {
@@ -40,6 +52,10 @@ import {
   UpdateDocumentDraftDto,
   DocumentDraftFilterDto,
   AssistDocumentWriteDto,
+  DocumentDraftDetailDto,
+  ViewApprovalStrategyDto,
+  ViewChangeRequestDto,
+  ViewDocumentAcknowledgementDto,
 } from "./dtos";
 import { AgentRulesService } from "./agent-rules.service";
 import { hasPermission } from "../authentication/permission.decorator";
@@ -55,6 +71,43 @@ import {
 import { FileInterceptor, FilesInterceptor } from "@nestjs/platform-express";
 import { PaginationDto } from "../common/pagination";
 import { HistoryInterceptor } from "../history/history.interceptor";
+import {
+  CatalogErrorResponseDto,
+  UnauthorizedResponseDto,
+} from "../authentication/auth.dto";
+import {
+  AcknowledgementListItemResponseDto,
+  AgentRulesResponseDto,
+  ApprovalStrategyListItemResponseDto,
+  ChangeRequestRecordResponseDto,
+  CreateDocumentBodyDto,
+  CreateDocumentDraftBodyDto,
+  CreateDocumentTemplateBodyDto,
+  CreateDocumentVersionBodyDto,
+  DocumentActionResultResponseDto,
+  DocumentDetailResponseDto,
+  DocumentPersonResponseDto,
+  DocumentTemplateDetailResponseDto,
+  DocumentTemplateListResponseDto,
+  DocumentTextResponseDto,
+  DocumentTypeResponseDto,
+  DocumentVersionCreatedResponseDto,
+  NumericIdResponseDto,
+  PaginatedChangeRequestListResponseDto,
+  PaginatedDocumentListResponseDto,
+  PaginatedDocumentVersionListResponseDto,
+  PaginatedDraftListResponseDto,
+  ReviewCommentsBodyDto,
+  StringIdResponseDto,
+  UpdateDocumentDraftBodyDto,
+  UpdateDocumentTemplateBodyDto,
+  UploadVersionEditorContentBodyDto,
+  UploadVersionFileBodyDto,
+  VersionChecklistSavedResponseDto,
+  VersionContentResponseDto,
+  VersionEditorSavedResponseDto,
+  VersionFileUploadedResponseDto,
+} from "./document.responses";
 @ApiTags("Documents")
 @ApiBearerAuth()
 @Controller("documents")
@@ -69,6 +122,15 @@ export class DocumentController {
 
   @Get("approval-strategies")
   @ApiOperation({ summary: "List document approval strategies." })
+  @ApiQuery({
+    name: "search",
+    required: false,
+    type: String,
+    description: "Matches the strategy name.",
+  })
+  @ApiOkResponse({ type: ApprovalStrategyListItemResponseDto, isArray: true })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: approvalStrategyPermission.subject,
     actions: [PermissionEnum.READ],
@@ -88,6 +150,9 @@ export class DocumentController {
 
   @Get("approval-strategies/:id")
   @ApiOperation({ summary: "Get one approval strategy." })
+  @ApiOkResponse({ type: ViewApprovalStrategyDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: approvalStrategyPermission.subject,
     actions: [PermissionEnum.READ],
@@ -107,6 +172,11 @@ export class DocumentController {
 
   @Put("approval-strategies/:id")
   @ApiOperation({ summary: "Update an approval strategy." })
+  @ApiBody({ type: CreateApprovalStrategyDto })
+  @ApiOkResponse({ type: NumericIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: approvalStrategyPermission.subject,
     actions: [PermissionEnum.UPDATE],
@@ -127,6 +197,10 @@ export class DocumentController {
 
   @Delete("approval-strategies/:id")
   @ApiOperation({ summary: "Delete an approval strategy." })
+  @ApiOkResponse({ type: NumericIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: approvalStrategyPermission.subject,
     actions: [PermissionEnum.DELETE],
@@ -142,6 +216,11 @@ export class DocumentController {
 
   @Post("approval-strategies")
   @ApiOperation({ summary: "Create an approval strategy." })
+  @ApiBody({ type: CreateApprovalStrategyDto })
+  @ApiOkResponse({ type: NumericIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: approvalStrategyPermission.subject,
     actions: [PermissionEnum.CREATE],
@@ -162,6 +241,15 @@ export class DocumentController {
 
   @Get("document-acknowledgements")
   @ApiOperation({ summary: "List document acknowledgement campaigns." })
+  @ApiQuery({
+    name: "search",
+    required: false,
+    type: String,
+    description: "Matches the campaign name.",
+  })
+  @ApiOkResponse({ type: AcknowledgementListItemResponseDto, isArray: true })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: documentAcknowledgementPermission.subject,
     actions: [PermissionEnum.READ],
@@ -181,6 +269,9 @@ export class DocumentController {
 
   @Get("document-acknowledgements/:id")
   @ApiOperation({ summary: "Get one document acknowledgement campaign." })
+  @ApiOkResponse({ type: ViewDocumentAcknowledgementDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: documentAcknowledgementPermission.subject,
     actions: [PermissionEnum.READ],
@@ -200,6 +291,11 @@ export class DocumentController {
 
   @Put("document-acknowledgements/:id")
   @ApiOperation({ summary: "Update a document acknowledgement campaign." })
+  @ApiBody({ type: CreateDocumentAcknowledgementDto })
+  @ApiOkResponse({ type: NumericIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: documentAcknowledgementPermission.subject,
     actions: [PermissionEnum.UPDATE],
@@ -224,6 +320,10 @@ export class DocumentController {
 
   @Delete("document-acknowledgements/:id")
   @ApiOperation({ summary: "Delete a document acknowledgement campaign." })
+  @ApiOkResponse({ type: NumericIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: documentAcknowledgementPermission.subject,
     actions: [PermissionEnum.DELETE],
@@ -239,6 +339,11 @@ export class DocumentController {
 
   @Post("document-acknowledgements")
   @ApiOperation({ summary: "Create a document acknowledgement campaign." })
+  @ApiBody({ type: CreateDocumentAcknowledgementDto })
+  @ApiOkResponse({ type: NumericIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: documentAcknowledgementPermission.subject,
     actions: [PermissionEnum.CREATE],
@@ -257,6 +362,13 @@ export class DocumentController {
 
   @Post()
   @ApiOperation({ summary: "Create a document." })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({ type: CreateDocumentBodyDto })
+  @ApiOkResponse({ type: DocumentVersionCreatedResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
+  @ApiConflictResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["create"] })
   @UseInterceptors(FilesInterceptor("file"))
   async create(
@@ -275,6 +387,9 @@ export class DocumentController {
 
   @Get("drafts")
   @ApiOperation({ summary: "List document drafts." })
+  @ApiOkResponse({ type: PaginatedDraftListResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["read"] })
   async getDrafts(
     @Req() req,
@@ -296,6 +411,10 @@ export class DocumentController {
 
   @Get("drafts/:id")
   @ApiOperation({ summary: "Get one document draft." })
+  @ApiOkResponse({ type: DocumentDraftDetailDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["read"] })
   async getDraftById(@Param("id") id: string, @Req() req, @Res() res) {
     return formatResponse(
@@ -308,6 +427,12 @@ export class DocumentController {
 
   @Post("drafts")
   @ApiOperation({ summary: "Create a document draft." })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({ type: CreateDocumentDraftBodyDto })
+  @ApiOkResponse({ type: StringIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["create"] })
   @UseInterceptors(FileInterceptor("file"))
   async createDraft(
@@ -326,6 +451,12 @@ export class DocumentController {
 
   @Put("drafts/:id")
   @ApiOperation({ summary: "Update a document draft." })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({ type: UpdateDocumentDraftBodyDto })
+  @ApiOkResponse({ type: StringIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["update"] })
   @UseInterceptors(FileInterceptor("file"))
   async updateDraft(
@@ -345,6 +476,10 @@ export class DocumentController {
 
   @Delete("drafts/:id")
   @ApiOperation({ summary: "Delete a document draft." })
+  @ApiOkResponse({ type: StringIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["delete"] })
   async deleteDraft(@Param("id") id: string, @Req() req, @Res() res) {
     return formatResponse(
@@ -357,6 +492,9 @@ export class DocumentController {
 
   @Get()
   @ApiOperation({ summary: "List documents, with filters." })
+  @ApiOkResponse({ type: PaginatedDocumentListResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["read"] })
   async getAll(
     @Req() req,
@@ -374,6 +512,15 @@ export class DocumentController {
 
   @Get("types")
   @ApiOperation({ summary: "List document types." })
+  @ApiQuery({
+    name: "search",
+    required: false,
+    type: String,
+    description: "Matches the category name or code.",
+  })
+  @ApiOkResponse({ type: DocumentTypeResponseDto, isArray: true })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: DocumentTypePermission.subject,
     actions: ["read"],
@@ -392,6 +539,9 @@ export class DocumentController {
 
   @Get("versions/all")
   @ApiOperation({ summary: "List document versions across documents." })
+  @ApiOkResponse({ type: PaginatedDocumentVersionListResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["read"] })
   async getDocumentVersions(
     @Res() res,
@@ -407,6 +557,11 @@ export class DocumentController {
   }
   @Post("change-requests")
   @ApiOperation({ summary: "Create a document change request." })
+  @ApiBody({ type: CreateChangeRequestDto })
+  @ApiOkResponse({ type: NumericIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: changeRequestPermission.subject,
     actions: ["create"],
@@ -426,6 +581,9 @@ export class DocumentController {
 
   @Get("change-requests")
   @ApiOperation({ summary: "List document change requests." })
+  @ApiOkResponse({ type: PaginatedChangeRequestListResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: changeRequestPermission.subject,
     actions: ["read"],
@@ -435,7 +593,6 @@ export class DocumentController {
     @Res() res,
     @Query() paginationDto: PaginationDto,
     @Query() filterDto: ChangeRequestFilterDto,
-    @Query("documentId") documentId?: string,
   ) {
     return formatResponse(
       this.logger,
@@ -451,6 +608,9 @@ export class DocumentController {
 
   @Get("change-requests/:id")
   @ApiOperation({ summary: "Get one change request." })
+  @ApiOkResponse({ type: ViewChangeRequestDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: changeRequestPermission.subject,
     actions: ["read"],
@@ -466,6 +626,11 @@ export class DocumentController {
 
   @Put("change-requests/:id")
   @ApiOperation({ summary: "Update a change request." })
+  @ApiBody({ type: UpdateChangeRequestDto })
+  @ApiOkResponse({ type: ChangeRequestRecordResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: changeRequestPermission.subject,
     actions: ["update"],
@@ -486,6 +651,11 @@ export class DocumentController {
 
   @Post("change-requests/:id/review")
   @ApiOperation({ summary: "Approve or reject a change request." })
+  @ApiBody({ type: ReviewChangeRequestDto })
+  @ApiOkResponse({ type: ChangeRequestRecordResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: changeRequestPermission.subject,
     actions: ["update"],
@@ -506,6 +676,12 @@ export class DocumentController {
 
   @Delete("change-requests/:id")
   @ApiOperation({ summary: "Delete a change request." })
+  @ApiOkResponse({
+    description: "Change request deleted. Response body is empty.",
+  })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: changeRequestPermission.subject,
     actions: ["delete"],
@@ -521,6 +697,11 @@ export class DocumentController {
 
   @Post("types")
   @ApiOperation({ summary: "Create a document type." })
+  @ApiBody({ type: DocumentTypeDto })
+  @ApiOkResponse({ type: NumericIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiConflictResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: DocumentTypePermission.subject,
     actions: ["create"],
@@ -541,6 +722,9 @@ export class DocumentController {
   // Document Template Endpoints
   @Get("templates")
   @ApiOperation({ summary: "List document templates." })
+  @ApiOkResponse({ type: DocumentTemplateListResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: DocumentTemplatePermission.subject,
     actions: ["read"],
@@ -563,6 +747,9 @@ export class DocumentController {
 
   @Get("templates/:id")
   @ApiOperation({ summary: "Get one document template." })
+  @ApiOkResponse({ type: DocumentTemplateDetailResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: DocumentTemplatePermission.subject,
     actions: ["read"],
@@ -578,6 +765,12 @@ export class DocumentController {
 
   @Post("templates")
   @ApiOperation({ summary: "Create a document template." })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({ type: CreateDocumentTemplateBodyDto })
+  @ApiOkResponse({ type: StringIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiConflictResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: DocumentTemplatePermission.subject,
     actions: [PermissionEnum.CREATE],
@@ -599,6 +792,12 @@ export class DocumentController {
 
   @Put("templates/:id")
   @ApiOperation({ summary: "Update a document template." })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({ type: UpdateDocumentTemplateBodyDto })
+  @ApiOkResponse({ type: StringIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: DocumentTemplatePermission.subject,
     actions: [PermissionEnum.UPDATE],
@@ -621,6 +820,10 @@ export class DocumentController {
 
   @Delete("templates/:id")
   @ApiOperation({ summary: "Delete a document template." })
+  @ApiOkResponse({ type: StringIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: DocumentTemplatePermission.subject,
     actions: ["delete"],
@@ -636,6 +839,12 @@ export class DocumentController {
 
   @Put(":id")
   @ApiOperation({ summary: "Update a document." })
+  @ApiBody({ type: UpdateDocumentDto })
+  @ApiOkResponse({ type: DocumentVersionCreatedResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
+  @ApiConflictResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["update"] })
   async update(
     @Param("id") id: string,
@@ -653,6 +862,10 @@ export class DocumentController {
 
   @Delete(":id")
   @ApiOperation({ summary: "Delete a document." })
+  @ApiOkResponse({ type: StringIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["delete"] })
   async delete(@Param("id") id: string, @Res() res, @Req() req) {
     return formatResponse(
@@ -665,6 +878,9 @@ export class DocumentController {
 
   @Get("types/:id")
   @ApiOperation({ summary: "Get one document type." })
+  @ApiOkResponse({ type: DocumentTypeResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: DocumentTypePermission.subject,
     actions: ["read"],
@@ -680,6 +896,12 @@ export class DocumentController {
 
   @Put("types/:id")
   @ApiOperation({ summary: "Update a document type." })
+  @ApiBody({ type: DocumentTypeDto })
+  @ApiOkResponse({ type: NumericIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
+  @ApiConflictResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: DocumentTypePermission.subject,
     actions: ["update"],
@@ -699,6 +921,10 @@ export class DocumentController {
 
   @Delete("types/:id")
   @ApiOperation({ summary: "Delete a document type." })
+  @ApiOkResponse({ type: NumericIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: DocumentTypePermission.subject,
     actions: ["delete"],
@@ -716,6 +942,11 @@ export class DocumentController {
   @ApiOperation({
     summary: "Record an approval or review action on a document.",
   })
+  @ApiBody({ type: CreateDocumentActionDto })
+  @ApiOkResponse({ type: NumericIdResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: DocumentPermission.subject,
     actions: ["read"],
@@ -741,6 +972,9 @@ export class DocumentController {
   @ApiOperation({
     summary: "Approve a document without the normal approval path.",
   })
+  @ApiOkResponse({ type: DocumentActionResultResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: DocumentPermission.subject,
     actions: ["override_approve"],
@@ -756,6 +990,9 @@ export class DocumentController {
 
   @Put(":id/mark-obsolete")
   @ApiOperation({ summary: "Mark a document obsolete." })
+  @ApiOkResponse({ type: DocumentActionResultResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: DocumentPermission.subject,
     actions: ["update"],
@@ -771,6 +1008,10 @@ export class DocumentController {
 
   @Delete(":id/actions/:actionId")
   @ApiOperation({ summary: "Delete a document action." })
+  @ApiOkResponse({ type: DocumentActionResultResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   async deleteDocumentAction(
     @Param("id") documentId: string,
     @Param("actionId") actionId: string,
@@ -787,6 +1028,9 @@ export class DocumentController {
 
   @Get("agent/rules")
   @ApiOperation({ summary: "Get the rules file the agent follows." })
+  @ApiOkResponse({ type: AgentRulesResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["read"] })
   async getAgentRules(@Res() res) {
     return formatResponse(
@@ -801,6 +1045,10 @@ export class DocumentController {
   @ApiOperation({
     summary: "Get the extracted text of a document when extraction is ready.",
   })
+  @ApiOkResponse({ type: DocumentTextResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["read"] })
   async getDocumentText(@Param("id") id: string, @Req() req, @Res() res) {
     return formatResponse(
@@ -813,6 +1061,16 @@ export class DocumentController {
 
   @Get(":id")
   @ApiOperation({ summary: "Get one document." })
+  @ApiQuery({
+    name: "includeLatestPublishedContent",
+    required: false,
+    type: String,
+    description:
+      "Pass true or 1 to include the latest published editor content.",
+  })
+  @ApiOkResponse({ type: DocumentDetailResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["read"] })
   async getDocumentById(
     @Param("id") id: string,
@@ -838,6 +1096,11 @@ export class DocumentController {
   @ApiOperation({
     summary: "Add people who can edit this document and create new versions.",
   })
+  @ApiBody({ type: AddDocumentContentContributorsDto })
+  @ApiOkResponse({ type: DocumentPersonResponseDto, isArray: true })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["update"] })
   async addContentContributors(
     @Param("id") id: string,
@@ -857,6 +1120,10 @@ export class DocumentController {
   @ApiOperation({
     summary: "Remove a person who can edit this document.",
   })
+  @ApiOkResponse({ type: DocumentPersonResponseDto, isArray: true })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["update"] })
   async removeContentContributor(
     @Param("id") id: string,
@@ -874,6 +1141,12 @@ export class DocumentController {
 
   @Post(":id/versions")
   @ApiOperation({ summary: "Create a new version of a document." })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({ type: CreateDocumentVersionBodyDto })
+  @ApiOkResponse({ type: DocumentVersionCreatedResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["update"] })
   @UseInterceptors(FileInterceptor("file"))
   async createNewVersion(
@@ -895,16 +1168,31 @@ export class DocumentController {
   @ApiOperation({
     summary: "Get the file or editor content of a document version.",
   })
+  @ApiQuery({
+    name: "preserveMaskedText",
+    required: false,
+    type: String,
+    description:
+      "Pass true or 1 to keep masked text when the caller can edit the document.",
+  })
+  @ApiOkResponse({ type: VersionContentResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["read"] })
   async getVersionContent(
     @Param("id") id: string,
     @Param("versionId") versionId: string,
+    @Query("preserveMaskedText") preserveMaskedText: string,
     @Req() req,
     @Res() res,
   ) {
     return formatResponse(
       this.logger,
-      this.documentService.getVersionContent(id, Number(versionId), req.user),
+      this.documentService.getVersionContent(id, Number(versionId), req.user, {
+        preserveMaskedText:
+          preserveMaskedText === "true" || preserveMaskedText === "1",
+      }),
       res,
       "Version content fetched successfully",
     );
@@ -912,6 +1200,12 @@ export class DocumentController {
 
   @Post(":id/versions/:versionId/upload-file")
   @ApiOperation({ summary: "Upload a file for a document version." })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({ type: UploadVersionFileBodyDto })
+  @ApiOkResponse({ type: VersionFileUploadedResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["update"] })
   @UseInterceptors(FilesInterceptor("file"))
   async uploadVersionFile(
@@ -938,6 +1232,12 @@ export class DocumentController {
 
   @Put(":id/versions/:versionId/review-comments")
   @ApiOperation({ summary: "Save review comments on a document version." })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({ type: ReviewCommentsBodyDto })
+  @ApiOkResponse({ type: VersionEditorSavedResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["read"] })
   @UseInterceptors(FileInterceptor("file"))
   async saveVersionReviewComments(
@@ -962,6 +1262,12 @@ export class DocumentController {
 
   @Put(":id/versions/:versionId/editor-content")
   @ApiOperation({ summary: "Save editor content for a document version." })
+  @ApiConsumes("multipart/form-data")
+  @ApiBody({ type: UploadVersionEditorContentBodyDto })
+  @ApiOkResponse({ type: VersionEditorSavedResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["update"] })
   @UseInterceptors(FileInterceptor("file"))
   async uploadVersionEditorContent(
@@ -988,6 +1294,11 @@ export class DocumentController {
 
   @Put(":id/versions/:versionId/checklist")
   @ApiOperation({ summary: "Save the checklist for a document version." })
+  @ApiBody({ type: UploadVersionChecklistDto })
+  @ApiOkResponse({ type: VersionChecklistSavedResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({ subject: DocumentPermission.subject, actions: ["update"] })
   async uploadVersionChecklist(
     @Param("id") id: string,

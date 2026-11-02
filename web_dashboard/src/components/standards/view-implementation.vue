@@ -75,135 +75,55 @@
                 </div>
             </div>
 
-            <div class="flex flex-col gap-3 sm:flex-row mb-4">
-                <div class="sm:w-48">
-                    <Select2
-                        v-model="kindFilter"
-                        :values="kindOptions"
-                        :display="(item: { name?: string }) => item?.name ?? ''"
-                        :placeholder="t('implementations.documents.filter_all_kinds')"
-                    />
-                </div>
-                <div class="sm:w-48">
-                    <Select2
-                        v-model="statusFilter"
-                        :values="statusFilterOptions"
-                        :display="(item: { name?: string }) => item?.name ?? ''"
-                        :placeholder="t('implementations.documents.filter_all_statuses')"
-                    />
-                </div>
-            </div>
-
-            <div class="bg-white overflow-visible w-full relative rounded-t-lg">
-                <table class="min-w-full w-max rounded-t-lg">
-                    <thead class="bg-primary rounded-t-lg">
-                        <tr>
-                            <th scope="col" class="px-6 py-2 text-start text-sm text-opposite">
-                                {{ t('implementations.documents.col_clause') }}
-                            </th>
-                            <th scope="col" class="px-6 py-2 text-start text-sm text-opposite min-w-64">
-                                {{ t('implementations.documents.col_title') }}
-                            </th>
-                            <th scope="col" class="px-6 py-2 text-start text-sm text-opposite">
-                                {{ t('implementations.documents.col_kind') }}
-                            </th>
-                            <th scope="col" class="px-6 py-2 text-start text-sm text-opposite min-w-44">
-                                {{ t('implementations.documents.col_status') }}
-                            </th>
-                            <th scope="col" class="px-6 py-2 text-start text-sm text-opposite min-w-64">
-                                {{ t('implementations.documents.col_linked') }}
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-black relative border-l border-r">
-                        <tr v-if="visibleDocuments.length === 0">
-                            <td colspan="5" class="px-6 py-8 text-center 2xl:text-sm text-xs text-neutral-500">
-                                {{ t('common.no_records_found_for', { entity: t('implementations.documents.title') }) }}
-                            </td>
-                        </tr>
-                        <tr
-                            v-for="document in visibleDocuments"
-                            :key="document.id"
-                            class="hover:bg-neutral-50 align-middle"
-                            :test-id="`implementation-document-${document.id}`"
-                        >
-                            <td class="px-6 py-7  2xl:text-sm text-xs font-medium whitespace-nowrap my-auto">
-                                <div>
-                                {{ document.clause }}
-                                </div>
-                                <div class="flex items-start gap-2">
-                                    <div class="min-w-0 flex-1">
-
-                                            <Can subject="documents" :actions="['create']">
-                                                <span class="absolute right-6 top-2">
-                                                <AddAndReload
-                                                    href="/plan/documents/add"
-                                                    :add-text="t('implementations.documents.create_document')"
-                                                    :reload-loading="documentsLoading"
-                                                    :add-test-id="`create-document-${document.id}`"
-                                                    :reload-test-id="`reload-documents-${document.id}`"
-                                                    @reload="reloadDocuments"
-                                                />
-                                            </span>
-                                            </Can>
-                                        <Can subject="documents" :actions="['read']">
-
-                                            <Select2
-                                                :model-value="linkedOption(document)"
-                                                :values="documentOptions"
-                                                :display="(item: { name?: string }) => item?.name ?? ''"
-                                                :placeholder="t('implementations.documents.link_document')"
-                                                :optional="true"
-                                                @update:modelValue="(value) => updateLinkedDocument(document, value)"
-                                            />
-                                        </Can>
-                                        <a
-                                            v-if="document.linkedDocument"
-                                            class="mt-2 inline-flex 2xl:text-sm text-xs text-primary hover:text-primary/70"
-                                            :href="`/plan/documents/${document.linkedDocument.id}`"
-                                            @click.prevent="router.push(`/plan/documents/${document.linkedDocument.id}`)"
-                                        >
-                                            {{ document.linkedDocument.title }}
-                                        </a>
-                                    </div>
-                                 
-                                </div>
-
-                            </td>
-                            <td class="px-6 py-7 text-start 2xl:text-sm text-xs min-w-64">
-                                <div class="font-medium">{{ document.title }}</div>
-                                <p class="mt-1 text-neutral-500">{{ document.description }}</p>
-                            </td>
-                            <td class="px-6 py-7  2xl:text-sm text-xs whitespace-nowrap">
-                                {{ kindLabel(document.kind) }}
-                            </td>
-                            <td class="px-6 py-7 text-start min-w-44">
-                                <Can subject="standards" :actions="['update']">
-                                    <Select2
-                                        :model-value="statusOption(document.status)"
-                                        :values="statusOptions"
-                                        :display="(item: { name?: string }) => item?.name ?? ''"
-                                        :placeholder="t('implementations.documents.col_status')"
-                                        @update:modelValue="(value) => updateStatus(document, value)"
-                                    />
-                                </Can>
-                                <span v-if="!canUpdate" class="2xl:text-sm text-xs">
-                                    {{ statusLabel(document.status) }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-7 text-start min-w-64 relative">
-                             
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+            <Table
+                :cols="columns"
+                :column-labels="columnLabels"
+                :rows="rows"
+                :entities="visibleDocuments"
+                :page="1"
+                :total="visibleDocuments.length"
+                :per-page="Math.max(visibleDocuments.length, 1)"
+                :total-pages="1"
+                :entity-name="t('implementations.documents.title')"
+                :loading="false"
+                subject="standards"
+                :skip-padding="true"
+                min-width="1200px"
+                :hide-edit="() => true"
+                :hide-view="() => true"
+                :hide-delete="() => true"
+                :on-next-page="noop"
+                :on-previous-page="noop"
+                :set-page="noop"
+                :on-success="fetchImplementation"
+            >
+                <template #extra-search>
+                    <div class="flex flex-col gap-3 sm:flex-row">
+                        <div class="sm:w-48">
+                            <Select2
+                                v-model="kindFilter"
+                                :values="kindOptions"
+                                :display="(item: { name?: string }) => item?.name ?? ''"
+                                :placeholder="t('implementations.documents.filter_all_kinds')"
+                            />
+                        </div>
+                        <div class="sm:w-48">
+                            <Select2
+                                v-model="statusFilter"
+                                :values="statusFilterOptions"
+                                :display="(item: { name?: string }) => item?.name ?? ''"
+                                :placeholder="t('implementations.documents.filter_all_statuses')"
+                            />
+                        </div>
+                    </div>
+                </template>
+            </Table>
         </template>
     </main>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, h, markRaw, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import Breadcrumb from '../breadCrums.vue'
@@ -212,6 +132,7 @@ import AppButton from '../AppButton.vue'
 import Can from '../Can.vue'
 import Select2 from '../Select2.vue'
 import Spinner from '../Spinner.vue'
+import Table from '../Table.vue'
 import ShareImplementationDialog from './share-implementation-dialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useDialog } from '@/stores/dialog'
@@ -325,11 +246,134 @@ const linkedOption = (document: StandardImplementationDocument) => {
     )
 }
 
+const columns = ['clause', 'title', 'kind', 'status', 'linked']
+
+const columnLabels = computed(() => ({
+    clause: t('implementations.documents.col_clause'),
+    title: t('implementations.documents.col_title'),
+    kind: t('implementations.documents.col_kind'),
+    status: t('implementations.documents.col_status'),
+    linked: t('implementations.documents.col_linked')
+}))
+
+const optionLabel = (item: { name?: string } | null | undefined) => item?.name ?? ''
+
+const titleCell = (document: StandardImplementationDocument) =>
+    markRaw({
+        setup() {
+            return () =>
+                h('div', { 'test-id': `implementation-document-${document.id}` }, [
+                    h('div', { class: 'font-bold' }, document.title),
+                    h('p', { class: 'mt-1 text-neutral-500' }, document.description),
+                    
+                ])
+        }
+    })
+
+const statusCell = (document: StandardImplementationDocument) => {
+    if (!canUpdate.value) {
+        return statusLabel(document.status)
+    }
+    return markRaw({
+        setup() {
+            return () =>
+                h(
+                    Can,
+                    { subject: 'standards', actions: ['update'] },
+                    {
+                        default: () =>
+                            h(Select2, {
+                                modelValue: statusOption(document.status),
+                                values: statusOptions.value,
+                                display: optionLabel,
+                                placeholder: t('implementations.documents.col_status'),
+                                'onUpdate:modelValue': (value: { id: string }) =>
+                                    updateStatus(document, value)
+                            })
+                    }
+                )
+        }
+    })
+}
+
+const rows = computed(() =>
+    visibleDocuments.value.map((document) => ({
+        id: document.id,
+        clause: document.clause,
+        title: titleCell(document),
+        kind: kindLabel(document.kind),
+        status: statusCell(document),
+        linked: linkedCell(document)
+    }))
+)
+
+const noop = () => undefined
+
 const openShareDialog = () => {
     dialog.openDialog(ShareImplementationDialog, {
         implementationId: implementationId.value,
         standardName: implementation.value?.standardName || '',
         onCancel: () => dialog.closeDialog(),
+    })
+}
+const linkedCell = (document: StandardImplementationDocument) => {
+    return markRaw({
+        setup() {
+            return () =>
+            h('div', { class: 'mt-4 max-w-80' }, [
+                        h('div', { class: 'relative min-w-0' }, [
+                            h(
+                                Can,
+                                { subject: 'documents', actions: ['create'] },
+                                {
+                                    default: () =>
+                                        h('span', { class: 'absolute right-0 -top-5 z-10' }, [
+                                            h(AddAndReload, {
+                                                href: '/plan/documents/add',
+                                                addText: t('implementations.documents.create_document'),
+                                                reloadLoading: documentsLoading.value,
+                                                addTestId: `create-document-${document.id}`,
+                                                reloadTestId: `reload-documents-${document.id}`,
+                                                onReload: reloadDocuments
+                                            })
+                                        ])
+                                }
+                            ),
+                            h(
+                                Can,
+                                { subject: 'documents', actions: ['read'] },
+                                {
+                                    default: () =>
+                                        h(Select2, {
+                                            modelValue: linkedOption(document),
+                                            values: documentOptions.value,
+                                            display: optionLabel,
+                                            placeholder: t('implementations.documents.link_document'),
+                                            optional: true,
+                                            'onUpdate:modelValue': (value: { id: string } | null) =>
+                                                updateLinkedDocument(document, value)
+                                        })
+                                }
+                            ),
+                            document.linkedDocument
+                                ? h(
+                                      'a',
+                                      {
+                                          class: 'mt-2 inline-flex 2xl:text-sm text-xs text-primary hover:text-primary/70',
+                                          href: `/plan/documents/${document.linkedDocument.id}`,
+                                          onClick: (event: Event) => {
+                                              event.preventDefault()
+                                              router.push(
+                                                  `/plan/documents/${document.linkedDocument!.id}`
+                                              )
+                                          }
+                                      },
+                                      document.linkedDocument.title
+                                  )
+                                : null
+                        ])
+                    ])
+        }
     })
 }
 

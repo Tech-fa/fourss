@@ -15,6 +15,7 @@ import { DocumentActionType } from "../document/document-action.entity";
 import { ContentType, DocumentStatus } from "../document/document.enums";
 import { Document } from "../document/document.entity";
 import { DocumentVersion } from "../document/document-version.entity";
+import { redactMaskedDocx } from "../document/redact-masked-docx";
 import { StandardImplementationShare } from "./standard-implementation-share.entity";
 import { StandardsService } from "./standards.service";
 import { standardHttpError } from "./standards.errors";
@@ -296,13 +297,24 @@ export class StandardShareService {
     if (classified.kind === "unsupported") {
       return { ...base, ...this.emptyPreview("unsupported") };
     }
+    let previewBytes = bytes;
+    if (classified.kind === "docx") {
+      try {
+        previewBytes = await redactMaskedDocx(bytes);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to redact shared document ${documentId}: ${error?.message}`,
+        );
+        return { ...base, ...this.emptyPreview("unsupported") };
+      }
+    }
     return {
       ...base,
       contentKind: classified.kind,
       mime: classified.mime,
-      byteLength: bytes.length,
-      chunkCount: Math.ceil(bytes.length / this.chunkSize),
-      sessionId: this.createSession(bytes),
+      byteLength: previewBytes.length,
+      chunkCount: Math.ceil(previewBytes.length / this.chunkSize),
+      sessionId: this.createSession(previewBytes),
     };
   }
 

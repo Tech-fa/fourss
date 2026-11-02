@@ -1,7 +1,7 @@
 <template>
     <div class="min-h-screen bg-gray-100">
         <SharedStandardsHeader />
-        <main id="main-content" class="p-6 w-full max-w-6xl mx-auto">
+        <main id="main-content" class="p-6  min-w-[1200px] mx-auto">
             <div v-if="loading" class="flex justify-center py-16">
                 <Spinner width="3" />
             </div>
@@ -52,118 +52,66 @@
                     </div>
                 </div>
 
-                <div class="flex flex-col gap-3 sm:flex-row mb-4">
-                    <div class="sm:w-48">
-                        <Select2
-                            v-model="kindFilter"
-                            :values="kindOptions"
-                            :display="(item: { name?: string }) => item?.name ?? ''"
-                            :placeholder="t('implementations.documents.filter_all_kinds')"
-                        />
-                    </div>
-                    <div class="sm:w-48">
-                        <Select2
-                            v-model="statusFilter"
-                            :values="statusFilterOptions"
-                            :display="(item: { name?: string }) => item?.name ?? ''"
-                            :placeholder="t('implementations.documents.filter_all_statuses')"
-                        />
-                    </div>
-                </div>
-
-                <div class="bg-white overflow-auto w-full rounded-lg border border-neutral-200">
-                    <table class="min-w-full">
-                        <thead class="bg-primary">
-                            <tr>
-                                <th class="px-4 py-2 text-start text-sm text-opposite">
-                                    {{ t('implementations.documents.col_clause') }}
-                                </th>
-                                <th class="px-4 py-2 text-start text-sm text-opposite min-w-64">
-                                    {{ t('implementations.documents.col_title') }}
-                                </th>
-                                <th class="px-4 py-2 text-start text-sm text-opposite">
-                                    {{ t('implementations.documents.col_kind') }}
-                                </th>
-                                <th class="px-4 py-2 text-start text-sm text-opposite">
-                                    {{ t('implementations.documents.col_status') }}
-                                </th>
-                                <th class="px-4 py-2 text-start text-sm text-opposite min-w-48">
-                                    {{ t('implementations.documents.col_linked') }}
-                                </th>
-                                <th class="px-4 py-2 text-start text-sm text-opposite">
-                                    {{ t('implementations.share.col_version') }}
-                                </th>
-                                <th class="px-4 py-2 text-start text-sm text-opposite">
-                                    {{ t('implementations.share.col_published') }}
-                                </th>
-                                <th class="px-4 py-2 text-start text-sm text-opposite">
-                                    {{ t('implementations.share.view_document') }}
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-neutral-200">
-                            <tr v-if="visibleDocuments.length === 0">
-                                <td colspan="8" class="px-4 py-8 text-center text-sm text-neutral-500">
-                                    {{ t('common.no_records_found_for', { entity: t('implementations.documents.title') }) }}
-                                </td>
-                            </tr>
-                            <tr v-for="document in visibleDocuments" :key="document.viewCode" class="align-top">
-                                <td class="px-4 py-4 text-sm whitespace-nowrap">{{ document.clause }}</td>
-                                <td class="px-4 py-4 text-sm min-w-64">
-                                    <div class="font-medium">{{ document.title }}</div>
-                                    <p class="mt-1 text-neutral-500">{{ document.description }}</p>
-                                </td>
-                                <td class="px-4 py-4 text-sm whitespace-nowrap">{{ kindLabel(document.kind) }}</td>
-                                <td class="px-4 py-4 text-sm whitespace-nowrap">{{ statusLabel(document.status) }}</td>
-                                <td class="px-4 py-4 text-sm">
-                                    <template v-if="document.linkedTitle">
-                                        <div>{{ document.linkedTitle }}</div>
-                                        <p class="text-neutral-500">{{ document.linkedCode }}</p>
-                                    </template>
-                                    <span v-else class="text-neutral-500">
-                                        {{ t('implementations.documents.no_link') }}
-                                    </span>
-                                </td>
-                                <td class="px-4 py-4 text-sm whitespace-nowrap">
-                                    {{ document.versionNumber ?? t('implementations.share.no_published') }}
-                                </td>
-                                <td class="px-4 py-4 text-sm whitespace-nowrap">
-                                    {{
-                                        document.publishedAt
-                                            ? formatDateToDay(document.publishedAt)
-                                            : t('implementations.share.no_published')
-                                    }}
-                                </td>
-                                <td class="px-4 py-4 text-sm whitespace-nowrap">
-                                    <router-link
-                                        class="text-primary hover:text-primary/70"
-                                        :to="{ name: SHARED_STANDARD_DOCUMENT, params: { code: document.viewCode } }"
-                                        test-id="shared-document-link"
-                                    >
-                                        {{ t('implementations.share.view_document') }}
-                                    </router-link>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                <Table
+                    :cols="columns"
+                    :column-labels="columnLabels"
+                    :rows="rows"
+                    :entities="tableEntities"
+                    :page="1"
+                    :total="tableEntities.length"
+                    :per-page="Math.max(tableEntities.length, 1)"
+                    :total-pages="1"
+                    :entity-name="t('implementations.documents.title')"
+                    :loading="false"
+                    :skip-padding="true"
+                    min-width="1400px"
+                    :hide-edit="() => true"
+                    :hide-view="() => true"
+                    :hide-delete="() => true"
+                    :on-next-page="noop"
+                    :on-previous-page="noop"
+                    :set-page="noop"
+                    :on-success="loadImplementation"
+                >
+                    <template #extra-search>
+                        <div class="flex flex-col gap-3 sm:flex-row">
+                            <div class="sm:w-48">
+                                <Select2
+                                    v-model="kindFilter"
+                                    :values="kindOptions"
+                                    :display="(item: { name?: string }) => item?.name ?? ''"
+                                    :placeholder="t('implementations.documents.filter_all_kinds')"
+                                />
+                            </div>
+                            <div class="sm:w-48">
+                                <Select2
+                                    v-model="statusFilter"
+                                    :values="statusFilterOptions"
+                                    :display="(item: { name?: string }) => item?.name ?? ''"
+                                    :placeholder="t('implementations.documents.filter_all_statuses')"
+                                />
+                            </div>
+                        </div>
+                    </template>
+                </Table>
             </template>
         </main>
     </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, h, markRaw, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import Select2 from '../Select2.vue'
 import Spinner from '../Spinner.vue'
+import Table from '../Table.vue'
 import SharedStandardsHeader from './shared-standards-header.vue'
 import { SHARED_STANDARD_DOCUMENT } from './routes'
 import { rememberSharedListCode, usePrivateSharePage } from './use-private-share-page'
 import { apiPostPublic } from '@/util/api'
 import { formatApiErrorMessage, formatDateToDay } from '@/util/util'
-import type { SharedImplementation } from '@/util/interfaces'
+import type { SharedImplementation, SharedImplementationDocument } from '@/util/interfaces'
 
 usePrivateSharePage()
 
@@ -207,6 +155,91 @@ const visibleDocuments = computed(() =>
     })
 )
 
+const tableEntities = computed(() =>
+    visibleDocuments.value.map((document) => ({
+        ...document,
+        id: document.viewCode
+    }))
+)
+
+const columns = ['clause', 'title', 'kind', 'status', 'linked', 'version', 'published', 'view']
+
+const columnLabels = computed(() => ({
+    clause: t('implementations.documents.col_clause'),
+    title: t('implementations.documents.col_title'),
+    kind: t('implementations.documents.col_kind'),
+    status: t('implementations.documents.col_status'),
+    linked: t('implementations.documents.col_linked'),
+    version: t('implementations.share.col_version'),
+    published: t('implementations.share.col_published'),
+    view: t('implementations.share.view_document')
+}))
+
+const titleCell = (document: SharedImplementationDocument) =>
+    markRaw({
+        setup() {
+            return () =>
+                h('div', [
+                    h('div', { class: 'font-medium' }, document.title),
+                    h('p', { class: 'mt-1 text-neutral-500' }, document.description)
+                ])
+        }
+    })
+
+const linkedCell = (document: SharedImplementationDocument) => {
+    if (!document.linkedTitle) {
+        return markRaw({
+            setup() {
+                return () =>
+                    h('span', { class: 'text-neutral-500' }, t('implementations.documents.no_link'))
+            }
+        })
+    }
+    return markRaw({
+        setup() {
+            return () =>
+                h('div', [
+                    h('div', document.linkedTitle || ''),
+                    h('p', { class: 'text-neutral-500' }, document.linkedCode || '')
+                ])
+        }
+    })
+}
+
+const viewCell = (document: SharedImplementationDocument) =>
+    markRaw({
+        setup() {
+            return () =>
+                h(
+                    RouterLink,
+                    {
+                        class: 'text-primary hover:text-primary/70',
+                        to: { name: SHARED_STANDARD_DOCUMENT, params: { code: document.viewCode } },
+                        'test-id': 'shared-document-link'
+                    },
+                    { default: () => t('implementations.share.view_document') }
+                )
+        }
+    })
+
+const rows = computed(() =>
+    visibleDocuments.value.map((document) => ({
+        id: document.viewCode,
+        clause: document.clause,
+        title: titleCell(document),
+        kind: kindLabel(document.kind),
+        status: statusLabel(document.status),
+        linked: linkedCell(document),
+        version: document.versionNumber ?? t('implementations.share.no_published'),
+        published: document.publishedAt
+            ? formatDateToDay(document.publishedAt)
+            : t('implementations.share.no_published'),
+        view: viewCell(document)
+    }))
+)
+
+const noop = () => undefined
+
 const implementationStatusLabel = (status: string) =>
     status === 'completed'
         ? t('implementations.documents.implementation_status_completed')
@@ -220,7 +253,9 @@ const kindLabel = (kind: string) =>
 const statusLabel = (status: string) =>
     statusOptions.value.find((option) => option.id === status)?.name ?? status
 
-onMounted(async () => {
+const loadImplementation = async () => {
+    loading.value = true
+    errorMessage.value = ''
     try {
         implementation.value = await apiPostPublic<SharedImplementation>('/standards/shares/open', {
             code: shareCode.value
@@ -238,5 +273,7 @@ onMounted(async () => {
     } finally {
         loading.value = false
     }
-})
+}
+
+onMounted(loadImplementation)
 </script>

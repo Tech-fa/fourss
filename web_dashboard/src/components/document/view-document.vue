@@ -28,15 +28,16 @@
                     </IconTooltipButton>
                 </Can>
                 <Can subject="documents" :actions="['update']" v-if="
+                    documentData &&
                     canEditDocumentContent &&
-                    (documentData?.versions[documentData?.versions.length - 1].versionNumber !==
-                        documentData?.currentVersion || (
+                    (documentData.versions[documentData.versions.length - 1].versionNumber !==
+                        documentData.currentVersion || (
                             documentData.contentType === ContentType.FILE && (
-                                !documentData?.versions[documentData?.versions.length - 1].file ||
-                                !String(documentData?.versions[documentData?.versions.length - 1].file).trim()))
+                                !documentData.versions[documentData.versions.length - 1].file ||
+                                !String(documentData.versions[documentData.versions.length - 1].file).trim()))
                         || (documentData.contentType === ContentType.CHECKLIST &&
-                            !checklistVersionHasContent(documentData?.versions[documentData?.versions.length - 1] as DocumentVersion))
-                        || documentData.versions[documentData?.versions.length - 1].status === DocumentStatus.PENDING
+                            !checklistVersionHasContent(documentData.versions[documentData.versions.length - 1] as DocumentVersion))
+                        || documentData.versions[documentData.versions.length - 1].status === DocumentStatus.PENDING
                     )
                 ">
                     <IconTooltipButton v-if="documentData?.contentType === ContentType.FILE" buttonStyle="secondary"
@@ -388,15 +389,11 @@
                                                     subject="documents"
                                                     :actions="['update']"
                                                 >
-                                                    <AppButton
-                                                        buttonStyle="secondary"
-                                                        class="px-2 py-1 text-xs gap-2"
-                                                        test-id="add-contributors-button"
+                                                    <IconTooltipButton  buttonStyle="secondary"
+                                                        icon-class="fa-solid fa-user-plus"
+                                                        :text="t('document.view.add_contributors')"
                                                         @click="openAddContributors"
-                                                    >
-                                                        <i class="fa-solid fa-user-plus"></i>
-                                                        {{ t('document.view.add_contributors') }}
-                                                    </AppButton>
+                                                    />
                                                 </Can>
                                             </div>
                                             <p class="text-xs text-neutral-500 mb-2">
@@ -905,6 +902,10 @@ import IconTooltipButton from '../IconTooltipButton.vue'
 import Notice from '../Notice.vue'
 import AddContentContributorsDialog from './AddContentContributorsDialog.vue'
 import { userCanEditDocumentContent } from './document-content-access'
+import {
+    versionContentDocxSource,
+    type VersionContentResponse
+} from '@/util/docx-content'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -1088,7 +1089,7 @@ const showLatestVersionPreview = computed(() => {
 })
 
 const previewEditorContent = ref<string | null>(null)
-const previewDocxUrl = ref<string | null>(null)
+const previewDocxUrl = ref<string | Blob | null>(null)
 const previewLoading = ref(false)
 const previewLoadError = ref(false)
 const previewSuperDocRef = ref<InstanceType<typeof SuperDocEditor> | null>(null)
@@ -1281,23 +1282,15 @@ async function loadVersionPreview(versionId: number) {
 
     previewLoading.value = true
     try {
-        const data = await apiGet<{ content: string | null; contentUrl?: string }>(
+        const data = await apiGet<VersionContentResponse>(
             `/documents/${documentId}/versions/${versionId}/content`,
             authStore
         )
-        if (data.contentUrl) {
-            previewDocxUrl.value = data.contentUrl
+        const source = versionContentDocxSource(data)
+        if (source) {
+            previewDocxUrl.value = source
         } else if (data.content?.trim()) {
             previewEditorContent.value = data.content
-        } else {
-            const version = doc.versions?.find((v) => v.id === versionId)
-            const key = version?.content?.trim()
-            if (key?.toLowerCase().endsWith('.docx')) {
-                previewDocxUrl.value = await apiGet<string>(
-                    `/files/${encodeURIComponent(key)}`,
-                    authStore
-                )
-            }
         }
     } catch (err) {
         console.error('Latest version preview failed', err)
@@ -1773,13 +1766,18 @@ const downloadDocument = async () => {
 
         if (documentData.value?.contentType === ContentType.EDITOR) {
             if (!latestVersion?.id) return
-            const { contentUrl } = await apiGet<{ content: string | null; contentUrl?: string }>(
+            const data = await apiGet<VersionContentResponse>(
                 `/documents/${documentId}/versions/${latestVersion.id}/content`,
                 authStore
             )
-            if (contentUrl) {
+            const source = versionContentDocxSource(data)
+            if (source instanceof Blob) {
+                saveBlob(source, `${documentData.value?.title || 'document'}.docx`)
+                return
+            }
+            if (typeof source === 'string') {
                 saveBlob(
-                    await fetch(contentUrl).then((r) => r.blob()),
+                    await fetch(source).then((r) => r.blob()),
                     `${documentData.value?.title || 'document'}.docx`
                 )
                 return
@@ -1861,16 +1859,17 @@ const downloadEditorPdf = async () => {
 const downloadVersionPdf = async (version: Document['versions'][number]) => {
     downloadingVersionId.value = version.id
     try {
-        const data = await apiGet<{ contentUrl: string }>(
+        const data = await apiGet<VersionContentResponse>(
             `/documents/${documentId}/versions/${version.id}/content`,
             authStore
-        );
-        if (!data.contentUrl) {
+        )
+        const source = versionContentDocxSource(data)
+        if (!source) {
             toast.showToast(t('common.error'), t('document.view.toast_version_no_content'), 'error')
             return
         }
         saveBlob(
-            await fetch(data.contentUrl).then((r) => r.blob()),
+            source instanceof Blob ? source : await fetch(source).then((r) => r.blob()),
             `${documentData.value?.title || 'document'}.docx`
         )
 

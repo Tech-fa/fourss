@@ -1,9 +1,9 @@
 <template>
-    <div class="h-full">
-        <div class="mt-8">
-            <div class="overflow-x-hidden h-full">
+    <div class="h-full min-w-0 max-w-full">
+        <div class="mt-8 min-w-0 max-w-full">
+            <div class="h-full min-w-0 max-w-full overflow-x-hidden">
                 <div
-                    :class="`min-w-full py-2 align-middle px-1 ${skipPadding ? '' : 'sm:px-6 lg:px-8'} flex flex-col items-center min-h-[400px]`"
+                    :class="`w-full min-w-0 max-w-full py-2 align-middle px-1 ${skipPadding ? '' : 'sm:px-6 lg:px-8'} flex flex-col items-center min-h-[400px]`"
                 >
                     <div
                         id="filters"
@@ -57,10 +57,14 @@
 
                     <div
                         v-if="view == 'table'"
-                        class="bg-white  overflow-x-auto w-full relative rounded-t-lg"
+                        class="bg-white overflow-x-auto w-full min-w-0 max-w-full relative rounded-t-lg"
                         id="table-wrapper"
                     >
-                        <table class="min-w-full w-max rounded-t-lg">
+                        <table
+                            class="min-w-full w-max rounded-t-lg"
+                            :class="{ 'table-min-width': !!minWidth }"
+                            :style="minWidth ? { '--table-min-width': minWidth } : undefined"
+                        >
                             <thead class="bg-primary  lg:table-header-group hidden rounded-t-lg ">
                                 <tr>
                                     <!-- Drag handle column when drag is enabled -->
@@ -188,6 +192,7 @@
                                     </td>
 
                                     <td
+                                        v-if="hasVisibleActions"
                                         id="action_column"
                                         class="relative  px-6 py-2  h-full break-words break-all"
                                     >
@@ -725,6 +730,8 @@ const props = defineProps<{
     mapStatusStyle?: (status: string) => string
     viewPath?: (entity: any) => string
     skipPadding?: boolean
+    /** CSS length, e.g. `1200px`. Keeps the table at least this wide on desktop so the wrapper scrolls. */
+    minWidth?: string
     handleDelete?: (entity: any) => void
     extraFieldInnerAction?: (row: any) => void
     // New props for drag and drop functionality
@@ -968,6 +975,11 @@ const adjustPageOnDelete = () => {
 <style scoped>
 #hidden-body {
     display: none;
+}
+@media (min-width: 1025px) {
+    #table-wrapper .table-min-width {
+        min-width: max(100%, var(--table-min-width));
+    }
 }
 @media (max-width: 1024px) {
     #table-head {

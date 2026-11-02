@@ -471,8 +471,17 @@ import { useDialog } from '@/stores/dialog'
 import { useI18n } from 'vue-i18n'
 import { LOCALE_OPTIONS, type AppLocale } from '@/i18n'
 import Select2 from './Select2.vue'
-import { getIdleTimeoutMs, IDLE_ACTIVITY_EVENTS } from '@/util/pwa'
 import { TEAMS_FEATURE_ENABLED } from '@/util/teams-feature'
+
+const IDLE_TIMEOUT_MS = 10 * 60 * 1000
+const IDLE_ACTIVITY_EVENTS = [
+    'mousemove',
+    'keydown',
+    'click',
+    'scroll',
+    'touchstart',
+    'touchend'
+] as const
 
 const { locale, t } = useI18n()
 
@@ -534,7 +543,7 @@ const checkIdle = () => {
     if (document.visibilityState === 'hidden') {
         return
     }
-    if (Date.now() - lastActivity.value >= getIdleTimeoutMs()) {
+    if (Date.now() - lastActivity.value >= IDLE_TIMEOUT_MS) {
         query.value = {
             redirect: route.fullPath
         }

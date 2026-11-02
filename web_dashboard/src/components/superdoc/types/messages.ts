@@ -31,6 +31,9 @@ export type SuperDocLabels = {
   copyParagraphLink: string
   highlightText: string
   removeHighlight: string
+  readerMask: string
+  readerUnmask: string
+  readerMaskHidden: string
   aiWrite: string
   aiWritePromptPlaceholder: string
   aiWriteGenerate: string
