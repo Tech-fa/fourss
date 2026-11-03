@@ -10,11 +10,32 @@ import {
   Req,
   Res,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiBody,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from "@nestjs/swagger";
+import type { Response } from "express";
 import { hasPermission } from "../authentication/permission.decorator";
+import {
+  CatalogErrorResponseDto,
+  UnauthorizedResponseDto,
+} from "../authentication/auth.dto";
 import { PermissionEnum, standardsPermission } from "../permissions/permissions";
 import { formatResponse } from "../util/helper-util";
-import { CreateImplementationDto, UpdateImplementationDocumentDto } from "./dtos";
+import {
+  CreateImplementationDto,
+  ImplementationDocumentParamDto,
+  ImplementationIdParamDto,
+  ImplementationResponseDto,
+  StandardListItemResponseDto,
+  UpdateImplementationDocumentDto,
+} from "./dtos";
 import { StandardsService } from "./standards.service";
 
 @ApiTags("Standards")
@@ -29,11 +50,13 @@ export class StandardsController {
   @ApiOperation({
     summary: "List available standards and their required documents.",
   })
+  @ApiOkResponse({ type: StandardListItemResponseDto, isArray: true })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
   @hasPermission({
     subject: standardsPermission.subject,
     actions: [PermissionEnum.READ],
   })
-  async listStandards(@Res() res) {
+  async listStandards(@Res() res: Response) {
     return formatResponse(
       this.logger,
       this.standardsService.listStandardsWithImplementations(),
@@ -44,11 +67,13 @@ export class StandardsController {
 
   @Get("implementations")
   @ApiOperation({ summary: "List standard implementations and document tracking." })
+  @ApiOkResponse({ type: ImplementationResponseDto, isArray: true })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
   @hasPermission({
     subject: standardsPermission.subject,
     actions: [PermissionEnum.READ],
   })
-  async listImplementations(@Res() res) {
+  async listImplementations(@Res() res: Response) {
     return formatResponse(
       this.logger,
       this.standardsService.listImplementations(),
@@ -59,12 +84,17 @@ export class StandardsController {
 
   @Post("implementations")
   @ApiOperation({ summary: "Start implementing a standard." })
+  @ApiBody({ type: CreateImplementationDto })
+  @ApiOkResponse({ type: ImplementationResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: standardsPermission.subject,
     actions: [PermissionEnum.CREATE],
   })
   async createImplementation(
-    @Res() res,
+    @Res() res: Response,
     @Body() dto: CreateImplementationDto,
     @Req() req,
   ) {
@@ -78,14 +108,20 @@ export class StandardsController {
 
   @Get("implementations/:id")
   @ApiOperation({ summary: "Get one implementation and its document tracking." })
+  @ApiOkResponse({ type: ImplementationResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: standardsPermission.subject,
     actions: [PermissionEnum.READ],
   })
-  async getImplementation(@Param("id") id: string, @Res() res) {
+  async getImplementation(
+    @Param() params: ImplementationIdParamDto,
+    @Res() res: Response,
+  ) {
     return formatResponse(
       this.logger,
-      this.standardsService.getImplementation(Number(id)),
+      this.standardsService.getImplementation(params.id),
       res,
       "Standard implementation fetched successfully",
     );
@@ -95,21 +131,25 @@ export class StandardsController {
   @ApiOperation({
     summary: "Update tracking for a required implementation document.",
   })
+  @ApiBody({ type: UpdateImplementationDocumentDto })
+  @ApiOkResponse({ type: ImplementationResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: standardsPermission.subject,
     actions: [PermissionEnum.UPDATE],
   })
   async updateImplementationDocument(
-    @Param("id") id: string,
-    @Param("documentId") documentId: string,
+    @Param() params: ImplementationDocumentParamDto,
     @Body() dto: UpdateImplementationDocumentDto,
-    @Res() res,
+    @Res() res: Response,
   ) {
     return formatResponse(
       this.logger,
       this.standardsService.updateImplementationDocument(
-        Number(id),
-        Number(documentId),
+        params.id,
+        params.documentId,
         dto,
       ),
       res,
@@ -119,14 +159,23 @@ export class StandardsController {
 
   @Delete("implementations/:id")
   @ApiOperation({ summary: "Delete a standard implementation." })
+  @ApiOkResponse({
+    description: "Standard implementation deleted. Response body is empty.",
+  })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
   @hasPermission({
     subject: standardsPermission.subject,
     actions: [PermissionEnum.DELETE],
   })
-  async deleteImplementation(@Param("id") id: string, @Res() res) {
+  async deleteImplementation(
+    @Param() params: ImplementationIdParamDto,
+    @Res() res: Response,
+  ) {
     return formatResponse(
       this.logger,
-      this.standardsService.deleteImplementation(Number(id)),
+      this.standardsService.deleteImplementation(params.id),
       res,
       "Standard implementation deleted successfully",
     );

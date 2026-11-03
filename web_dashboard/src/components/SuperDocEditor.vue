@@ -1,10 +1,14 @@
 <template>
-    <div class="superdoc-editor-frame">
+    <div
+        class="superdoc-editor-frame"
+        :class="{ 'superdoc-editor-frame--horizontal-scroll': horizontalPageScroll }"
+    >
         <EmbeddedSuperDoc
             v-if="editorActive"
             ref="editorRef"
             :key="editorKey"
             :document="document"
+            :horizontal-page-scroll="horizontalPageScroll"
             :user="user"
             :document-mode="documentMode"
             :role="role"
@@ -77,6 +81,7 @@ const props = withDefaults(
         showHighlightToolbar?: boolean
         showReaderMask?: boolean
         showAiWrite?: boolean
+        horizontalPageScroll?: boolean
         generateAiContent?: (request: SuperDocAiWriteRequest) => Promise<SuperDocAiWriteResult>
         initialMarkdown?: string
     }>(),
@@ -94,6 +99,7 @@ const props = withDefaults(
         canComment: false,
         showHighlightToolbar: false,
         showReaderMask: false,
+        horizontalPageScroll: false,
         initialMarkdown: ''
     }
 )
@@ -347,5 +353,12 @@ defineExpose({
     border: 0;
     background: #ffffff;
     overflow: hidden;
+}
+
+.superdoc-editor-frame.superdoc-editor-frame--horizontal-scroll {
+    width: max-content;
+    min-width: 100%;
+    height: auto;
+    overflow: visible;
 }
 </style>

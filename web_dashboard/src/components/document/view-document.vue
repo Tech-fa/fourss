@@ -122,7 +122,7 @@
                     <div class="space-y-6">
                         <div class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2.5fr)_minmax(0,1fr)] lg:items-start">
                             <div v-if="showLatestVersionPreview"
-                                class="overflow-x-auto flex max-h-[800px] min-h-0 min-w-0 flex-col rounded-lg border border-neutral-200 bg-white p-4 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-5rem)]"
+                                class="flex h-[min(800px,calc(100dvh-5rem))] min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-neutral-200 bg-white p-4 lg:sticky lg:top-6"
                                 test-id="latest-version-preview-section">
                                 <h2 class="shrink-0 text-lg mb-4 flex flex-wrap items-center justify-between gap-2"
                                     test-id="latest-version-preview-heading">
@@ -138,17 +138,18 @@
                                         </span>
                                     </span>
                                 </h2>
-                                <Notice v-if="documentData.contentType === ContentType.EDITOR" :description="t('document.view.document_comment_notice')" level="info" class="mb-4"/>
-                                <div class="h-[800px] overflow-y-auto overflow-x-auto 2xl:min-w-[1000px]">
+                                <Notice v-if="documentData.contentType === ContentType.EDITOR" :description="t('document.view.document_comment_notice')" level="info" class="mb-4 shrink-0"/>
+                                <div class="min-h-0 min-w-0 w-full flex-1 overflow-auto">
                                     <div v-if="previewLoading" class="flex justify-center py-12">
                                         <Spinner width="5" />
                                     </div>
                                     <template v-else-if="documentData.contentType === ContentType.EDITOR">
                                         <div v-if="previewDocxUrl"
-                                            class="h-[1200px] overflow-hidden rounded border border-neutral-100"
+                                            class="min-w-full w-max rounded border border-neutral-100"
                                             test-id="latest-version-preview-docx">
                                             <SuperDocEditor
                                                 ref="previewSuperDocRef"
+                                                horizontal-page-scroll
                                                 :document="previewDocxUrl"
                                                 document-mode="viewing"
                                                 :role="canCommentOnSuperdoc ? 'suggester' : 'viewer'"

@@ -1,5 +1,5 @@
 <template>
-  <div class="superdoc-editor">
+  <div class="superdoc-editor" :class="{ 'superdoc-editor--horizontal-scroll': horizontalPageScroll }">
     <input
       v-if="showOpenDocx && !hideToolbar"
       ref="docxFileInputRef"
@@ -166,6 +166,7 @@ const props = withDefaults(
     showHighlightToolbar?: boolean
     showReaderMask?: boolean
     showAiWrite?: boolean
+    horizontalPageScroll?: boolean
     generateAiContent?: (request: SuperDocAiWriteRequest) => Promise<SuperDocAiWriteResult>
     labels: SuperDocLabels
   }>(),
@@ -184,6 +185,7 @@ const props = withDefaults(
     showHighlightToolbar: false,
     showReaderMask: false,
     showAiWrite: false,
+    horizontalPageScroll: false,
   },
 )
 
@@ -1994,9 +1996,11 @@ onUnmounted(() => {
 #editor {
   flex: 1;
   min-height: 0;
+  min-width: 0;
   overflow: visible;
   margin-inline: auto;
   align-self: center;
+  align-self: safe center;
   position: relative;
   z-index: 1;
 }
@@ -2004,6 +2008,7 @@ onUnmounted(() => {
 #editor :deep(.superdoc__document) {
   display: flex;
   justify-content: center;
+  justify-content: safe center;
   flex: 1;
   min-height: 0;
   width: 100%;
@@ -2014,6 +2019,7 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  align-items: safe center;
   flex: 1;
   min-height: 0;
   width: 100%;
@@ -2118,5 +2124,49 @@ onUnmounted(() => {
 #editor :deep(.superdoc--with-sidebar .superdoc__sub-document) {
   width: 100% !important;
   max-width: 100% !important;
+}
+
+.superdoc-editor.superdoc-editor--horizontal-scroll {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.superdoc-editor.superdoc-editor--horizontal-scroll #editor {
+  width: max-content;
+  min-width: 100%;
+  height: auto;
+  flex: none;
+  align-self: flex-start;
+  overflow: visible;
+}
+
+.superdoc-editor.superdoc-editor--horizontal-scroll #editor :deep(.superdoc),
+.superdoc-editor.superdoc-editor--horizontal-scroll #editor :deep(.superdoc__layers),
+.superdoc-editor.superdoc-editor--horizontal-scroll #editor :deep(.superdoc__document),
+.superdoc-editor.superdoc-editor--horizontal-scroll #editor :deep(.superdoc__sub-document) {
+  width: max-content;
+  min-width: 100%;
+  max-width: none;
+  height: auto;
+  overflow: visible;
+}
+
+.superdoc-editor.superdoc-editor--horizontal-scroll #editor :deep(.super-editor-container),
+.superdoc-editor.superdoc-editor--horizontal-scroll #editor :deep(.super-editor),
+.superdoc-editor.superdoc-editor--horizontal-scroll #editor :deep(.presentation-editor),
+.superdoc-editor.superdoc-editor--horizontal-scroll #editor :deep(.presentation-editor__viewport),
+.superdoc-editor.superdoc-editor--horizontal-scroll #editor :deep(.superdoc-layout) {
+  width: max-content;
+  height: auto;
+  max-width: none;
+  overflow: visible;
+}
+
+.superdoc-editor.superdoc-editor--horizontal-scroll #editor :deep(.super-editor),
+.superdoc-editor.superdoc-editor--horizontal-scroll #editor :deep(.presentation-editor) {
+  width: max-content !important;
 }
 </style>
