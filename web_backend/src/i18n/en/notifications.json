@@ -6,7 +6,7 @@
         "emailSubject": "{moduleLabel} module changes"
     },
     "email": {
-        "defaultSubject": "4ES Notification"
+        "defaultSubject": "4SS Notification"
     },
     "extras": {
         "priorityLine": "Priority: {name}"

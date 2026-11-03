@@ -1,32 +1,33 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 import { Resend } from 'resend';
-import { LocalFileService } from './local-file.service';
 import { EmailType } from './dto';
+
+const EMAIL_DIR = join(__dirname, 'emails');
+
+function templatePath(name: string): string {
+  if (!/^[a-z0-9_-]+$/.test(name)) {
+    throw new Error(`Invalid email template name: ${name}`);
+  }
+  return join(EMAIL_DIR, `${name}.html`);
+}
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private readonly resend: Resend;
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly fileService: LocalFileService,
-  ) {
+  constructor(private readonly configService: ConfigService) {
     this.resend = new Resend(this.configService.get<string>('RESEND_API_KEY'));
   }
 
   typeMapper = {
     [EmailType.REGISTRATION]: 'Registration',
-    [EmailType.REGISTRATION_PENDING]: 'Registration received',
-    [EmailType.REGISTRATION_APPROVED]: 'Account approved',
     [EmailType.ACTIVATION]: 'Activation',
-    [EmailType.NOTIFICATION]: '4ES Notification',
-    [EmailType.CUSTOM_NOTIFICATION]: '4ES Notification',
+    [EmailType.NOTIFICATION]: '4SS Notification',
     [EmailType.RESET_PASSWORD]: 'Reset Password',
-    [EmailType.SURVEY]: 'Survey',
-    [EmailType.TRACKER_VERIFICATION]: 'Checklist Verification',
-    [EmailType.CLIENT_USER_VERIFICATION]: 'Verification Code',
   };
 
   async send(
@@ -44,16 +45,15 @@ export class EmailService {
       if (email.includes('@@')) {
         email = email.split('@@')[1];
       }
-      let html = await this.fileService.getFile(`emails/${externalEmail || type}.html`);
-      Object.entries(replaceString).forEach(([key, value]) => {
-        const reg = new RegExp(`@@${key}@@`, 'g');
-        html = html.replace(reg, value);
-      });
+      const html = await this.renderTemplate(
+        externalEmail || type,
+        replaceString,
+      );
       const fromEmail = this.configService.get<string>('FROM_EMAIL');
       const mail = {
         to: email,
-        subject: subject || `4es ${this.typeMapper[type] ?? type}`,
-        from: `4es <${fromEmail}>`,
+        subject: subject || `4SS ${this.typeMapper[type] ?? type}`,
+        from: `4SS <${fromEmail}>`,
         html,
       };
       const { data, error } = await this.resend.emails.send(mail);
@@ -86,7 +86,7 @@ export class EmailService {
       const { error } = await this.resend.emails.send({
         to: email,
         subject,
-        from: `4es <${fromEmail}>`,
+        from: `4SS <${fromEmail}>`,
         html,
       });
       if (error) {
@@ -98,5 +98,19 @@ export class EmailService {
       this.logger.error('Error occured on sending email', error);
       return false;
     }
+  }
+
+  private async renderTemplate(
+    name: string,
+    replaceString: { [key: string]: string },
+  ): Promise<string> {
+    let html = await readFile(templatePath(name), 'utf8');
+    Object.entries(replaceString).forEach(([key, value]) => {
+      if (!/^[A-Za-z0-9_]+$/.test(key)) {
+        return;
+      }
+      html = html.replace(new RegExp(`@@${key}@@`, 'g'), value ?? '');
+    });
+    return html;
   }
 }

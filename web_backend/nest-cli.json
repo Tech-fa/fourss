@@ -11,6 +11,10 @@
       {
         "include": "document/agent-rules.md",
         "watchAssets": true
+      },
+      {
+        "include": "common/emails/**/*",
+        "watchAssets": true
       }
     ]
   }

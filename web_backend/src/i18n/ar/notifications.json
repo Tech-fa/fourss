@@ -6,7 +6,7 @@
         "emailSubject": "تغييرات في وحدة {moduleLabel}"
     },
     "email": {
-        "defaultSubject": "إشعار 4ES"
+        "defaultSubject": "إشعار 4SS"
     },
     "extras": {
         "priorityLine": "الأولوية: {name}"

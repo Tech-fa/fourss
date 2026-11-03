@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, IsNull, Like, Not, Repository } from "typeorm";
@@ -98,8 +99,15 @@ import { DocumentChecklist } from "./document-checklist.entity";
 import { DocumentAiIndexService } from "./document-ai-index.service";
 import { redactMaskedDocx, restoreMaskedDocx } from "./redact-masked-docx";
 
+const DEFAULT_DOCUMENT_CATEGORIES = [
+  { name: "Policy", categoryCode: "POL", description: "Policy documents" },
+  { name: "Control", categoryCode: "CTRL", description: "Control documents" },
+  { name: "Record", categoryCode: "REC", description: "Record documents" },
+  { name: "Risk", categoryCode: "RISK", description: "Risk documents" },
+] as const;
+
 @Injectable()
-export class DocumentService implements NotificationInfo {
+export class DocumentService implements NotificationInfo, OnModuleInit {
   constructor(
     @InjectRepository(Document)
     private documentRepository: Repository<Document>,
@@ -136,6 +144,11 @@ export class DocumentService implements NotificationInfo {
     private readonly documentAiIndexService: DocumentAiIndexService,
   ) {}
   private logger = new Logger(DocumentService.name);
+  private defaultCategoriesReady = false;
+
+  async onModuleInit() {
+    await this.ensureDefaultDocumentCategories();
+  }
 
   async createNewVersionOfDocuments(): Promise<number> {
     try {
@@ -1518,7 +1531,67 @@ export class DocumentService implements NotificationInfo {
   }
 
   // Document Type Methods
+  private async findActiveDocumentCategory(
+    name: string,
+    categoryCode: string,
+  ): Promise<DocumentType | null> {
+    return this.docTypeRepo
+      .createQueryBuilder("docType")
+      .where("docType.deleted = :deleted", { deleted: false })
+      .andWhere(
+        "(LOWER(docType.name) = :name OR LOWER(docType.categoryCode) = :code)",
+        { name: name.toLowerCase(), code: categoryCode.toLowerCase() },
+      )
+      .getOne();
+  }
+
+  private async ensureDefaultDocumentCategories(): Promise<void> {
+    if (this.defaultCategoriesReady) return;
+
+    const createdAtBase = Date.now();
+    let missing = false;
+    for (const [index, category] of DEFAULT_DOCUMENT_CATEGORIES.entries()) {
+      const existing = await this.findActiveDocumentCategory(
+        category.name,
+        category.categoryCode,
+      );
+      if (existing) continue;
+
+      const createdAt =
+        createdAtBase + (DEFAULT_DOCUMENT_CATEGORIES.length - index);
+      try {
+        await this.docTypeRepo.save(
+          this.docTypeRepo.create({
+            name: category.name,
+            categoryCode: category.categoryCode,
+            description: category.description,
+            createdAt,
+            updatedAt: createdAt,
+            deleted: false,
+          }),
+        );
+        this.logger.log(`Created default document category ${category.name}`);
+      } catch (error) {
+        const raced = await this.findActiveDocumentCategory(
+          category.name,
+          category.categoryCode,
+        );
+        if (raced) continue;
+        missing = true;
+        this.logger.error(
+          `Failed to create default document category ${category.name}`,
+          error,
+        );
+      }
+    }
+
+    if (!missing) {
+      this.defaultCategoriesReady = true;
+    }
+  }
+
   async getDocumentTypes(search?: string): Promise<DocumentType[]> {
+    await this.ensureDefaultDocumentCategories();
     const qb = this.docTypeRepo
       .createQueryBuilder("docType")
       .leftJoinAndSelect("docType.createdBy", "creator")
