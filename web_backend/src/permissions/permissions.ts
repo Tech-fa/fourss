@@ -83,7 +83,7 @@ export const changeRequestPermission = {
 export const DocumentPermission = {
   subject: "documents",
   label: "Document",
-  actions: [...actions, "override_approve"],
+  actions: [...actions, "override_approve","read_text"],
   submodules: [
     DocumentTypePermission,
     approvalStrategyPermission,

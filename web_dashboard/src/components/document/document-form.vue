@@ -1794,6 +1794,11 @@ const handleFilterChange = (value: any, type: 'category' | 'organizationUnit') =
 }
 
 async function insertAgentDocumentContent(markdown: string) {
+    if (contentMode.value !== ContentType.EDITOR) {
+        contentMode.value = ContentType.EDITOR
+        clearChecklistState()
+        formData.value.file = null
+    }
     const deadline = Date.now() + 8000
     while (Date.now() < deadline) {
         const editor = superdocRef.value

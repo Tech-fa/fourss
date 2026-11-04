@@ -1049,7 +1049,7 @@ export class DocumentController {
   @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
   @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
   @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
-  @hasPermission({ subject: DocumentPermission.subject, actions: ["read"] })
+  @hasPermission({ subject: DocumentPermission.subject, actions: ["read_text"] })
   async getDocumentText(@Param("id") id: string, @Req() req, @Res() res) {
     return formatResponse(
       this.logger,

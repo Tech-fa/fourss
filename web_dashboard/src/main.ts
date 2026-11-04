@@ -41,6 +41,8 @@ const bootstrap = async () => {
     app.use(pinia)
     app.use(router)
     installAgentPageLinks(router)
+    const { bootAgentHelper } = await import('./agent/helper-client')
+    bootAgentHelper(router)
     app.use(i18n)
     app.mount('#app')
 }

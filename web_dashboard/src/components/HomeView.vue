@@ -156,6 +156,9 @@
 
                     <li class="mt-auto min-w-0">
                       <div class="flex flex-col gap-y-2">
+                        <!-- Agent helper -->
+                        <AgentHelperNav v-if="AgentHelperNav" />
+
                         <!-- Language -->
                         <div
                           class="flex w-full min-w-0 items-center gap-x-3 px-6 py-3 text-sm font-semibold text-black dark:text-gray-400"
@@ -172,7 +175,7 @@
                         <div
                           @click="router.push('/notifications')"
                           :class="[
-                            'flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-400 text-black dark:hover:text-white hover:text-gray-800 cursor-pointer',
+                            'flex items-center gap-x-1  text-sm font-semibold leading-6 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-400 text-black dark:hover:text-white hover:text-gray-800 cursor-pointer',
                             route.path == '/notifications'
                               ? 'bg-gray-200 dark:bg-gray-800 dark:text-white text-black'
                               : '',
@@ -192,7 +195,7 @@
                         <div
                           @click="router.push('/profile')"
                           :class="[
-                            'flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 hover:bg-gray-50 dark:hover:bg-gray-800  text-black  hover:text-gray-800 cursor-pointer',
+                            'flex items-center gap-x-1 text-sm font-semibold leading-6 hover:bg-gray-50 dark:hover:bg-gray-800  text-black  hover:text-gray-800 cursor-pointer',
                             route.path == '/profile'
                               ? 'bg-gray-200  text-black'
                               : '',
@@ -205,7 +208,7 @@
                         <!-- Logout -->
                         <div
                           @click="authStore.logout()"
-                          class="flex items-center gap-x-4 px-6 py-3 text-sm font-semibold leading-6 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-400 text-black dark:hover:text-white hover:text-gray-800 cursor-pointer"
+                          class="flex items-center gap-x-1  text-sm font-semibold leading-6 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-400 text-black dark:hover:text-white hover:text-gray-800 cursor-pointer"
                           test-id="home-view-logout-button"
                         >
                           <i class="fa-solid fa-right-from-bracket text-lg"></i>
@@ -355,6 +358,9 @@
 
                 <li class="mt-auto min-w-0">
                   <div class="flex flex-col gap-y-2">
+                    <!-- Agent helper -->
+                    <AgentHelperNav v-if="AgentHelperNav" />
+
                     <!-- Language -->
                     <div
                       class="flex w-full min-w-0 items-center gap-x-3 px-6 py-3 text-sm font-semibold text-black dark:text-gray-400"
@@ -461,7 +467,7 @@ import {
     TransitionRoot
 } from '@headlessui/vue'
 import { Bars3Icon, XMarkIcon, ChevronRightIcon } from '@heroicons/vue/24/outline'
-import { h, onMounted, ref, watch, type Component, onUnmounted, computed } from 'vue'
+import { h, onMounted, ref, watch, type Component, onUnmounted, computed, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore, type PermissionTree } from '@/stores/auth'
 import { apiGet, apiGetPublic } from '@/util/api'
@@ -472,6 +478,8 @@ import { useI18n } from 'vue-i18n'
 import { LOCALE_OPTIONS, type AppLocale } from '@/i18n'
 import Select2 from './Select2.vue'
 import { TEAMS_FEATURE_ENABLED } from '@/util/teams-feature'
+
+const AgentHelperNav = defineAsyncComponent(() => import('@/components/agent/AgentHelperNav.vue'))
 
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000
 const IDLE_ACTIVITY_EVENTS = [

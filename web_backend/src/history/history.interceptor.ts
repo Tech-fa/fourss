@@ -18,6 +18,7 @@ export class HistoryInterceptor implements NestInterceptor {
     /^\/auth\/login/,         // Auth endpoints
     /^\/auth\/refresh/,
     /^\/health/,              // Health checks 
+    /^\/__agent-helper/,      // Agent helper long-polls 
     /^\/metrics/,             // Metrics endpoints
     /^\/histories/,            // Avoid tracking history of history views
     /^\/permissions\/user-roles\/.*/,

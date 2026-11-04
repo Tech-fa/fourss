@@ -31,6 +31,7 @@ import { Role } from "./permissions/role.entity";
 import { Team } from "./teams/team.entity";
 import { TeamMember } from "./teams/team-member.entity";
 import { BootstrapService } from "./bootstrap.service";
+import { AgentHelperModule } from "./agent-helper/agent-helper.module";
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { BootstrapService } from "./bootstrap.service";
     NotificationHandlerModule,
     PermissionHandlerModule,
     ScheduleModule.forRoot(),
+    AgentHelperModule,
     TypeOrmModule.forFeature([User, Role, Team, TeamMember]),
   ],
   controllers: [AppController],
