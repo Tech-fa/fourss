@@ -685,6 +685,12 @@ const navigations = computed<NavItem[]>(() => [
         subject: 'standards',
         icon: h('i', { class: 'fa-solid fa-certificate text-neutral-700 ' })
     },
+    {
+        name: t('nav.playground'),
+        path: '/plan/playground',
+        subject: 'playgrounds',
+        icon: h('i', { class: 'fa-solid fa-flask text-neutral-700 ' })
+    },
 ])
 
 const canSeeNavItem = (item: NavItem) => {

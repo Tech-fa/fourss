@@ -18,8 +18,12 @@ describe('installAgentPageLinks', () => {
         delete window.__bindAgentPageLinks
         delete window.__appControl
         delete window.__appControlHooks
+<<<<<<< HEAD
         localStorage.removeItem('auth')
         document.body.innerHTML = ''
+=======
+        delete window.__agentApplyPlayground
+>>>>>>> origin/cursor/playground-agent-518a
     })
 
     it('does nothing in a browser until the shell installs page control', () => {
@@ -54,6 +58,41 @@ describe('installAgentPageLinks', () => {
         expect(listed.pages).toEqual([])
         expect(await window.__appControl?.call('navigate', { path: '/login' })).toEqual({ from: 'shell' })
         expect(calls).toEqual(['navigate'])
+    })
+
+    it('saves playground source through the open page', async () => {
+        setActivePinia(createPinia())
+        const shell: string[] = []
+        window.__appControl = {
+            call: (name) => {
+                shell.push(name)
+                return { from: 'shell' }
+            }
+        }
+        installAgentPageLinks(fakeRouter())
+        window.__agentApplyPlayground = async (source) => ({ saved: source })
+
+        await expect(
+            window.__appControl?.call('apply_playground', { source: 'function handle(){ return null }' })
+        ).resolves.toEqual({ saved: 'function handle(){ return null }' })
+        expect(shell).toEqual([])
+    })
+
+    it('refuses to apply a playground when the page is not open', async () => {
+        setActivePinia(createPinia())
+        const shell: string[] = []
+        window.__appControl = {
+            call: (name) => {
+                shell.push(name)
+                return { from: 'shell' }
+            }
+        }
+        installAgentPageLinks(fakeRouter())
+
+        await expect(window.__appControl?.call('apply_playground', { source: 'x' })).rejects.toThrow(
+            'The playground is not open.'
+        )
+        expect(shell).toEqual([])
     })
 
     it('attaches when the shell calls back after the page has loaded', () => {

@@ -49,6 +49,7 @@ function bindAgentPageLinks(router: Router) {
     const originalCall = control.__agentOriginalCall
     control.__agentPatched = true
     control.call = async (name, args = {}) => {
+<<<<<<< HEAD
         if (name === 'submit_form') throw new Error(SUBMIT_FORM_REFUSAL)
         if (name === 'api_access') {
             return browserApiAccess({
@@ -63,6 +64,17 @@ function bindAgentPageLinks(router: Router) {
                 return described
             }
             return { ...described, dropdowns: listDropdowns(document) }
+=======
+        if (name === 'apply_playground') {
+            const source = typeof args.source === 'string' ? args.source : ''
+            const apply = window.__agentApplyPlayground
+            if (!apply) throw new Error('The playground is not open.')
+            return apply(source)
+        }
+        if (name === 'submit_form' && typeof args.button === 'string' && args.button.trim()) {
+            const clicked = clickLabeled(args.button)
+            if (clicked) return { submitted: true, button: clicked }
+>>>>>>> origin/cursor/playground-agent-518a
         }
         if (name === 'set_fields' && args.fields && typeof args.fields === 'object') {
             const fields = { ...(args.fields as Record<string, unknown>) }
@@ -144,5 +156,6 @@ declare global {
             __helperOwned?: boolean
         }
         __agentInsertDocumentContent?: (markdown: string) => Promise<boolean | void> | boolean | void
+        __agentApplyPlayground?: (source: string) => Promise<unknown> | unknown
     }
 }

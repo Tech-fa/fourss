@@ -110,6 +110,16 @@ export const standardsPermission = {
   module_included: true,
 };
 
+export const playgroundsPermission = {
+  subject: "playgrounds",
+  label: "Playground",
+  actions: actions,
+  service_tag: "playgrounds",
+  base_route: "plan/playground",
+  entityName: "Playground",
+  module_included: true,
+};
+
 interface PermissionTree {
   subject: string;
   label: string;
@@ -140,6 +150,7 @@ export const permissions: {
   documentAcknowledgementPermission,
   changeRequestPermission,
   standardsPermission,
+  playgroundsPermission,
 };
 
 export const permissionTree: {
@@ -150,11 +161,13 @@ export const permissionTree: {
   DocumentPermission,
   teamsPermission,
   standardsPermission,
+  playgroundsPermission,
 };
 
 export const processOwnerModules: PermissionTree[] = [
   DocumentPermission,
   standardsPermission,
+  playgroundsPermission,
 ];
 
 export const defaultRoles = [

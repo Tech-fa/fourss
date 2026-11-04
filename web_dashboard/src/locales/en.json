@@ -3,6 +3,7 @@
         "admin": "Admin",
         "manageUsers": "Manage Users",
         "permissionGroups": "Roles",
+        "playground": "Playground",
         "organizationTree": "Teams",
         "documents": "Documents",
         "standards": "Standards",
@@ -216,16 +217,16 @@
         "toast_membership_required": "A user must belong to at least one team."
     },
     "admin_permission_groups": {
-        "breadcrumb_view": "View permission group",
-        "breadcrumb_edit": "Edit permission group",
-        "breadcrumb_new": "New permission group",
-        "btn_edit_group": "Edit group",
+        "breadcrumb_view": "View Role",
+        "breadcrumb_edit": "Edit Role",
+        "breadcrumb_new": "New Role",
+        "btn_edit_group": "Edit Role",
         "notice_default_readonly": "This is a built-in group and can’t be edited.",
-        "label_group_name": "Group name",
-        "placeholder_group_name": "Enter a group name",
-        "rule_group_name": "Group name is required",
+        "label_group_name": "Role name",
+        "placeholder_group_name": "Enter a role name",
+        "rule_group_name": "Role name is required",
         "label_group_description": "Description",
-        "placeholder_group_description": "Describe what this group is for",
+        "placeholder_group_description": "Describe what this role is for",
         "heading_permissions": "Permissions",
         "placeholder_search_permissions": "Search permissions…",
         "toast_group_updated": "Role updated.",
@@ -1256,6 +1257,26 @@
             "renewal_period_years": "{count} year | {count} years"
         }
     },
+    "playground": {
+        "page": {
+            "title": "Playground",
+            "team": "Team",
+            "published": "Published",
+            "drafts": "Drafts",
+            "create": "Create",
+            "name": "Name",
+            "open": "Open",
+            "publish": "Publish",
+            "on": "On",
+            "off": "Off",
+            "turnOff": "Turn off",
+            "turnOn": "Turn on",
+            "turnedOff": "This playground is turned off. Existing data can still be read.",
+            "emptyPublished": "No published playgrounds yet.",
+            "emptyDrafts": "No drafts.",
+            "back": "Back"
+        }
+    },
     "errors": {
         "document": {
             "DOC_119": "The default approval strategy cannot be deleted"
@@ -1265,6 +1286,26 @@
         },
         "permission": {
             "PERMISSION_017": "A user can only have one permission group per team"
+        },
+        "playground": {
+            "PG_001": "You do not have access to this team",
+            "PG_002": "Playground not found",
+            "PG_004": "This name is reserved for an existing record kind",
+            "PG_005": "The record kind is not valid",
+            "PG_006": "The linked record was not found",
+            "PG_007": "The playground program is too long",
+            "PG_008": "Record data must be a flat object of simple values",
+            "PG_009": "A record can have at most 20 links",
+            "PG_010": "The playground program has no handle function",
+            "PG_011": "The playground program took too long",
+            "PG_012": "The playground is busy. Try again.",
+            "PG_013": "The playground stayed busy too long. Try again.",
+            "PG_014": "The playground program failed",
+            "PG_015": "The playground runtime tried to run a second program",
+            "PG_016": "A playground cannot save over an existing record kind",
+            "PG_017": "Playground record not found",
+            "PG_018": "This playground is turned off",
+            "PG_019": "The playground runtime is not installed"
         }
     },
     "legal": {

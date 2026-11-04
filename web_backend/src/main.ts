@@ -65,6 +65,9 @@ async function bootstrap() {
   app.use('/documents/templates', json({ limit: '1000mb' }));
   app.use('/documents/templates', urlencoded({ limit: '1000mb', extended: true }));
 
+  app.use('/playgrounds', json({ limit: '288kb' }));
+  app.use('/playgrounds', urlencoded({ limit: '288kb', extended: true }));
+
   app.use(json({ limit: '100kb' }));
   app.use(urlencoded({ limit: '100kb', extended: true }));
 

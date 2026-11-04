@@ -6,6 +6,7 @@
         "organizationTree": "Équipes",
         "documents": "Documents",
         "standards": "Normes",
+        "playground": "Terrain de jeu",
         "notifications": "Notifications",
         "profile": "Profil",
         "logout": "Déconnexion",
@@ -1248,7 +1249,47 @@
             "methodCauseEffect": "Cause Effet"
         }
     },
+    "playground": {
+        "page": {
+            "title": "Terrain de jeu",
+            "team": "Équipe",
+            "published": "Publiés",
+            "drafts": "Brouillons",
+            "create": "Créer",
+            "name": "Nom",
+            "open": "Ouvrir",
+            "publish": "Publier",
+            "on": "Activé",
+            "off": "Désactivé",
+            "turnOff": "Désactiver",
+            "turnOn": "Activer",
+            "turnedOff": "Ce terrain de jeu est désactivé. Les données existantes restent lisibles.",
+            "emptyPublished": "Aucun terrain de jeu publié.",
+            "emptyDrafts": "Aucun brouillon.",
+            "back": "Retour"
+        }
+    },
     "errors": {
+        "playground": {
+            "PG_001": "Vous n'avez pas accès à cette équipe",
+            "PG_002": "Terrain de jeu introuvable",
+            "PG_004": "Ce nom est réservé à un type de fiche existant",
+            "PG_005": "Le type de fiche n'est pas valide",
+            "PG_006": "La fiche liée est introuvable",
+            "PG_007": "Le programme du terrain de jeu est trop long",
+            "PG_008": "Les données doivent être un objet plat de valeurs simples",
+            "PG_009": "Une fiche peut avoir au plus 20 liens",
+            "PG_010": "Le programme n'a pas de fonction handle",
+            "PG_011": "Le programme a pris trop de temps",
+            "PG_012": "Le terrain de jeu est occupé. Réessayez.",
+            "PG_013": "Le terrain de jeu est resté occupé trop longtemps. Réessayez.",
+            "PG_014": "Le programme a échoué",
+            "PG_015": "Le moteur a essayé de lancer un second programme",
+            "PG_016": "Un terrain de jeu ne peut pas écraser un type de fiche existant",
+            "PG_017": "Fiche introuvable",
+            "PG_018": "Ce terrain de jeu est désactivé",
+            "PG_019": "Le moteur du terrain de jeu n'est pas installé"
+        },
         "document": {
             "DOC_119": "La stratégie d'approbation par défaut ne peut pas être supprimée"
         },
