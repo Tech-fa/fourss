@@ -29,6 +29,7 @@ import {
 import { PermissionEnum, standardsPermission } from "../permissions/permissions";
 import { formatResponse } from "../util/helper-util";
 import {
+  CreateImplementationDocumentDto,
   CreateImplementationDto,
   ImplementationDocumentParamDto,
   ImplementationIdParamDto,
@@ -127,6 +128,32 @@ export class StandardsController {
     );
   }
 
+  @Post("implementations/:id/documents")
+  @ApiOperation({
+    summary: "Track an extra clause or control on this implementation.",
+  })
+  @ApiBody({ type: CreateImplementationDocumentDto })
+  @ApiOkResponse({ type: ImplementationResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
+  @hasPermission({
+    subject: standardsPermission.subject,
+    actions: [PermissionEnum.UPDATE],
+  })
+  async createImplementationDocument(
+    @Param() params: ImplementationIdParamDto,
+    @Body() dto: CreateImplementationDocumentDto,
+    @Res() res: Response,
+  ) {
+    return formatResponse(
+      this.logger,
+      this.standardsService.createImplementationDocument(params.id, dto),
+      res,
+      "Clause or control added successfully",
+    );
+  }
+
   @Patch("implementations/:id/documents/:documentId")
   @ApiOperation({
     summary: "Update tracking for a required implementation document.",
@@ -154,6 +181,33 @@ export class StandardsController {
       ),
       res,
       "Implementation document updated successfully",
+    );
+  }
+
+  @Delete("implementations/:id/documents/:documentId")
+  @ApiOperation({
+    summary: "Remove a clause or control that was added to this implementation.",
+  })
+  @ApiOkResponse({ type: ImplementationResponseDto })
+  @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  @ApiNotFoundResponse({ type: CatalogErrorResponseDto })
+  @hasPermission({
+    subject: standardsPermission.subject,
+    actions: [PermissionEnum.UPDATE],
+  })
+  async deleteImplementationDocument(
+    @Param() params: ImplementationDocumentParamDto,
+    @Res() res: Response,
+  ) {
+    return formatResponse(
+      this.logger,
+      this.standardsService.deleteImplementationDocument(
+        params.id,
+        params.documentId,
+      ),
+      res,
+      "Clause or control removed successfully",
     );
   }
 

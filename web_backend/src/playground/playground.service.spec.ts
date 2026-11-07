@@ -152,6 +152,18 @@ describe("PlaygroundService", () => {
     expect(await service.get(created.id, user)).toMatchObject({ source: saved.source });
   });
 
+  it("hides a playground after it is deleted", async () => {
+    const created = await service.create("Notes", 7, user);
+    await expect(service.remove(created.id, user)).resolves.toEqual({
+      id: created.id,
+      deleted: true,
+    });
+    await expect(service.get(created.id, user)).rejects.toMatchObject({
+      response: { key: "PG_002" },
+    });
+    await expect(service.list(7, user)).resolves.toEqual([]);
+  });
+
   it("refuses record writes while the playground is off and still resolves existing data", async () => {
     const created = await service.create("Draft", 7, user);
     const playground = await service["requirePlayground"](created.id, user);

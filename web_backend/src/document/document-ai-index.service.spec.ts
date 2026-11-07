@@ -77,6 +77,7 @@ describe('DocumentAiIndexService', () => {
     const sourceRepository = {
       findOne: jest.fn().mockResolvedValue(overrides?.existingSource ?? null),
       create: jest.fn().mockImplementation((row) => row || {}),
+      delete: jest.fn().mockResolvedValue({ affected: 1 }),
       save: jest.fn().mockImplementation(async (row) => {
         saved.push(row);
         return row;
@@ -94,11 +95,19 @@ describe('DocumentAiIndexService', () => {
       sourceRepository as never,
       s3Service as never,
     );
-    return { service, saved, s3Service };
+    return { service, saved, s3Service, sourceRepository };
   }
 
-  it('stores checklist text when the document is AI accessible', async () => {
-    const { service, saved } = createService();
+  it('deletes stored extraction for a document', async () => {
+    const { service, sourceRepository } = createService();
+
+    await service.deleteExtractedSources('doc-1');
+
+    expect(sourceRepository.delete).toHaveBeenCalledWith({ documentId: 'doc-1' });
+  });
+
+  it('stores checklist text for the published version', async () => {
+    const { service, saved, sourceRepository } = createService();
 
     await service.indexDocumentVersion({
       documentId: 'doc-1',
@@ -116,9 +125,12 @@ describe('DocumentAiIndexService', () => {
     expect(row.sourceKind).toBe(DocumentAiSourceKind.CHECKLIST);
     expect(row.teamId).toBe(9);
     expect(row.fullText).toContain('Is the lot identified?');
+    expect(sourceRepository.delete).toHaveBeenCalledWith(
+      expect.objectContaining({ documentId: 'doc-1' }),
+    );
   });
 
-  it('skips documents that are not AI accessible', async () => {
+  it('extracts a published version even when it was not marked AI accessible', async () => {
     const { service, saved, s3Service } = createService({
       document: { ...document, isAiAccessible: false },
     });
@@ -131,8 +143,8 @@ describe('DocumentAiIndexService', () => {
     expect(s3Service.getFileBuffer).not.toHaveBeenCalled();
     expect(saved[0]).toEqual(
       expect.objectContaining({
-        status: DocumentAiIndexStatus.SKIPPED,
-        error: 'Document is not AI accessible',
+        status: DocumentAiIndexStatus.READY,
+        sourceKind: DocumentAiSourceKind.CHECKLIST,
       }),
     );
   });
@@ -219,41 +231,41 @@ describe('DocumentAiIndexService', () => {
     expect(s3Service.getFileBuffer).not.toHaveBeenCalled();
   });
 
-  it('returns nothing when extraction is missing or the document is closed to AI', async () => {
+  it('returns nothing when extraction is missing and still reads stored text', async () => {
     const missing = createService();
     await expect(
       missing.service.readStoredText({
         id: 'doc-1',
-        isAiAccessible: true,
+        isAiAccessible: false,
         currentVersion: 1,
       }),
     ).resolves.toBeNull();
 
-    const closed = createService({
+    const stored = createService({
       existingSource: {
         status: DocumentAiIndexStatus.READY,
         fullText: 'Cached policy',
       },
     });
     await expect(
-      closed.service.readStoredText({
+      stored.service.readStoredText({
         id: 'doc-1',
         isAiAccessible: false,
         currentVersion: 1,
       }),
-    ).resolves.toBeNull();
-    expect(closed.s3Service.getFileBuffer).not.toHaveBeenCalled();
+    ).resolves.toEqual({ versionId: 44, text: 'Cached policy' });
+    expect(stored.s3Service.getFileBuffer).not.toHaveBeenCalled();
   });
 
-  it('does not extract when the document is not AI accessible', async () => {
+  it('extracts the current version when the document was not marked AI accessible', async () => {
     const { service, s3Service } = createService({
       document: { ...document, isAiAccessible: false },
     });
     const result = await service.readCurrentVersionText({
       documentId: 'doc-1',
     });
-    expect(result.status).toBe(DocumentAiIndexStatus.SKIPPED);
-    expect(result.fullText).toBeNull();
+    expect(result.status).toBe(DocumentAiIndexStatus.READY);
+    expect(result.fullText).toContain('Is the lot identified?');
     expect(s3Service.getFileBuffer).not.toHaveBeenCalled();
   });
 });

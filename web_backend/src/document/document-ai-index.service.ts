@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { documentHttpError } from "./document.errors";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Not, Repository } from "typeorm";
 import { LocalFileService } from "../common/local-file.service";
 import { ContentType, Document } from "./document.entity";
 import { DocumentVersion } from "./document-version.entity";
@@ -93,20 +93,10 @@ export class DocumentAiIndexService {
       return;
     }
 
-    if (!document.isAiAccessible) {
-      await this.upsertSource(document, version, {
-        sourceKind: DocumentAiSourceKind.UNSUPPORTED,
-        status: DocumentAiIndexStatus.SKIPPED,
-        fullText: null,
-        contentHash: null,
-        error: "Document is not AI accessible",
-      });
-      return;
-    }
-
     try {
       const extracted = await this.extractFromVersion(document, version);
       await this.upsertSource(document, version, extracted);
+      await this.deleteSupersededSources(documentId, version.id);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Document AI index failed";
@@ -122,6 +112,21 @@ export class DocumentAiIndexService {
         error: message,
       });
     }
+  }
+
+  private async deleteSupersededSources(
+    documentId: string,
+    versionId: number,
+  ): Promise<void> {
+    await this.sourceRepository.delete({
+      documentId,
+      documentVersionId: Not(versionId),
+    });
+  }
+
+  async deleteExtractedSources(documentId: string): Promise<void> {
+    if (!documentId) return;
+    await this.sourceRepository.delete({ documentId });
   }
 
   async requireStoredText(document: {
@@ -141,7 +146,6 @@ export class DocumentAiIndexService {
     isAiAccessible: boolean;
     currentVersion: number;
   }): Promise<{ versionId: number; text: string } | null> {
-    if (!document.isAiAccessible) return null;
     const version = await this.versionRepository.findOne({
       where: {
         documentId: document.id,
@@ -210,17 +214,6 @@ export class DocumentAiIndexService {
         fullText: null,
         error: "version_not_found",
         versionId: null,
-      };
-    }
-
-    if (!document.isAiAccessible) {
-      return {
-        contentType: document.contentType,
-        sourceKind: this.fallbackKind(document),
-        status: DocumentAiIndexStatus.SKIPPED,
-        fullText: null,
-        error: "Document is not AI accessible",
-        versionId: version.id,
       };
     }
 

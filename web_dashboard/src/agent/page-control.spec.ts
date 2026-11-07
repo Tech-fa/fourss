@@ -2,10 +2,19 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { installHelperPageControl, removeHelperPageControl } from './page-control'
 import { SUBMIT_FORM_REFUSAL } from './confirmation'
 
+vi.mock('@/util/runtime-config', () => ({
+    getRuntimeConfig: () => ({ apiUrl: 'http://127.0.0.1:3012', docUrl: '' })
+}))
+
 describe('helper page control', () => {
     afterEach(() => {
         delete window.__appControl
         delete window.__appControlHooks
+        delete window.__agentApplyPlayground
+        delete window.__agentReadDocumentContent
+        delete window.__agentDocumentEditPath
+        delete window.__agentDocumentRead
+        localStorage.removeItem('auth')
         document.body.innerHTML = ''
     })
 
@@ -106,5 +115,50 @@ describe('helper page control', () => {
         expect(installHelperPageControl()).toBe(false)
         removeHelperPageControl()
         expect(await window.__appControl?.call('list_pages')).toBe('shell')
+    })
+
+    it('returns the full open document and the browser api token', async () => {
+        document.body.innerHTML = `
+            <form>
+                <label for="comment">Comment</label>
+                <textarea id="comment" name="comment"></textarea>
+                <button type="submit">Save comment</button>
+            </form>
+        `
+        const markdown = '# Policy\n\n## Purpose\n\nKeep this purpose.\n\n## Scope\n\nOld scope.\n'
+        window.__agentReadDocumentContent = async () => ({ markdown, complete: true })
+        window.__agentDocumentEditPath = () =>
+            '/plan/documents/doc-9/edit-version?redirect=/plan/documents/doc-9&fillPendingVersion=15'
+        localStorage.setItem('auth', JSON.stringify({ token: 'Bearer browser-token' }))
+        installHelperPageControl()
+
+        const described = (await window.__appControl?.call('describe_page')) as { document?: string }
+        expect(described.document).toContain('## Purpose')
+        expect(described.document).toContain('## Scope')
+        expect(window.__agentDocumentRead).toEqual({ complete: true, markdown })
+
+        const listed = (await window.__appControl?.call('list_pages')) as { pages: Array<{ path: string }> }
+        expect(listed.pages.map((page) => page.path)).toContain(
+            '/plan/documents/doc-9/edit-version?redirect=/plan/documents/doc-9&fillPendingVersion=15'
+        )
+
+        await expect(window.__appControl?.call('api_access')).resolves.toEqual({
+            apiUrl: 'http://127.0.0.1:3012',
+            openApiUrl: 'http://127.0.0.1:3012/docs-json',
+            swaggerUrl: 'http://127.0.0.1:3012/docs',
+            authorization: 'Bearer browser-token'
+        })
+    })
+
+    it('asks the playground page to show html', async () => {
+        installHelperPageControl()
+        await expect(window.__appControl?.call('apply_playground', { html: '<p>Hi</p>' })).rejects.toThrow(
+            'Open the Playground page first.'
+        )
+        window.__agentApplyPlayground = async () => ({ id: 'pg-1', name: 'Notes', revision: 1 })
+        await expect(window.__appControl?.call('apply_playground', { html: '<p>Hi</p>' })).resolves.toMatchObject({
+            id: 'pg-1'
+        })
+        delete window.__agentApplyPlayground
     })
 })

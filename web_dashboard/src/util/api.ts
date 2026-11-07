@@ -23,13 +23,15 @@ apiCall.interceptors.request.use((config) => {
 export const apiGet = async <T>(
     path: string,
     authStore: AuthStore,
-    params: { [key: string]: any } = {}
+    params: { [key: string]: any } = {},
+    responseType: 'json' | 'blob' = 'json'
 ) => {
     try {
         renewToken(authStore)
         const response = await apiCall.get<T>(path, {
             headers: { authorization: authStore.state.token },
-            params
+            params,
+            responseType
         })
         return await response.data
     } catch (error) {
@@ -137,7 +139,6 @@ export const apiPutFormData = async <T>(
         const response = await apiCall.put<T>(path, formData, {
             headers: {
                 authorization: authStore.state.token,
-                'Content-Type': 'multipart/form-data'
             }
         })
 

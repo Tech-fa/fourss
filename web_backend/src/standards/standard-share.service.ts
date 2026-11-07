@@ -153,9 +153,9 @@ export class StandardShareService {
     const implementation = await this.standardsService.getImplementation(
       share.implementationId,
     );
-    const linkedIds = implementation.documents
-      .map((document) => document.linkedDocument?.id)
-      .filter((id): id is string => Boolean(id));
+    const linkedIds = implementation.documents.flatMap((document) =>
+      this.linkedSummaries(document).map((linked) => linked.id),
+    );
     const activeIds = await this.activeDocumentIds(linkedIds);
     const published = await this.publishedByDocument([...activeIds]);
     return {
@@ -165,17 +165,22 @@ export class StandardShareService {
       totalCount: implementation.totalCount,
       expiresAt: Number(share.expiresAt),
       documents: implementation.documents.map((document) => {
-        const linked = document.linkedDocument;
-        const active = Boolean(linked && activeIds.has(linked.id));
-        const version = linked ? published.get(linked.id) : undefined;
+        const links = this.linkedSummaries(document).filter((linked) =>
+          activeIds.has(linked.id),
+        );
+        const version = links.length ? published.get(links[0].id) : undefined;
         return {
           clause: document.clause,
           title: document.title,
           description: document.description,
           kind: document.kind,
           status: document.status,
-          linkedTitle: active && linked ? linked.title : null,
-          linkedCode: active && linked ? linked.documentCode : null,
+          linkedTitle: links.length
+            ? links.map((linked) => linked.title).join(", ")
+            : null,
+          linkedCode: links.length
+            ? links.map((linked) => linked.documentCode).join(", ")
+            : null,
           versionNumber: version?.versionNumber ?? null,
           publishedAt: version?.publishedAt ?? null,
           viewCode: sealShareCode(
@@ -206,7 +211,7 @@ export class StandardShareService {
     );
     if (!document) this.invalidShare();
     const preview = await this.previewLinkedDocument(
-      document.linkedDocument?.id,
+      this.linkedSummaries(document)[0]?.id,
     );
     return {
       standardName: implementation.standardName,
@@ -255,6 +260,14 @@ export class StandardShareService {
       materialKey: secrets.materialKey.toString("base64url"),
       coverKey: secrets.coverKey.toString("base64url"),
     };
+  }
+
+  private linkedSummaries(document: {
+    linkedDocument?: { id: string; title: string; documentCode: string } | null;
+    linkedDocuments?: { id: string; title: string; documentCode: string }[];
+  }) {
+    if (document.linkedDocuments?.length) return document.linkedDocuments;
+    return document.linkedDocument ? [document.linkedDocument] : [];
   }
 
   private async previewLinkedDocument(

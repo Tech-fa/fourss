@@ -75,6 +75,48 @@
                 </div>
             </div>
 
+            <Can subject="standards" :actions="['update']">
+                <form
+                    class="bg-white border border-neutral-200 rounded-lg p-4 mb-4 flex flex-col gap-3 lg:flex-row lg:items-end"
+                    @submit.prevent="addClause"
+                >
+                    <div class="flex-1">
+                        <label class="block text-sm text-neutral-600 mb-1" for="extra-clause">
+                            {{ t('implementations.documents.add_clause_label') }}
+                        </label>
+                        <AppInput
+                            id="extra-clause"
+                            v-model="newClause"
+                            name="clause"
+                            hide-icon
+                            :placeholder="t('implementations.documents.add_clause_placeholder')"
+                            test-id="add-clause-input"
+                        />
+                    </div>
+                    <div class="flex-1">
+                        <label class="block text-sm text-neutral-600 mb-1" for="extra-title">
+                            {{ t('implementations.documents.add_title_label') }}
+                        </label>
+                        <AppInput
+                            id="extra-title"
+                            v-model="newTitle"
+                            name="title"
+                            hide-icon
+                            :placeholder="t('implementations.documents.add_title_placeholder')"
+                            test-id="add-clause-title-input"
+                        />
+                    </div>
+                    <AppButton
+                        type="submit"
+                        buttonStyle="primary"
+                        :loading="adding"
+                        test-id="add-clause-button"
+                    >
+                        {{ t('implementations.documents.add_clause') }}
+                    </AppButton>
+                </form>
+            </Can>
+
             <Table
                 :cols="columns"
                 :column-labels="columnLabels"
@@ -97,6 +139,23 @@
                 :set-page="noop"
                 :on-success="fetchImplementation"
             >
+                <template #extra-field="{ entity }">
+                    <Can
+                        v-if="(entity as StandardImplementationDocument).custom"
+                        subject="standards"
+                        :actions="['update']"
+                    >
+                        <AppButton
+                            buttonStyle="danger"
+                            type="button"
+                            :warn-before="t('implementations.documents.remove_clause_confirm')"
+                            :loading="removingId === (entity as StandardImplementationDocument).id"
+                            @click="removeClause(entity as StandardImplementationDocument)"
+                        >
+                            {{ t('implementations.documents.remove_clause') }}
+                        </AppButton>
+                    </Can>
+                </template>
                 <template #extra-search>
                     <div class="flex flex-col gap-3 sm:flex-row">
                         <div class="sm:w-48">
@@ -123,12 +182,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, h, markRaw, onMounted, ref } from 'vue'
+import { computed, defineComponent, h, markRaw, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import Breadcrumb from '../breadCrums.vue'
 import AddAndReload from '../AddAndReload.vue'
 import AppButton from '../AppButton.vue'
+import AppInput from '../AppInput.vue'
+import SearcheableMultiSelect from '../SearcheableMultiSelect.vue'
 import Can from '../Can.vue'
 import Select2 from '../Select2.vue'
 import Spinner from '../Spinner.vue'
@@ -137,7 +198,7 @@ import ShareImplementationDialog from './share-implementation-dialog.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useDialog } from '@/stores/dialog'
 import { useToast } from '@/stores/notification'
-import { apiDelete, apiGet, apiPatch } from '@/util/api'
+import { apiDelete, apiGet, apiPatch, apiPost } from '@/util/api'
 import { formatApiErrorMessage } from '@/util/util'
 import type {
     Document,
@@ -155,6 +216,10 @@ const toast = useToast()
 
 const loading = ref(true)
 const deleting = ref(false)
+const adding = ref(false)
+const removingId = ref<number | null>(null)
+const newClause = ref('')
+const newTitle = ref('')
 const documentsLoading = ref(false)
 const implementation = ref<StandardImplementation | null>(null)
 const documents = ref<Document[]>([])
@@ -202,13 +267,12 @@ const statusFilterOptions = computed(() => [
     ...statusOptions.value
 ])
 
-const documentOptions = computed(() => [
-    { id: '', name: t('implementations.documents.no_link') },
-    ...documents.value.map((document) => ({
+const documentOptions = computed(() =>
+    documents.value.map((document) => ({
         id: document.id,
         name: `${document.title} (${document.documentCode})`
     }))
-])
+)
 
 const visibleDocuments = computed(() =>
     (implementation.value?.documents ?? []).filter((document) => {
@@ -234,18 +298,6 @@ const statusLabel = (status: string) =>
 const statusOption = (status: string) =>
     statusOptions.value.find((option) => option.id === status) ?? statusOptions.value[0]
 
-const linkedOption = (document: StandardImplementationDocument) => {
-    if (!document.linkedDocument) {
-        return documentOptions.value[0]
-    }
-    return (
-        documentOptions.value.find((option) => option.id === document.linkedDocument?.id) ?? {
-            id: document.linkedDocument.id,
-            name: document.linkedDocument.title
-        }
-    )
-}
-
 const columns = ['clause', 'title', 'kind', 'status', 'linked']
 
 const columnLabels = computed(() => ({
@@ -255,6 +307,102 @@ const columnLabels = computed(() => ({
     status: t('implementations.documents.col_status'),
     linked: t('implementations.documents.col_linked')
 }))
+
+const selectedLinks = (document: StandardImplementationDocument) => {
+    const linked = document.linkedDocuments?.length
+        ? document.linkedDocuments
+        : document.linkedDocument
+          ? [document.linkedDocument]
+          : []
+    return linked.map(
+        (item) =>
+            documentOptions.value.find((option) => option.id === item.id) ?? {
+                id: item.id,
+                name: `${item.title} (${item.documentCode})`
+            }
+    )
+}
+
+const sameLinkIds = (left: { id: string }[], right: { id: string }[]) =>
+    left.map((item) => item.id).join('\0') === right.map((item) => item.id).join('\0')
+
+const LinkedPicker = markRaw(
+    defineComponent({
+        name: 'ImplementationLinkedPicker',
+        props: {
+            row: { type: Object, required: true }
+        },
+        setup(props) {
+            const row = props.row as StandardImplementationDocument
+            const selected = ref(selectedLinks(row))
+            watch(
+                selected,
+                (value) => {
+                    const next = value ?? []
+                    if (sameLinkIds(next, selectedLinks(row))) return
+                    updateLinkedDocuments(row, next)
+                },
+                { deep: true }
+            )
+            return () =>
+                h('div', { class: 'max-w-80' }, [
+                    h(
+                        Can,
+                        { subject: 'documents', actions: ['create'] },
+                        {
+                            default: () =>
+                                h('div', { class: 'mb-2 flex justify-end' }, [
+                                    h(AddAndReload, {
+                                        href: '/plan/documents/add',
+                                        addText: t('implementations.documents.create_document'),
+                                        reloadLoading: documentsLoading.value,
+                                        addTestId: `create-document-${row.id}`,
+                                        reloadTestId: `reload-documents-${row.id}`,
+                                        onReload: reloadDocuments
+                                    })
+                                ])
+                        }
+                    ),
+                    canUpdate.value
+                        ? h(
+                              Can,
+                              { subject: 'documents', actions: ['read'] },
+                              {
+                                  default: () =>
+                                      h(SearcheableMultiSelect, {
+                                          modelValue: selected.value,
+                                          'onUpdate:modelValue': (value: { id: string; name: string }[]) => {
+                                              selected.value = value ?? []
+                                          },
+                                          results: documentOptions.value,
+                                          placeholder: t('implementations.documents.link_documents'),
+                                          display: optionLabel
+                                      })
+                              }
+                          )
+                        : null,
+                    h(
+                        'div',
+                        { class: 'mt-2 flex flex-col gap-1' },
+                        selectedLinks(row).map((item) =>
+                            h(
+                                'a',
+                                {
+                                    class: 'inline-flex text-xs text-primary hover:text-primary/70',
+                                    href: `/plan/documents/${item.id}`,
+                                    onClick: (event: Event) => {
+                                        event.preventDefault()
+                                        router.push(`/plan/documents/${item.id}`)
+                                    }
+                                },
+                                item.name
+                            )
+                        )
+                    )
+                ])
+        }
+    })
+)
 
 const optionLabel = (item: { name?: string } | null | undefined) => item?.name ?? ''
 
@@ -303,7 +451,11 @@ const rows = computed(() =>
         title: titleCell(document),
         kind: kindLabel(document.kind),
         status: statusCell(document),
-        linked: linkedCell(document)
+        linked: markRaw({
+            setup() {
+                return () => h(LinkedPicker, { row: document })
+            }
+        })
     }))
 )
 
@@ -316,67 +468,6 @@ const openShareDialog = () => {
         onCancel: () => dialog.closeDialog(),
     })
 }
-const linkedCell = (document: StandardImplementationDocument) => {
-    return markRaw({
-        setup() {
-            return () =>
-            h('div', { class: 'mt-4 max-w-80' }, [
-                        h('div', { class: 'relative min-w-0' }, [
-                            h(
-                                Can,
-                                { subject: 'documents', actions: ['create'] },
-                                {
-                                    default: () =>
-                                        h('span', { class: 'absolute right-0 -top-5 z-10' }, [
-                                            h(AddAndReload, {
-                                                href: '/plan/documents/add',
-                                                addText: t('implementations.documents.create_document'),
-                                                reloadLoading: documentsLoading.value,
-                                                addTestId: `create-document-${document.id}`,
-                                                reloadTestId: `reload-documents-${document.id}`,
-                                                onReload: reloadDocuments
-                                            })
-                                        ])
-                                }
-                            ),
-                            h(
-                                Can,
-                                { subject: 'documents', actions: ['read'] },
-                                {
-                                    default: () =>
-                                        h(Select2, {
-                                            modelValue: linkedOption(document),
-                                            values: documentOptions.value,
-                                            display: optionLabel,
-                                            placeholder: t('implementations.documents.link_document'),
-                                            optional: true,
-                                            'onUpdate:modelValue': (value: { id: string } | null) =>
-                                                updateLinkedDocument(document, value)
-                                        })
-                                }
-                            ),
-                            document.linkedDocument
-                                ? h(
-                                      'a',
-                                      {
-                                          class: 'mt-2 inline-flex 2xl:text-sm text-xs text-primary hover:text-primary/70',
-                                          href: `/plan/documents/${document.linkedDocument.id}`,
-                                          onClick: (event: Event) => {
-                                              event.preventDefault()
-                                              router.push(
-                                                  `/plan/documents/${document.linkedDocument!.id}`
-                                              )
-                                          }
-                                      },
-                                      document.linkedDocument.title
-                                  )
-                                : null
-                        ])
-                    ])
-        }
-    })
-}
-
 const fetchImplementation = async () => {
     loading.value = true
     try {
@@ -453,17 +544,28 @@ const updateStatus = async (
     }
 }
 
-const updateLinkedDocument = async (
+const updateLinkedDocuments = async (
     document: StandardImplementationDocument,
-    value?: { id: string } | null
+    value: { id: string }[]
 ) => {
-    const nextId = value?.id || null
-    const currentId = document.linkedDocument?.id ?? null
-    if (nextId === currentId) return
+    const nextIds = value.map((item) => item.id).filter(Boolean)
+    const currentIds = (
+        document.linkedDocuments?.length
+            ? document.linkedDocuments
+            : document.linkedDocument
+              ? [document.linkedDocument]
+              : []
+    ).map((item) => item.id)
+    if (sameLinkIds(
+        nextIds.map((id) => ({ id })),
+        currentIds.map((id) => ({ id }))
+    )) {
+        return
+    }
     try {
         implementation.value = await apiPatch<StandardImplementation>(
             `/standards/implementations/${implementationId.value}/documents/${document.id}`,
-            { linkedDocumentId: nextId },
+            { linkedDocumentIds: nextIds },
             authStore
         )
         toast.showToast(
@@ -478,6 +580,59 @@ const updateLinkedDocument = async (
             raw || t('implementations.documents.toast_link_failed'),
             'error'
         )
+    }
+}
+
+const addClause = async () => {
+    const clause = newClause.value.trim()
+    if (!clause) return
+    adding.value = true
+    try {
+        implementation.value = await apiPost<StandardImplementation>(
+            `/standards/implementations/${implementationId.value}/documents`,
+            { clause, title: newTitle.value.trim() || undefined },
+            authStore
+        )
+        newClause.value = ''
+        newTitle.value = ''
+        toast.showToast(
+            t('common.success'),
+            t('implementations.documents.toast_clause_added'),
+            'success'
+        )
+    } catch (error: any) {
+        const raw = formatApiErrorMessage(error.response?.data, t, 'errors.standard')
+        toast.showToast(
+            t('common.error'),
+            raw || t('implementations.documents.toast_clause_failed'),
+            'error'
+        )
+    } finally {
+        adding.value = false
+    }
+}
+
+const removeClause = async (document: StandardImplementationDocument) => {
+    removingId.value = document.id
+    try {
+        implementation.value = await apiDelete<StandardImplementation>(
+            `/standards/implementations/${implementationId.value}/documents/${document.id}`,
+            authStore
+        )
+        toast.showToast(
+            t('common.success'),
+            t('implementations.documents.toast_clause_removed'),
+            'success'
+        )
+    } catch (error: any) {
+        const raw = formatApiErrorMessage(error.response?.data, t, 'errors.standard')
+        toast.showToast(
+            t('common.error'),
+            raw || t('implementations.documents.toast_clause_failed'),
+            'error'
+        )
+    } finally {
+        removingId.value = null
     }
 }
 

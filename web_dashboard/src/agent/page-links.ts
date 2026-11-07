@@ -1,6 +1,7 @@
 export type AgentPage = {
     name: string
     path: string
+    purpose?: string
 }
 
 export type AgentRoute = {
@@ -11,6 +12,7 @@ export type AgentRoute = {
         subject?: string
         subjects?: string[]
         actions?: string[]
+        purpose?: string
     }
 }
 
@@ -28,11 +30,14 @@ export function agentPages(input: {
     const pages: AgentPage[] = []
     const seen = new Set<string>()
 
-    const add = (name: string, path: string) => {
+    const add = (name: string, path: string, purpose?: string) => {
         const cleaned = path.trim()
         if (!cleaned || seen.has(cleaned)) return
         seen.add(cleaned)
-        pages.push({ name: name.trim() || cleaned, path: cleaned })
+        const page: AgentPage = { name: name.trim() || cleaned, path: cleaned }
+        const text = purpose?.replace(/\s+/g, ' ').trim()
+        if (text) page.purpose = text
+        pages.push(page)
     }
 
     for (const route of input.routes) {
@@ -40,7 +45,7 @@ export function agentPages(input: {
         if (!routeVisible(route, input.signedIn, input.authRouteNames, input.can)) continue
         const path = concretePath(route.path, input.currentPath, input.currentParams)
         if (!path) continue
-        add(routeName(route, path), path)
+        add(routeName(route, path), path, route.meta?.purpose)
     }
 
     let extras = 0
@@ -52,6 +57,36 @@ export function agentPages(input: {
     }
 
     return pages
+}
+
+export function includeDocumentEditPath(pages: AgentPage[], editPath: string): AgentPage[] {
+    const path = editPath.trim()
+    if (!path.startsWith('/')) return pages
+    let pathname = path
+    let version = ''
+    try {
+        const url = new URL(path, 'http://dashboard.local')
+        pathname = url.pathname
+        version = url.searchParams.get('fillPendingVersion') || ''
+    } catch {
+        return pages
+    }
+    const kept = version
+        ? pages.filter((page) => {
+              try {
+                  const url = new URL(page.path, 'http://dashboard.local')
+                  if (url.pathname !== pathname) return true
+                  return url.searchParams.get('fillPendingVersion') === version
+              } catch {
+                  return true
+              }
+          })
+        : pages.slice()
+    if (kept.some((page) => page.path === path)) return kept
+    const prior = pages.find((page) => page.name === 'Edit Version')
+    const page: AgentPage = { name: 'Edit Version', path }
+    if (prior?.purpose) page.purpose = prior.purpose
+    return [...kept, page]
 }
 
 export function linksOnPage(doc: Document, href: string): AgentPage[] {

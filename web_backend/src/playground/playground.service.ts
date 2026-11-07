@@ -106,6 +106,15 @@ export class PlaygroundService {
     return this.toDetail(reloaded || saved);
   }
 
+  async remove(id: string, user: UserRequest) {
+    const playground = await this.requirePlayground(id, user);
+    playground.deleted = true;
+    playground.enabled = false;
+    playground.updatedAt = Date.now();
+    await this.playgroundRepository.save(playground);
+    return { id: playground.id, deleted: true };
+  }
+
   async setEnabled(id: string, enabled: boolean, user: UserRequest) {
     const playground = await this.requirePlayground(id, user);
     playground.enabled = enabled;

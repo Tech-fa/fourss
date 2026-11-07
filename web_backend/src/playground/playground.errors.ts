@@ -27,6 +27,16 @@ export const PLAYGROUND_ERROR_MAP = {
   PG_017: { message: "Playground record not found" },
   PG_018: { message: "This playground is turned off" },
   PG_019: { message: "The playground runtime is not installed" },
+  PG_020: { message: "That entity is not available" },
+  PG_021: { message: "That entity cannot be queried because its rows are not limited to a team" },
+  PG_022: { message: "That query is not valid" },
+  PG_023: { message: "That statement is not allowed" },
+  PG_024: { message: "That function was not found" },
+  PG_025: { message: "That file is not available" },
+  PG_026: { message: "That result is too large" },
+  PG_027: { message: "That endpoint is not on this app" },
+  PG_028: { message: "That route was not found" },
+  PG_029: { message: "That route is not valid" },
 } as const;
 
 export type PlaygroundErrorCode = keyof typeof PLAYGROUND_ERROR_MAP;
@@ -57,6 +67,16 @@ const STATUS: Record<PlaygroundErrorCode, number> = {
   PG_017: HttpStatus.NOT_FOUND,
   PG_018: HttpStatus.CONFLICT,
   PG_019: HttpStatus.INTERNAL_SERVER_ERROR,
+  PG_020: HttpStatus.NOT_FOUND,
+  PG_021: HttpStatus.BAD_REQUEST,
+  PG_022: HttpStatus.BAD_REQUEST,
+  PG_023: HttpStatus.BAD_REQUEST,
+  PG_024: HttpStatus.NOT_FOUND,
+  PG_025: HttpStatus.NOT_FOUND,
+  PG_026: HttpStatus.BAD_REQUEST,
+  PG_027: HttpStatus.BAD_REQUEST,
+  PG_028: HttpStatus.NOT_FOUND,
+  PG_029: HttpStatus.BAD_REQUEST,
 };
 
 export function playgroundException(

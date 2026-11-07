@@ -1,11 +1,11 @@
 import type { Router } from 'vue-router'
 import { AuthRoutes } from '@/components/auth/routes'
 import { useAuthStore } from '@/stores/auth'
-import { getRuntimeConfig } from '@/util/runtime-config'
-import { browserApiAccess } from './api-access'
-import { listDropdowns, selectOption } from './page-control'
-import { agentPages, linksOnPage, type AgentRoute } from './page-links'
-import { SUBMIT_FORM_REFUSAL } from './confirmation'
+import { readBrowserApiAccess } from './api-access'
+import { clickLabeled } from './click-labeled'
+import { planDocumentBodyWrite } from './document-markdown'
+import { agentPages, includeDocumentEditPath, linksOnPage, type AgentRoute } from './page-links'
+import { runAgentPlayground } from './playground-program'
 
 const authRouteNames = new Set(AuthRoutes.map((route) => String(route.name)))
 const DOCUMENT_BODY_FIELDS = new Set(['document body', 'editor content'])
@@ -32,49 +32,32 @@ function bindAgentPageLinks(router: Router) {
             else if (Array.isArray(value) && typeof value[0] === 'string' && value[0]) params[key] = value[0]
         }
         return {
-            pages: agentPages({
-                routes: router.getRoutes().map(toAgentRoute),
-                signedIn: auth.state.isLoggedIn,
-                authRouteNames,
-                can: (route) => allowed(route, auth.hasPermissions),
-                currentPath: current.path,
-                currentParams: params,
-                pageLinks: linksOnPage(document, window.location.href)
-            })
+            pages: includeDocumentEditPath(
+                agentPages({
+                    routes: router.getRoutes().map(toAgentRoute),
+                    signedIn: auth.state.isLoggedIn,
+                    authRouteNames,
+                    can: (route) => allowed(route, auth.hasPermissions),
+                    currentPath: current.path,
+                    currentParams: params,
+                    pageLinks: linksOnPage(document, window.location.href)
+                }),
+                documentEditPath()
+            )
         }
     }
+    hooks.apply_playground = (args) => runAgentPlayground(args)
     if (!control.__agentOriginalCall) {
         control.__agentOriginalCall = control.call.bind(control)
     }
     const originalCall = control.__agentOriginalCall
     control.__agentPatched = true
     control.call = async (name, args = {}) => {
-<<<<<<< HEAD
-        if (name === 'submit_form') throw new Error(SUBMIT_FORM_REFUSAL)
-        if (name === 'api_access') {
-            return browserApiAccess({
-                apiUrl: getRuntimeConfig().apiUrl,
-                authJson: localStorage.getItem('auth')
-            })
-        }
-        if (name === 'select_option') return selectOption(args)
-        if (name === 'describe_page') {
-            const described = await originalCall(name, args)
-            if (!described || typeof described !== 'object' || Array.isArray(described) || 'dropdowns' in described) {
-                return described
-            }
-            return { ...described, dropdowns: listDropdowns(document) }
-=======
-        if (name === 'apply_playground') {
-            const source = typeof args.source === 'string' ? args.source : ''
-            const apply = window.__agentApplyPlayground
-            if (!apply) throw new Error('The playground is not open.')
-            return apply(source)
-        }
+        if (name === 'api_access') return readBrowserApiAccess()
+        if (name === 'apply_playground') return runAgentPlayground(args)
         if (name === 'submit_form' && typeof args.button === 'string' && args.button.trim()) {
             const clicked = clickLabeled(args.button)
             if (clicked) return { submitted: true, button: clicked }
->>>>>>> origin/cursor/playground-agent-518a
         }
         if (name === 'set_fields' && args.fields && typeof args.fields === 'object') {
             const fields = { ...(args.fields as Record<string, unknown>) }
@@ -86,7 +69,20 @@ function bindAgentPageLinks(router: Router) {
                 if (typeof markdown === 'string' && markdown.trim()) {
                     const insert = window.__agentInsertDocumentContent
                     if (!insert) throw new Error('The document editor is not ready.')
-                    await insert(markdown)
+                    const live = await window.__agentReadDocumentContent?.()
+                    const prior = window.__agentDocumentRead
+                    const current =
+                        live?.complete === true
+                            ? live.markdown
+                            : prior?.complete === true
+                              ? prior.markdown
+                              : null
+                    const planned = planDocumentBodyWrite({
+                        current,
+                        incoming: markdown,
+                        readComplete: prior?.complete === true
+                    })
+                    await insert(planned.markdown)
                     insertedBody = true
                 }
             }
@@ -99,6 +95,17 @@ function bindAgentPageLinks(router: Router) {
         return originalCall(name, args)
     }
     return true
+}
+
+function documentEditPath() {
+    const read = window.__agentDocumentEditPath
+    if (typeof read !== 'function') return ''
+    try {
+        const value = read()
+        return typeof value === 'string' ? value : ''
+    } catch {
+        return ''
+    }
 }
 
 function toAgentRoute(route: {
@@ -121,7 +128,8 @@ function readMeta(meta: unknown): AgentRoute['meta'] {
     return {
         subject: typeof value.subject === 'string' ? value.subject : undefined,
         subjects: stringList(value.subjects),
-        actions: stringList(value.actions)
+        actions: stringList(value.actions),
+        purpose: typeof value.purpose === 'string' ? value.purpose : undefined
     }
 }
 
@@ -153,9 +161,13 @@ declare global {
             call: (name: string, args?: Record<string, unknown>) => Promise<unknown> | unknown
             __agentOriginalCall?: (name: string, args?: Record<string, unknown>) => Promise<unknown> | unknown
             __agentPatched?: boolean
-            __helperOwned?: boolean
         }
         __agentInsertDocumentContent?: (markdown: string) => Promise<boolean | void> | boolean | void
-        __agentApplyPlayground?: (source: string) => Promise<unknown> | unknown
+        __agentReadDocumentContent?: () =>
+            | Promise<{ markdown: string; complete: boolean } | null>
+            | { markdown: string; complete: boolean }
+            | null
+        __agentDocumentEditPath?: () => string
+        __agentDocumentRead?: { complete: boolean; markdown: string }
     }
 }

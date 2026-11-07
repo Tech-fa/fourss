@@ -19,11 +19,17 @@ const router = createRouter({
       component: () => import("@/components/HomeView.vue"),
       children: [
         { path: "", redirect: "/plan/documents" },
-        { path: "profile", name: "Profile", component: () => import("@/components/profile/Profile.vue") },
+        {
+          path: "profile",
+          name: "Profile",
+          component: () => import("@/components/profile/Profile.vue"),
+          meta: { purpose: "View and update the signed-in user's profile." },
+        },
         {
           path: "notifications",
           name: "Notifications",
           component: () => import("@/components/UserNotification.vue"),
+          meta: { purpose: "Read the signed-in user's notifications." },
         },
         ...orgUnitTypeRoutes,
         ...usersRoutes,

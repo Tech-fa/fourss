@@ -5,6 +5,7 @@ export const usersRoutes = [
     meta: {
       subject: "users",
       actions: ["read"],
+      purpose: "List people in the organization.",
     },
   },
 
@@ -14,6 +15,7 @@ export const usersRoutes = [
     meta: {
       subject: "users",
       actions: ["update"],
+      purpose: "Change a person's account.",
     },
   },
 
@@ -23,6 +25,7 @@ export const usersRoutes = [
     meta: {
       subject: "users",
       actions: ["read"],
+      purpose: "Read a person's account.",
     },
   },
   {
@@ -31,6 +34,7 @@ export const usersRoutes = [
     meta: {
       subject: "users",
       actions: ["create"],
+      purpose: "Invite or create a person.",
     },
   },
 ];

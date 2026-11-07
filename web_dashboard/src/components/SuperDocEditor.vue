@@ -60,6 +60,8 @@ type EmbeddedEditor = {
     hasComments: () => boolean
     insertContent: (content: string, contentType?: SuperDocAiWriteResult['contentType']) => boolean
     replaceContent: (content: string, contentType?: SuperDocAiWriteResult['contentType']) => boolean
+    getMarkdown: () => string | null
+    getPlainText: () => string
     scrollToComment: (commentId: string) => Promise<boolean>
     scrollToElement: (nodeId: string, offset?: number) => Promise<boolean>
     isReady: boolean
@@ -284,6 +286,16 @@ async function replaceContent(
     return editorRef.value.replaceContent(content, contentType)
 }
 
+function getMarkdown() {
+    if (!isReady.value || !editorRef.value) return null
+    return editorRef.value.getMarkdown()
+}
+
+function getPlainText() {
+    if (!isReady.value || !editorRef.value) return ''
+    return editorRef.value.getPlainText()
+}
+
 async function insertInitialMarkdown() {
     const markdown = props.initialMarkdown?.trim()
     if (!isReady.value || insertedInitialMarkdown.value || !markdown) return
@@ -338,6 +350,8 @@ defineExpose({
     isReady,
     insertContent,
     replaceContent,
+    getMarkdown,
+    getPlainText,
     runDiff,
     scrollToComment,
     scrollToElement

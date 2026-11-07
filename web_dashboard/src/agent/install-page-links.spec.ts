@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Router } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
-import * as runtime from '@/util/runtime-config'
 import { installAgentPageLinks } from './install-page-links'
-import { SUBMIT_FORM_REFUSAL } from './confirmation'
+
+vi.mock('@/util/runtime-config', () => ({
+    getRuntimeConfig: () => ({ apiUrl: 'http://127.0.0.1:3012', docUrl: '' })
+}))
 
 function fakeRouter(): Router {
     return {
@@ -18,12 +20,12 @@ describe('installAgentPageLinks', () => {
         delete window.__bindAgentPageLinks
         delete window.__appControl
         delete window.__appControlHooks
-<<<<<<< HEAD
-        localStorage.removeItem('auth')
-        document.body.innerHTML = ''
-=======
         delete window.__agentApplyPlayground
->>>>>>> origin/cursor/playground-agent-518a
+        delete window.__agentInsertDocumentContent
+        delete window.__agentReadDocumentContent
+        delete window.__agentDocumentEditPath
+        delete window.__agentDocumentRead
+        localStorage.removeItem('auth')
     })
 
     it('does nothing in a browser until the shell installs page control', () => {
@@ -60,41 +62,6 @@ describe('installAgentPageLinks', () => {
         expect(calls).toEqual(['navigate'])
     })
 
-    it('saves playground source through the open page', async () => {
-        setActivePinia(createPinia())
-        const shell: string[] = []
-        window.__appControl = {
-            call: (name) => {
-                shell.push(name)
-                return { from: 'shell' }
-            }
-        }
-        installAgentPageLinks(fakeRouter())
-        window.__agentApplyPlayground = async (source) => ({ saved: source })
-
-        await expect(
-            window.__appControl?.call('apply_playground', { source: 'function handle(){ return null }' })
-        ).resolves.toEqual({ saved: 'function handle(){ return null }' })
-        expect(shell).toEqual([])
-    })
-
-    it('refuses to apply a playground when the page is not open', async () => {
-        setActivePinia(createPinia())
-        const shell: string[] = []
-        window.__appControl = {
-            call: (name) => {
-                shell.push(name)
-                return { from: 'shell' }
-            }
-        }
-        installAgentPageLinks(fakeRouter())
-
-        await expect(window.__appControl?.call('apply_playground', { source: 'x' })).rejects.toThrow(
-            'The playground is not open.'
-        )
-        expect(shell).toEqual([])
-    })
-
     it('attaches when the shell calls back after the page has loaded', () => {
         installAgentPageLinks(fakeRouter())
         expect(window.__appControlHooks).toBeUndefined()
@@ -108,78 +75,65 @@ describe('installAgentPageLinks', () => {
         expect(window.__appControl?.__agentPatched).toBe(true)
     })
 
-    it('refuses to submit so the user confirms the change', async () => {
-        document.body.innerHTML = '<button type="button">Save</button>'
-        let clicked = false
-        document.querySelector('button')?.addEventListener('click', () => {
-            clicked = true
-        })
+    it('sends a playground program to the open page and does not ask the shell', async () => {
         const calls: string[] = []
         window.__appControl = {
             call: (name) => {
                 calls.push(name)
-                return { submitted: true }
+                return { from: 'shell' }
             }
         }
-
-        installAgentPageLinks(fakeRouter())
-
-        await expect(window.__appControl?.call('submit_form', { button: 'Save' })).rejects.toThrow(SUBMIT_FORM_REFUSAL)
-        expect(clicked).toBe(false)
-        expect(calls).toEqual([])
-    })
-
-    it('gives the agent the swagger document and the token in localStorage', async () => {
-        vi.spyOn(runtime, 'getRuntimeConfig').mockReturnValue({
-            apiUrl: 'http://127.0.0.1:3012',
-            docUrl: ''
-        })
-        localStorage.setItem(
-            'auth',
-            JSON.stringify({ token: 'Bearer browser-token', userDetails: { email: 'person@example.com' } })
-        )
-        window.__appControl = {
-            call: () => ({ from: 'shell' })
+        window.__agentApplyPlayground = async (input) => {
+            const source = typeof input === 'string' ? input : input.source
+            expect(source).toBe('function render() {}')
+            return { id: 'pg-1', name: 'Notes', revision: 2 }
         }
         installAgentPageLinks(fakeRouter())
 
-        const result = await window.__appControl?.call('api_access', {})
+        const result = await window.__appControl?.call('apply_playground', { source: 'function render() {}' })
+        expect(result).toMatchObject({ id: 'pg-1', revision: 2 })
+        expect(calls).toEqual([])
+        delete window.__agentApplyPlayground
+    })
 
-        expect(result).toEqual({
-            apiUrl: 'http://127.0.0.1:3012',
+    it('returns the browser token and replaces one section of the open document', async () => {
+        const policy = '# Policy\n\n## Purpose\n\nKeep this purpose.\n\n## Scope\n\nOld scope.\n'
+        let written = ''
+        window.__appControl = { call: () => ({ from: 'shell' }) }
+        window.__agentReadDocumentContent = async () => ({ markdown: policy, complete: true })
+        window.__agentInsertDocumentContent = async (markdown) => {
+            written = markdown
+            return true
+        }
+        window.__agentDocumentEditPath = () =>
+            '/plan/documents/doc-9/edit-version?redirect=/plan/documents/doc-9&fillPendingVersion=15'
+        localStorage.setItem('auth', JSON.stringify({ token: 'Bearer browser-token' }))
+        setActivePinia(createPinia())
+        installAgentPageLinks(fakeRouter())
+
+        const listed = window.__appControlHooks?.list_pages?.({}) as { pages: Array<{ path: string }> }
+        expect(listed.pages.map((page) => page.path)).toContain(
+            '/plan/documents/doc-9/edit-version?redirect=/plan/documents/doc-9&fillPendingVersion=15'
+        )
+
+        await expect(window.__appControl?.call('api_access')).resolves.toMatchObject({
             openApiUrl: 'http://127.0.0.1:3012/docs-json',
-            swaggerUrl: 'http://127.0.0.1:3012/docs',
             authorization: 'Bearer browser-token'
         })
-        expect(JSON.stringify(result)).not.toContain('person@example.com')
-        localStorage.removeItem('auth')
-    })
 
-    it('chooses a dropdown on the page instead of asking the shell', async () => {
-        document.body.innerHTML = `
-            <label>Category</label>
-            <div id="select2-dropdown">
-                <button type="button"><span>Select category</span></button>
-                <ul><li>Policy</li></ul>
-            </div>
-        `
-        const calls: string[] = []
-        window.__appControl = {
-            call: (name) => {
-                calls.push(name)
-                return { forms: [] }
-            }
-        }
-        installAgentPageLinks(fakeRouter())
+        await expect(
+            window.__appControl?.call('set_fields', {
+                fields: { 'document body': '# Policy\n\n## Purpose\n\nGone.\n\n## Scope\n\nGone.\n' }
+            })
+        ).rejects.toThrow(/complete markdown/)
 
-        const selected = (await window.__appControl?.call('select_option', {
-            field: 'Category',
-            option: 'Policy'
-        })) as { selected: string }
-        const described = (await window.__appControl?.call('describe_page')) as { dropdowns: Array<{ label: string }> }
-
-        expect(selected.selected).toBe('Policy')
-        expect(described.dropdowns[0].label).toBe('Category')
-        expect(calls).toEqual(['describe_page'])
+        window.__agentDocumentRead = { complete: true, markdown: policy }
+        const filled = (await window.__appControl?.call('set_fields', {
+            fields: { 'editor content': '## Scope\n\nNew scope.\n' }
+        })) as { set: string[] }
+        expect(filled.set).toEqual(['Document body'])
+        expect(written).toContain('Keep this purpose.')
+        expect(written).toContain('New scope.')
+        expect(written).not.toContain('Old scope.')
     })
 })

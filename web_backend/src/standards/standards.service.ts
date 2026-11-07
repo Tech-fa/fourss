@@ -4,10 +4,12 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { randomUUID } from "crypto";
+import { In, Repository } from "typeorm";
 import { Document } from "../document/document.entity";
 import { User } from "../user/user.entity";
 import {
+  CreateImplementationDocumentDto,
   CreateImplementationDto,
   UpdateImplementationDocumentDto,
 } from "./dtos";
@@ -16,6 +18,7 @@ import { StandardImplementation } from "./standard-implementation.entity";
 import {
   ImplementationDocumentStatus,
   ImplementationStatus,
+  RequiredDocumentKind,
 } from "./standards.enums";
 import {
   computeImplementationStatus,
@@ -37,11 +40,13 @@ type ImplementationDocumentView = {
   documentKey: string;
   title: string;
   clause: string;
+  custom: boolean;
   description: string;
   kind: string;
   status: string;
   sortOrder: number;
   linkedDocument: LinkedDocumentSummary | null;
+  linkedDocuments: LinkedDocumentSummary[];
   updatedAt: number;
 };
 
@@ -121,9 +126,10 @@ export class StandardsService {
       order: { createdAt: "DESC" },
     });
     await Promise.all(
-      implementations.map((implementation) =>
-        this.syncMissingDocuments(implementation),
-      ),
+      implementations.map(async (implementation) => {
+        await this.syncMissingDocuments(implementation);
+        await this.hydrateLinkedDocuments(implementation.documents ?? []);
+      }),
     );
     return implementations.map((implementation) =>
       this.toImplementationView(implementation),
@@ -172,6 +178,45 @@ export class StandardsService {
     }
   }
 
+  async createImplementationDocument(
+    implementationId: number,
+    dto: CreateImplementationDocumentDto,
+  ): Promise<ImplementationView> {
+    const implementation = await this.findImplementation(implementationId);
+    const clause = dto.clause.trim();
+    if (!clause) {
+      throw new BadRequestException(standardHttpError("STANDARD_011"));
+    }
+    const now = Date.now();
+    const sortOrder =
+      Math.max(-1, ...implementation.documents.map((item) => item.sortOrder)) +
+      1;
+    const row = this.implementationDocumentRepository.create({
+      implementation,
+      implementationId: implementation.id,
+      documentKey: `custom-${randomUUID()}`,
+      title: dto.title?.trim() || clause,
+      clause,
+      description: "",
+      kind: dto.kind ?? RequiredDocumentKind.MAINTAIN,
+      status: ImplementationDocumentStatus.NOT_STARTED,
+      custom: true,
+      sortOrder,
+      updatedAt: now,
+      linkedDocumentId: null,
+      linkedDocument: null,
+      linkedDocumentIds: [],
+    });
+    try {
+      await this.implementationDocumentRepository.save(row);
+    } catch (error) {
+      throw new BadRequestException(
+        standardHttpError("STANDARD_011", { cause: error }),
+      );
+    }
+    return this.getImplementation(implementationId);
+  }
+
   async updateImplementationDocument(
     implementationId: number,
     documentId: number,
@@ -189,20 +234,27 @@ export class StandardsService {
     if (dto.status) {
       document.status = dto.status;
     }
-    if (dto.linkedDocumentId !== undefined) {
-      if (dto.linkedDocumentId === null || dto.linkedDocumentId === "") {
-        document.linkedDocumentId = null;
-        document.linkedDocument = null;
-      } else {
-        const linked = await this.documentRepository.findOne({
-          where: { id: dto.linkedDocumentId, deleted: false },
-        });
-        if (!linked) {
-          throw new NotFoundException(standardHttpError("STANDARD_008"));
+    if (document.custom) {
+      if (dto.clause !== undefined) {
+        const clause = dto.clause.trim();
+        if (!clause) {
+          throw new BadRequestException(standardHttpError("STANDARD_009"));
         }
-        document.linkedDocumentId = linked.id;
-        document.linkedDocument = linked;
+        document.clause = clause;
       }
+      if (dto.title !== undefined) {
+        const title = dto.title.trim();
+        document.title = title || document.clause;
+      }
+    }
+    if (dto.linkedDocumentIds !== undefined) {
+      await this.setLinkedDocuments(document, dto.linkedDocumentIds);
+    } else if (dto.linkedDocumentId !== undefined) {
+      const single =
+        dto.linkedDocumentId === null || dto.linkedDocumentId === ""
+          ? []
+          : [dto.linkedDocumentId];
+      await this.setLinkedDocuments(document, single);
     }
     document.updatedAt = now;
 
@@ -225,6 +277,30 @@ export class StandardsService {
       );
     }
 
+    return this.getImplementation(implementationId);
+  }
+
+  async deleteImplementationDocument(
+    implementationId: number,
+    documentId: number,
+  ): Promise<ImplementationView> {
+    const implementation = await this.findImplementation(implementationId);
+    const document = implementation.documents.find(
+      (item) => item.id === documentId,
+    );
+    if (!document) {
+      throw new NotFoundException(standardHttpError("STANDARD_007"));
+    }
+    if (!document.custom) {
+      throw new BadRequestException(standardHttpError("STANDARD_012"));
+    }
+    try {
+      await this.implementationDocumentRepository.remove(document);
+    } catch (error) {
+      throw new BadRequestException(
+        standardHttpError("STANDARD_009", { cause: error }),
+      );
+    }
     return this.getImplementation(implementationId);
   }
 
@@ -255,6 +331,7 @@ export class StandardsService {
       throw new NotFoundException(standardHttpError("STANDARD_005"));
     }
     await this.syncMissingDocuments(implementation);
+    await this.hydrateLinkedDocuments(implementation.documents ?? []);
     implementation.documents = [...(implementation.documents ?? [])].sort(
       (left, right) => left.sortOrder - right.sortOrder,
     );
@@ -285,10 +362,12 @@ export class StandardsService {
         description: document.description,
         kind: document.kind,
         status: ImplementationDocumentStatus.NOT_STARTED,
+        custom: false,
         sortOrder: index,
         updatedAt: now,
         linkedDocumentId: null,
         linkedDocument: null,
+        linkedDocumentIds: [],
       }),
     );
     const saved = await this.implementationDocumentRepository.save(created);
@@ -332,19 +411,89 @@ export class StandardsService {
         documentKey: document.documentKey,
         title: document.title,
         clause: document.clause,
+        custom: Boolean(document.custom),
         description: document.description,
         kind: document.kind,
         status: document.status,
         sortOrder: document.sortOrder,
-        linkedDocument: document.linkedDocument
-          ? {
-              id: document.linkedDocument.id,
-              title: document.linkedDocument.title,
-              documentCode: document.linkedDocument.documentCode,
-            }
-          : null,
+        linkedDocument: this.linkedSummary(this.resolvedLinks(document)[0]),
+        linkedDocuments: this.resolvedLinks(document)
+          .map((item) => this.linkedSummary(item))
+          .filter((item): item is LinkedDocumentSummary => item !== null),
         updatedAt: Number(document.updatedAt),
       })),
     };
+  }
+
+  private resolvedLinks(document: StandardImplementationDocument): Document[] {
+    const attached = (
+      document as StandardImplementationDocument & { resolvedLinks?: Document[] }
+    ).resolvedLinks;
+    if (attached) return attached;
+    return document.linkedDocument ? [document.linkedDocument] : [];
+  }
+
+  private linkedSummary(document?: Document | null): LinkedDocumentSummary | null {
+    if (!document) return null;
+    return {
+      id: document.id,
+      title: document.title,
+      documentCode: document.documentCode,
+    };
+  }
+
+  private async setLinkedDocuments(
+    document: StandardImplementationDocument,
+    ids: string[],
+  ): Promise<void> {
+    const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+    const found = unique.length
+      ? await this.documentRepository.find({
+          where: { id: In(unique), deleted: false },
+        })
+      : [];
+    if (found.length !== unique.length) {
+      throw new NotFoundException(standardHttpError("STANDARD_008"));
+    }
+    const byId = new Map(found.map((item) => [item.id, item]));
+    const ordered = unique.map((id) => byId.get(id)).filter(Boolean) as Document[];
+    document.linkedDocumentIds = ordered.map((item) => item.id);
+    document.linkedDocument = ordered[0] ?? null;
+    document.linkedDocumentId = ordered[0]?.id ?? null;
+    (
+      document as StandardImplementationDocument & { resolvedLinks?: Document[] }
+    ).resolvedLinks = ordered;
+  }
+
+  private async hydrateLinkedDocuments(
+    documents: StandardImplementationDocument[],
+  ): Promise<void> {
+    const ids = [
+      ...new Set(
+        documents.flatMap((document) => this.storedLinkIds(document)),
+      ),
+    ];
+    const found = ids.length
+      ? await this.documentRepository.find({
+          where: { id: In(ids), deleted: false },
+        })
+      : [];
+    const byId = new Map(found.map((item) => [item.id, item]));
+    for (const document of documents) {
+      const ordered = this.storedLinkIds(document)
+        .map((id) => byId.get(id))
+        .filter((item): item is Document => Boolean(item));
+      (
+        document as StandardImplementationDocument & { resolvedLinks?: Document[] }
+      ).resolvedLinks = ordered;
+      document.linkedDocument = ordered[0] ?? null;
+    }
+  }
+
+  private storedLinkIds(document: StandardImplementationDocument): string[] {
+    if (Array.isArray(document.linkedDocumentIds)) {
+      return document.linkedDocumentIds.filter(Boolean);
+    }
+    return document.linkedDocumentId ? [document.linkedDocumentId] : [];
   }
 }

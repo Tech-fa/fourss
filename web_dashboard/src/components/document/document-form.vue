@@ -134,16 +134,9 @@
                             @reload="refreshApprovalStrategies" />
                     </div>
 
-                    <div v-if="!isNewVersion" class="grid grid-cols-2 gap-4">
-                        <div class="flex items-center">
-                            <ToggleSwitch v-model="formData.isPublic" :label="t('document.form.make_public')"
-                                active-color="bg-blue-600" test-id="document-public-toggle" />
-                        </div>
-                        <div class="flex items-center">
-                            <ToggleSwitch v-model="formData.isAiAccessible"
-                                :label="t('document.form.ai_accessible')"
-                                active-color="bg-blue-600" test-id="document-ai-accessible-toggle" />
-                        </div>
+                    <div v-if="!isNewVersion" class="flex items-center">
+                        <ToggleSwitch v-model="formData.isPublic" :label="t('document.form.make_public')"
+                            active-color="bg-blue-600" test-id="document-public-toggle" />
                     </div>
 
                     <!-- Expires and Valid until (above Document Content) -->
@@ -332,6 +325,13 @@ import DocumentTemplateModal from './document-template-modal.vue'
 import DocumentChecklistBuilder from './DocumentChecklistBuilder.vue'
 import AddAndReload from '../AddAndReload.vue'
 import Notice from '../Notice.vue'
+import { documentEditContentPath } from '@/agent/document-markdown'
+import {
+    installAgentDocumentBridge,
+    readEditorDocument,
+    readReadyDocument,
+    writeEditorMarkdown
+} from '@/agent/document-bridge'
 
 // Define document interface
 
@@ -596,7 +596,6 @@ const formData = ref({
         name: ''
     },
     isPublic: true,
-    isAiAccessible: false,
     file: null as File | null,
     dueDate: '',
     changes: '',
@@ -999,7 +998,6 @@ const buildDocumentMetadataPayload = (values: { code: string; description?: stri
         documentTypeId: formData.value.documentType?.id,
         teamId: formData.value.organizationUnit?.id,
         isPublic: formData.value.isPublic,
-        isAiAccessible: formData.value.isAiAccessible,
         processIds: selectedProcesses.value.map((process) => process.id)
     }
     if (formData.value.dueDate) {
@@ -1042,7 +1040,6 @@ const fetchDocument = async () => {
 
         // Force boolean conversion
         const isPublicValue = Boolean(document.isPublic)
-        const isAiAccessibleValue = Boolean(document.isAiAccessible)
 
         const fillId = fillPendingVersionId.value
         let newVersionNumber = isNewVersion.value ? document.currentVersion + 1 : document.currentVersion
@@ -1074,7 +1071,6 @@ const fetchDocument = async () => {
                 name: document.team?.name || ''
             },
             isPublic: isPublicValue,
-            isAiAccessible: isAiAccessibleValue,
             file: null,
             dueDate: dueDate,
             changes: '',
@@ -1703,7 +1699,6 @@ const handleSubmit = async (values: any) => {
         formDataToSend.append('documentTypeId', formData.value.documentType?.id.toString())
         formDataToSend.append('teamId', formData.value.organizationUnit?.id.toString())
         formDataToSend.append('isPublic', String(formData.value.isPublic))
-        formDataToSend.append('isAiAccessible', String(formData.value.isAiAccessible))
         formDataToSend.append('versionNumber', formData.value.version.toString())
         formDataToSend.append('contentType', contentMode.value)
         formDataToSend.append(
@@ -1799,25 +1794,35 @@ async function insertAgentDocumentContent(markdown: string) {
         clearChecklistState()
         formData.value.file = null
     }
-    const deadline = Date.now() + 8000
-    while (Date.now() < deadline) {
-        const editor = superdocRef.value
-        if (editor) {
-            const inserted = editor.replaceContent
-                ? await editor.replaceContent(markdown, 'markdown')
-                : await editor.insertContent(markdown, 'markdown')
-            if (inserted) {
-                hasSuperdocEdits.value = true
-                return true
-            }
+    return writeEditorMarkdown(
+        () => superdocRef.value,
+        markdown,
+        () => {
+            hasSuperdocEdits.value = true
         }
-        await new Promise((resolve) => setTimeout(resolve, 200))
-    }
-    throw new Error('The document editor is not ready.')
+    )
 }
 
+function agentDocumentEditPath() {
+    const versionId = fillPendingVersionId.value
+    if (!documentId.value || versionId == null) return ''
+    if (!route.path.includes('edit-version') && !route.path.includes('new-version')) return ''
+    if (route.fullPath.includes('fillPendingVersion=')) return route.fullPath
+    return documentEditContentPath(documentId.value, versionId)
+}
+
+let releaseAgentDocument: (() => void) | null = null
+
 onMounted(() => {
-    window.__agentInsertDocumentContent = insertAgentDocumentContent
+    releaseAgentDocument = installAgentDocumentBridge({
+        insert: insertAgentDocumentContent,
+        editPath: agentDocumentEditPath,
+        read: () =>
+            readReadyDocument(
+                () => readEditorDocument(superdocRef.value),
+                () => contentMode.value !== ContentType.EDITOR
+            )
+    })
     const routeId = route.params.id as string
     const isNewVersionPath = route.path.includes('new-version') || route.path.includes('edit-version')
 
@@ -1858,8 +1863,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-    if (window.__agentInsertDocumentContent === insertAgentDocumentContent) {
-        delete window.__agentInsertDocumentContent
-    }
+    releaseAgentDocument?.()
+    releaseAgentDocument = null
 })
 </script>

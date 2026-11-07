@@ -1,5 +1,7 @@
 import { Type } from "class-transformer";
 import {
+  ArrayMaxSize,
+  IsArray,
   IsEmail,
   IsEnum,
   IsIn,
@@ -26,6 +28,32 @@ export class CreateImplementationDto {
   standardKey: string;
 }
 
+export class CreateImplementationDocumentDto {
+  @ApiProperty({
+    description:
+      "Clause number or control number to track. Free text, for example 7.5 or A.5.1.",
+    maxLength: 128,
+  })
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  clause: string;
+
+  @ApiPropertyOptional({
+    description: "Optional label. Defaults to the clause or control number.",
+    maxLength: 255,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional({ enum: RequiredDocumentKind })
+  @IsOptional()
+  @IsEnum(RequiredDocumentKind)
+  kind?: RequiredDocumentKind;
+}
+
 export class UpdateImplementationDocumentDto {
   @ApiPropertyOptional({ enum: ImplementationDocumentStatus })
   @IsOptional()
@@ -33,15 +61,42 @@ export class UpdateImplementationDocumentDto {
   status?: ImplementationDocumentStatus;
 
   @ApiPropertyOptional({
+    description: "Clause or control number. Only applied to a row you added.",
+    maxLength: 128,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  clause?: string;
+
+  @ApiPropertyOptional({ maxLength: 255 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  title?: string;
+
+  @ApiPropertyOptional({
     format: "uuid",
     nullable: true,
-    description: "Document to link. Send null to clear the link.",
+    description:
+      "Replaces every link with this one document. Send null to clear links. Prefer linkedDocumentIds when linking more than one document.",
   })
   @IsOptional()
   @ValidateIf((_, value) => value !== null)
   @IsString()
   @Type(() => String)
   linkedDocumentId?: string | null;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      "Documents to link to this clause or control. Replaces the current links. Send an empty array to clear them. The agent can set every link in one call.",
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @IsString({ each: true })
+  linkedDocumentIds?: string[];
 }
 
 export class ImplementationIdParamDto {
@@ -152,8 +207,15 @@ export class ImplementationDocumentResponseDto {
   @ApiProperty()
   title: string;
 
-  @ApiProperty()
+  @ApiProperty({
+    description: "Clause number or control number.",
+  })
   clause: string;
+
+  @ApiProperty({
+    description: "True when this row was added to track an extra clause or control.",
+  })
+  custom: boolean;
 
   @ApiProperty()
   description: string;
@@ -169,6 +231,9 @@ export class ImplementationDocumentResponseDto {
 
   @ApiProperty({ type: LinkedDocumentSummaryResponseDto, nullable: true })
   linkedDocument: LinkedDocumentSummaryResponseDto | null;
+
+  @ApiProperty({ type: [LinkedDocumentSummaryResponseDto] })
+  linkedDocuments: LinkedDocumentSummaryResponseDto[];
 
   @ApiProperty({ description: "Unix epoch milliseconds." })
   updatedAt: number;

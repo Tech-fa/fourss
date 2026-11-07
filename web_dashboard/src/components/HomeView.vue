@@ -80,8 +80,7 @@
                             v-if="!item.menuItems?.length"
                             @click="router.push(item.path)"
                             :class="[
-                              item.path == route.path ||
-                              route.path.includes(`${item.path}/`)
+                              navItemActive(item.path)
                                 ? 'bg-gray-200 dark:bg-gray-800 dark:text-white text-black'
                                 : 'hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-400 text-black  hover:text-gray-600',
                               'group flex items-center gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 cursor-pointer',
@@ -281,8 +280,7 @@
                         v-if="!item.menuItems?.length"
                         @click="router.push(item.path)"
                         :class="[
-                          item.path == route.path ||
-                          route.path.includes(`${item.path}/`)
+                          navItemActive(item.path)
                             ? 'bg-gray-200 dark:bg-gray-800 dark:text-white text-primary'
                             : 'hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-400 text-primary dark:hover:text-white hover:text-gray-800',
                           'group flex items-center gap-x-3 rounded-md p-2 text-sm font-semibold leading-6 cursor-pointer',
@@ -504,6 +502,11 @@ if (savedLocale) {
 
 const router = useRouter()
 const route = useRoute()
+
+function navItemActive(path: string) {
+    if (route.path === path || route.path.includes(`${path}/`)) return true
+    return path === '/plan/playground' && route.path.startsWith('/plan/playgrounds/')
+}
 const authStore = useAuthStore()
 const selectedLocale = ref<{ value: AppLocale; label: string }>(LOCALE_OPTIONS.find(lang => lang.value === authStore.locale) || LOCALE_OPTIONS[0])
 

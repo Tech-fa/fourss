@@ -20,7 +20,7 @@ describe("StandardsService", () => {
     create: jest.Mock;
     save: jest.Mock;
   };
-  let documentRepository: { findOne: jest.Mock };
+  let documentRepository: { findOne: jest.Mock; find: jest.Mock };
 
   beforeEach(() => {
     implementations = [];
@@ -67,6 +67,14 @@ describe("StandardsService", () => {
     };
     implementationDocumentRepository = {
       create: jest.fn((value) => ({ ...value })),
+      remove: jest.fn(async (value) => {
+        const implementation = implementations.find((row) =>
+          row.documents.some((document: any) => document.id === value.id),
+        );
+        implementation.documents = implementation.documents.filter(
+          (document: any) => document.id !== value.id,
+        );
+      }),
       save: jest.fn(async (value) => {
         const values = Array.isArray(value) ? value : [value];
         const saved = values.map((item) => {
@@ -95,11 +103,18 @@ describe("StandardsService", () => {
       }),
     };
     documentRepository = {
-      findOne: jest.fn(async ({ where }) =>
-        where.id === "doc-1" && where.deleted === false
-          ? { id: "doc-1", title: "Quality policy", documentCode: "QP-1" }
-          : null,
-      ),
+      findOne: jest.fn(async ({ where }) => knownDocument(where.id, where.deleted)),
+      find: jest.fn(async ({ where }) => {
+        const raw = where?.id;
+        const ids = Array.isArray(raw?.value)
+          ? raw.value
+          : Array.isArray(raw?._value)
+            ? raw._value
+            : [];
+        return ids
+          .map((id: string) => knownDocument(id, where.deleted))
+          .filter(Boolean);
+      }),
     };
     service = new StandardsService(
       implementationRepository as any,
@@ -157,6 +172,9 @@ describe("StandardsService", () => {
       title: "Quality policy",
       documentCode: "QP-1",
     });
+    expect(first.documents[0].linkedDocuments).toEqual([
+      first.documents[0].linkedDocument,
+    ]);
     expect(first.status).toBe("in_progress");
 
     let current = first;
@@ -203,7 +221,46 @@ describe("StandardsService", () => {
       }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it("tracks an extra clause and links several documents", async () => {
+    const created = await service.createImplementation(
+      { standardKey: "iso-9001-2015" },
+      user as any,
+    );
+    const added = await service.createImplementationDocument(created.id, {
+      clause: "A.5.1",
+      title: "Policies for information security",
+    });
+    const row = added.documents.find((document) => document.clause === "A.5.1");
+    expect(row?.custom).toBe(true);
+    expect(row?.title).toBe("Policies for information security");
+
+    const linked = await service.updateImplementationDocument(created.id, row!.id, {
+      linkedDocumentIds: ["doc-1", "doc-2"],
+    });
+    const updated = linked.documents.find((document) => document.id === row!.id);
+    expect(updated?.linkedDocuments).toEqual([
+      { id: "doc-1", title: "Quality policy", documentCode: "QP-1" },
+      { id: "doc-2", title: "Procedure", documentCode: "PR-2" },
+    ]);
+
+    const removed = await service.deleteImplementationDocument(created.id, row!.id);
+    expect(removed.documents.some((document) => document.id === row!.id)).toBe(
+      false,
+    );
+  });
 });
+
+function knownDocument(id: string, deleted: boolean) {
+  if (deleted !== false) return null;
+  if (id === "doc-1") {
+    return { id: "doc-1", title: "Quality policy", documentCode: "QP-1" };
+  }
+  if (id === "doc-2") {
+    return { id: "doc-2", title: "Procedure", documentCode: "PR-2" };
+  }
+  return null;
+}
 
 function cloneImplementation(item: any, relations?: string[]) {
   const cloned = {

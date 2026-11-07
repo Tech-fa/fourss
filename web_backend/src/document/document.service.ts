@@ -395,7 +395,7 @@ export class DocumentService implements NotificationInfo, OnModuleInit {
         createdBy: { id: user.id } as User,
         currentVersion: dtoBody.versionNumber || 1,
         isPublic: dtoBody.isPublic === "true" ? true : false,
-        isAiAccessible: dtoBody.isAiAccessible === "true",
+        isAiAccessible: true,
         approvalStrategy: approvalStrategy,
         documentAcknowledgement: documentAcknowledgement ?? undefined,
         contentType,
@@ -1025,6 +1025,7 @@ export class DocumentService implements NotificationInfo, OnModuleInit {
         version.versionNumber,
         document.versions,
       );
+      this.enqueueDocumentAiIndex(document.id, version.id);
     }
   }
 
@@ -1421,6 +1422,8 @@ export class DocumentService implements NotificationInfo, OnModuleInit {
         throw new NotFoundException(documentHttpError("DOC_007"));
       }
 
+      const wasAiAccessible = !!document.isAiAccessible;
+
       const currentCategoryId = document.documentType?.id;
       if (currentCategoryId && dto.documentTypeId !== currentCategoryId) {
         const categoryStrategy = await this.getApprovalStrategyForCategory(
@@ -1448,9 +1451,7 @@ export class DocumentService implements NotificationInfo, OnModuleInit {
       if (dto.isPublic !== undefined) {
         document.isPublic = dto.isPublic;
       }
-      if (dto.isAiAccessible !== undefined) {
-        document.isAiAccessible = dto.isAiAccessible;
-      }
+      document.isAiAccessible = true;
       document.dueDate = dto.dueDate;
 
       document.updatedAt = new Date().valueOf();
@@ -1491,6 +1492,10 @@ export class DocumentService implements NotificationInfo, OnModuleInit {
       document.title = dto.title;
       document.description = dto.description;
       await this.documentRepository.save(document);
+
+      if (!wasAiAccessible) {
+        await this.enqueueAiIndexForPublishedVersion(document);
+      }
 
       if (documentDraftId) {
         await this.deleteDocumentDraft(documentDraftId, user);
@@ -4084,6 +4089,20 @@ export class DocumentService implements NotificationInfo, OnModuleInit {
     }
   }
 
+  private async enqueueAiIndexForPublishedVersion(
+    document: Document,
+  ): Promise<void> {
+    const version = await this.versionRepo.findOne({
+      where: {
+        documentId: document.id,
+        versionNumber: document.currentVersion,
+        status: DocumentStatus.PUBLISHED,
+      },
+    });
+    if (!version) return;
+    this.enqueueDocumentAiIndex(document.id, version.id);
+  }
+
   private enqueueDocumentAiIndex(documentId: string, versionId: number): void {
     this.queuePublisher
       .indexDocumentForAi({ documentId, versionId })
@@ -4817,6 +4836,10 @@ export class DocumentService implements NotificationInfo, OnModuleInit {
       }
 
       await queryRunner.commitTransaction();
+
+      if (version.status === DocumentStatus.PUBLISHED) {
+        this.enqueueDocumentAiIndex(document.id, version.id);
+      }
 
       if (documentDraftId) {
         await this.deleteDocumentDraft(documentDraftId, user);

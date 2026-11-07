@@ -10,7 +10,8 @@ export const documentRoutes = [
                 'document_acknowledgements',
                 'document_templates'
             ],
-            actions: ['read']
+            actions: ['read'],
+            purpose: 'Configure document types, approval strategies, acknowledgements, and templates.'
         }
     },
     {
@@ -19,7 +20,8 @@ export const documentRoutes = [
         component: () => import('./AddApprovalStrategy.vue'),
         meta: {
             subject: 'approval_strategies',
-            actions: ['create']
+            actions: ['create'],
+            purpose: 'Create an approval strategy.'
         }
     },
     {
@@ -28,7 +30,8 @@ export const documentRoutes = [
             component: () => import('./AddApprovalStrategy.vue'),
         meta: {
             subject: 'approval_strategies',
-            actions: ['update']
+            actions: ['update'],
+            purpose: 'Change an approval strategy.'
         }
     },
     {
@@ -37,7 +40,8 @@ export const documentRoutes = [
         component: () => import('./AddDocumentAcknowledgemenet.vue'),
         meta: {
             subject: 'document_acknowledgements',
-            actions: ['create']
+            actions: ['create'],
+            purpose: 'Create an acknowledgement requirement.'
         }
     },
     {
@@ -46,7 +50,8 @@ export const documentRoutes = [
         component: () => import('./AddDocumentAcknowledgemenet.vue'),
         meta: {
             subject: 'document_acknowledgements',
-            actions: ['update']
+            actions: ['update'],
+            purpose: 'Change an acknowledgement requirement.'
         }
     },
     {
@@ -55,7 +60,8 @@ export const documentRoutes = [
         component: () => import('./main.vue'),
         meta: {
             subject: 'documents',
-            actions: ['read']
+            actions: ['read'],
+            purpose: 'List and open controlled documents.'
         }
     },
     {
@@ -64,7 +70,8 @@ export const documentRoutes = [
         component: () => import('./compare-versions.vue'),
         meta: {
             subject: 'documents',
-            actions: ['read']
+            actions: ['read'],
+            purpose: 'Compare two versions of a document.'
         }
     },
     {
@@ -73,7 +80,8 @@ export const documentRoutes = [
         component: () => import('./view-document.vue'),
         meta: {
             subject: 'documents',
-            actions: ['read']
+            actions: ['read'],
+            purpose: 'Read a document and its versions.'
         }
     },
     {
@@ -82,7 +90,8 @@ export const documentRoutes = [
         component: () => import('./view-document-content.vue'),
         meta: {
             subject: 'documents',
-            actions: ['read']
+            actions: ['read'],
+            purpose: "Read a document's body."
         }
     },
     {
@@ -91,7 +100,8 @@ export const documentRoutes = [
         component: () => import('./view-document-checklist.vue'),
         meta: {
             subject: 'documents',
-            actions: ['read']
+            actions: ['read'],
+            purpose: "Read a document's checklist."
         }
     },
     {
@@ -100,7 +110,8 @@ export const documentRoutes = [
         component: () => import('./document-form.vue'),
         meta: {
             subject: 'documents',
-            actions: ['create']
+            actions: ['create'],
+            purpose: 'Create a document.'
         }
     },
     {
@@ -110,7 +121,8 @@ export const documentRoutes = [
         meta: {
             subject: 'documents',
             actions: ['update'],
-            fullPage: true
+            fullPage: true,
+            purpose: 'Draft a new document version.'
         }
     },
     {
@@ -119,7 +131,8 @@ export const documentRoutes = [
         component: () => import('./document-checklist-version-editor.vue'),
         meta: {
             subject: 'documents',
-            actions: ['update']
+            actions: ['update'],
+            purpose: 'Draft a new checklist version.'
         }
     },
     {
@@ -129,7 +142,8 @@ export const documentRoutes = [
         meta: {
             subject: 'documents',
             actions: ['update'],
-            fullPage: true
+            fullPage: true,
+            purpose: 'Edit a pending document version. The user publishes it.'
         }
     },
     {
@@ -138,7 +152,8 @@ export const documentRoutes = [
         component: () => import('./document-form.vue'),
         meta: {
             subject: 'documents',
-            actions: ['update']
+            actions: ['update'],
+            purpose: "Change a document's details."
         }
     },
     {
@@ -147,7 +162,8 @@ export const documentRoutes = [
         component: () => import('./document-drafts.vue'),
         meta: {
             subject: 'documents',
-            actions: ['create','update']
+            actions: ['create','update'],
+            purpose: 'List unpublished document drafts.'
         }
     },
     {
@@ -156,7 +172,8 @@ export const documentRoutes = [
         component: () => import('./document-form.vue'),
         meta: {
             subject: 'documents',
-            actions: ['update']
+            actions: ['update'],
+            purpose: 'Continue a document draft.'
         }
     },
     {
@@ -165,7 +182,8 @@ export const documentRoutes = [
         component: () => import('./document-change-requests.vue'),
         meta: {
             subject: 'change_requests',
-            actions: ['read']
+            actions: ['read'],
+            purpose: 'List document change requests.'
         }
     },
     {
@@ -174,7 +192,8 @@ export const documentRoutes = [
         component: () => import('./ChangeRequestDialog.vue'),
         meta: {
             subject: 'change_requests',
-            actions: ['create']
+            actions: ['create'],
+            purpose: 'Open a document change request.'
         }
     },
     {
@@ -183,7 +202,8 @@ export const documentRoutes = [
         component: () => import('./ChangeRequestDialog.vue'),
         meta: {
             subject: 'change_requests',
-            actions: ['read']
+            actions: ['read'],
+            purpose: 'Read a document change request.'
         }
     },
     {
@@ -192,7 +212,8 @@ export const documentRoutes = [
         component: () => import('./template-form.vue'),
         meta: {
             subject: 'document_templates',
-            actions: ['create']
+            actions: ['create'],
+            purpose: 'Create a document template.'
         }
     },
     {
@@ -201,7 +222,8 @@ export const documentRoutes = [
         component: () => import('./document-template-detail-view.vue'),
         meta: {
             subject: 'document_templates',
-            actions: ['read']
+            actions: ['read'],
+            purpose: 'Read a document template.'
         }
     },
     {
@@ -210,7 +232,8 @@ export const documentRoutes = [
         component: () => import('./template-form.vue'),
         meta: {
             subject: 'document_templates',
-            actions: ['update']
+            actions: ['update'],
+            purpose: 'Change a document template.'
         }
     },
     {
@@ -219,7 +242,8 @@ export const documentRoutes = [
         component: () => import('./template-form.vue'),
         meta: {
             subject: 'document_templates',
-            actions: ['create']
+            actions: ['create'],
+            purpose: 'Copy a document template into a new one.'
         }
     },
 ]

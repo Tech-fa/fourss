@@ -65,6 +65,13 @@ async function bootstrap() {
   app.use('/documents/templates', json({ limit: '1000mb' }));
   app.use('/documents/templates', urlencoded({ limit: '1000mb', extended: true }));
 
+  const playgroundUpload = json({ limit: '8mb' });
+  app.use((req, res, next) => {
+    if (/^\/playgrounds\/[^/]+\/(call|file)(\/|$)/.test(req.path || '')) {
+      return playgroundUpload(req, res, next);
+    }
+    return next();
+  });
   app.use('/playgrounds', json({ limit: '288kb' }));
   app.use('/playgrounds', urlencoded({ limit: '288kb', extended: true }));
 

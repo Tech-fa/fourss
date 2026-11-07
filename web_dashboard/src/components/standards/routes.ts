@@ -5,7 +5,8 @@ export const standardsRoutes = [
         component: () => import('./main.vue'),
         meta: {
             subject: 'standards',
-            actions: ['read']
+            actions: ['read'],
+            purpose: 'List standard implementations.'
         }
     },
     {
@@ -14,7 +15,8 @@ export const standardsRoutes = [
         component: () => import('./add-implementation.vue'),
         meta: {
             subject: 'standards',
-            actions: ['create']
+            actions: ['create'],
+            purpose: 'Start a standard implementation.'
         }
     },
     {
@@ -23,7 +25,8 @@ export const standardsRoutes = [
         component: () => import('./view-implementation.vue'),
         meta: {
             subject: 'standards',
-            actions: ['read']
+            actions: ['read'],
+            purpose: 'Read a standard implementation and its documents.'
         }
     }
 ]
@@ -35,11 +38,13 @@ export const sharedStandardsRoutes = [
     {
         path: '/share/standards/document/:code',
         name: SHARED_STANDARD_DOCUMENT,
-        component: () => import('./shared-document.vue')
+        component: () => import('./shared-document.vue'),
+        meta: { purpose: 'Open a shared standard document with its share code.' }
     },
     {
         path: '/share/standards/:code',
         name: SHARED_STANDARD_LIST,
-        component: () => import('./shared-implementation.vue')
+        component: () => import('./shared-implementation.vue'),
+        meta: { purpose: 'Open a shared standard implementation with its share code.' }
     }
 ]

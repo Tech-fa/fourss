@@ -621,7 +621,6 @@
             "approval_strategy_used": "Approval strategy: {name}",
             "approval_strategies_settings_link": "Document Settings → Approval strategies",
             "make_public": "Visible to everyone in the organization",
-            "ai_accessible": "Accessible by AI",
             "never_expires": "No expiry date",
             "expires": "Expiry date",
             "valid_until": "Valid until",
@@ -1172,7 +1171,7 @@
             "col_title": "Document",
             "col_kind": "Type",
             "col_status": "Status",
-            "col_linked": "Linked document",
+            "col_linked": "Linked documents",
             "col_progress": "Progress",
             "kind_maintain": "Maintain",
             "kind_retain": "Retain",
@@ -1184,6 +1183,17 @@
             "progress": "{completed} of {total} implemented",
             "no_link": "Not linked",
             "link_document": "Link document",
+            "link_documents": "Link documents",
+            "add_clause_label": "Clause or control",
+            "add_clause_placeholder": "Clause or control number",
+            "add_title_label": "Label",
+            "add_title_placeholder": "Optional label",
+            "add_clause": "Add row",
+            "remove_clause": "Remove",
+            "remove_clause_confirm": "Remove this clause or control from tracking?",
+            "toast_clause_added": "Clause or control added",
+            "toast_clause_removed": "Clause or control removed",
+            "toast_clause_failed": "Failed to update the clause or control",
             "create_document": "Create document",
             "filter_all_kinds": "All types",
             "filter_all_statuses": "All statuses",
@@ -1271,10 +1281,12 @@
             "off": "Off",
             "turnOff": "Turn off",
             "turnOn": "Turn on",
-            "turnedOff": "This playground is turned off. Existing data can still be read.",
+            "turnedOff": "This playground is turned off.",
             "emptyPublished": "No published playgrounds yet.",
             "emptyDrafts": "No drafts.",
-            "back": "Back"
+            "back": "Back",
+            "delete": "Delete",
+            "deleteConfirm": "Delete this playground?"
         }
     },
     "errors": {
@@ -1305,7 +1317,14 @@
             "PG_016": "A playground cannot save over an existing record kind",
             "PG_017": "Playground record not found",
             "PG_018": "This playground is turned off",
-            "PG_019": "The playground runtime is not installed"
+            "PG_019": "The playground runtime is not installed",
+            "PG_023": "That statement is not allowed",
+            "PG_024": "That function was not found",
+            "PG_025": "That file is not available",
+            "PG_026": "That result is too large",
+            "PG_027": "That endpoint is not on this app",
+            "PG_028": "That route was not found",
+            "PG_029": "That route is not valid"
         }
     },
     "legal": {

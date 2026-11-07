@@ -5,7 +5,8 @@ export const orgUnitTypeRoutes = [
         component: () => import('./mainView.vue'),
         meta: {
             subject: 'teams',
-            actions: ['read']
+            actions: ['read'],
+            purpose: 'View and manage the organization tree and teams.'
         }
     },
 ]

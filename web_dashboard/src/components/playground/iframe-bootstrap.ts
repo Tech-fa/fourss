@@ -1,13 +1,21 @@
 export const PLAYGROUND_FRAME_NAMESPACE = 'fourss-playground'
 
-export const IFRAME_BOOTSTRAP = `<!DOCTYPE html>
+const FRAME_POLICY =
+    "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; form-action 'none'; frame-src 'none'"
+
+export function playgroundFrame(indexHtml: string, appJs: string, enabled: boolean, offMessage = 'This playground is turned off.') {
+    const body = pageBody(indexHtml)
+    const script = String(appJs || '').replace(/<\/script/gi, '<\\/script')
+    const banner = enabled ? '' : `<p>${escapeText(offMessage)}</p>`
+    return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; frame-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="${FRAME_POLICY}">
 </head>
 <body>
-<div id="root"></div>
+${banner}
+${body}
 <script>
 (function () {
   var namespace = ${JSON.stringify(PLAYGROUND_FRAME_NAMESPACE)}
@@ -25,44 +33,58 @@ export const IFRAME_BOOTSTRAP = `<!DOCTYPE html>
   window.addEventListener('message', function (event) {
     if (event.source !== window.parent) return
     var data = event.data || {}
-    if (data.namespace !== namespace) return
-    if (data.type === 'result' && pending[data.id]) {
-      var waiter = pending[data.id]
-      delete pending[data.id]
-      if (data.ok) waiter.resolve(data.value)
-      else waiter.reject(new Error(data.error || 'Request failed'))
-      return
-    }
-    if (data.type !== 'run') return
-    var page = data.page || {}
-    if (page.enabled === false) {
-      var banner = document.createElement('p')
-      banner.textContent = 'This playground is turned off.'
-      document.body.insertBefore(banner, document.body.firstChild)
-    }
-    var host = {
-      page: page,
-      get: function (entityType, entityId) {
-        return hostCall('get', { entityType: entityType, entityId: entityId })
-      },
-      list: function (entityType, query) {
-        return hostCall('list', { entityType: entityType, query: query || {} })
-      },
-      save: function (body) {
-        return hostCall('save', body || {})
-      },
-      remove: function (entityType, entityId) {
-        return hostCall('remove', { entityType: entityType, entityId: entityId })
-      },
-      fail: function (message) {
-        return hostCall('fail', { message: String(message || '') })
-      }
-    }
-    var produced = new Function('host', String(data.source || '') + '\\n;return typeof render==="function"?render:null;')(host)
-    if (typeof produced === 'function') produced(host, document.getElementById('root'))
+    if (data.namespace !== namespace || data.type !== 'result' || !pending[data.id]) return
+    var waiter = pending[data.id]
+    delete pending[data.id]
+    if (data.ok) waiter.resolve(data.value)
+    else waiter.reject(new Error(data.error || 'Request failed'))
   })
+  window.playground = {
+    sql: function (statement, params) {
+      return hostCall('sql', { statement: statement, params: params || [] })
+    },
+    fetch: function (path, init) {
+      var request = init || {}
+      return hostCall('fetch', { path: path, method: request.method || 'GET', body: request.body })
+    },
+    api: function (path, init) {
+      var request = init || {}
+      function send(file) {
+        return hostCall('api', {
+          path: path,
+          method: request.method || 'GET',
+          body: request.body,
+          file: file
+        })
+      }
+      var file = request.file
+      if (!file || typeof file.arrayBuffer !== 'function') return send(null)
+      return file.arrayBuffer().then(function (buffer) {
+        return send({
+          name: file.name || 'attachment',
+          type: file.type || 'application/octet-stream',
+          buffer: buffer
+        })
+      })
+    }
+  }
   post({ type: 'ready' })
 })()
 </script>
+<script>${script}</script>
 </body>
 </html>`
+}
+
+function escapeText(value: string) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+}
+
+function pageBody(html: string) {
+    const match = String(html || '').match(/<body[^>]*>([\s\S]*)<\/body>/i)
+    const inner = match ? match[1] : String(html || '')
+    return inner.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+}

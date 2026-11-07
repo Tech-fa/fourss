@@ -34,8 +34,11 @@ export class StandardImplementationDocument {
   @Column({ type: "varchar", length: 255 })
   title: string;
 
-  @Column({ type: "varchar", length: 32 })
+  @Column({ type: "varchar", length: 128 })
   clause: string;
+
+  @Column({ type: "boolean", default: false })
+  custom: boolean;
 
   @Column({ type: "text" })
   description: string;
@@ -56,6 +59,9 @@ export class StandardImplementationDocument {
 
   @Column({ name: "linked_document_id", type: "varchar", length: 255, nullable: true })
   linkedDocumentId: string | null;
+
+  @Column({ name: "linked_document_ids", type: "simple-json", nullable: true })
+  linkedDocumentIds: string[] | null;
 
   @Column({ name: "sort_order", type: "int" })
   sortOrder: number;

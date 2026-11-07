@@ -277,7 +277,7 @@
             "col_title": "Document",
             "col_kind": "Type",
             "col_status": "Statut",
-            "col_linked": "Document lié",
+            "col_linked": "Documents liés",
             "col_progress": "Progression",
             "kind_maintain": "Maintenir",
             "kind_retain": "Conserver",
@@ -289,6 +289,17 @@
             "progress": "{completed} sur {total} mis en œuvre",
             "no_link": "Non lié",
             "link_document": "Lier un document",
+            "link_documents": "Lier des documents",
+            "add_clause_label": "Clause ou contrôle",
+            "add_clause_placeholder": "Numéro de clause ou de contrôle",
+            "add_title_label": "Libellé",
+            "add_title_placeholder": "Libellé facultatif",
+            "add_clause": "Ajouter une ligne",
+            "remove_clause": "Retirer",
+            "remove_clause_confirm": "Retirer cette clause ou ce contrôle du suivi ?",
+            "toast_clause_added": "Clause ou contrôle ajouté",
+            "toast_clause_removed": "Clause ou contrôle retiré",
+            "toast_clause_failed": "Échec de la mise à jour de la clause ou du contrôle",
             "create_document": "Créer un document",
             "filter_all_kinds": "Tous les types",
             "filter_all_statuses": "Tous les statuts",
@@ -734,7 +745,6 @@
             "approval_strategy_used": "Stratégie d'approbation : {name}",
             "approval_strategies_settings_link": "Paramètres des documents → Stratégies d'approbation",
             "make_public": "Visible par tous les membres de l'organisation",
-            "ai_accessible": "Accessible par l'IA",
             "never_expires": "Pas de date d'expiration",
             "expires": "Date d'expiration",
             "valid_until": "Valable jusqu'au",
@@ -1263,10 +1273,12 @@
             "off": "Désactivé",
             "turnOff": "Désactiver",
             "turnOn": "Activer",
-            "turnedOff": "Ce terrain de jeu est désactivé. Les données existantes restent lisibles.",
+            "turnedOff": "Ce terrain de jeu est désactivé.",
             "emptyPublished": "Aucun terrain de jeu publié.",
             "emptyDrafts": "Aucun brouillon.",
-            "back": "Retour"
+            "back": "Retour",
+            "delete": "Supprimer",
+            "deleteConfirm": "Supprimer ce terrain de jeu ?"
         }
     },
     "errors": {
@@ -1288,7 +1300,14 @@
             "PG_016": "Un terrain de jeu ne peut pas écraser un type de fiche existant",
             "PG_017": "Fiche introuvable",
             "PG_018": "Ce terrain de jeu est désactivé",
-            "PG_019": "Le moteur du terrain de jeu n'est pas installé"
+            "PG_019": "Le moteur du terrain de jeu n'est pas installé",
+            "PG_023": "Cette instruction n'est pas autorisée",
+            "PG_024": "Cette fonction est introuvable",
+            "PG_025": "Ce fichier n'est pas disponible",
+            "PG_026": "Ce résultat est trop volumineux",
+            "PG_027": "Ce point d'accès n'appartient pas à cette application",
+            "PG_028": "Cette route est introuvable",
+            "PG_029": "Cette route n'est pas valide"
         },
         "document": {
             "DOC_119": "La stratégie d'approbation par défaut ne peut pas être supprimée"

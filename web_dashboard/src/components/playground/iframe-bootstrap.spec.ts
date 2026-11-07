@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { IFRAME_BOOTSTRAP } from './iframe-bootstrap'
-import { frameCallUsesRecordWrite, readFrameMessage } from './host-bridge'
+import { playgroundFrame } from './iframe-bootstrap'
+import { frameCallWrites, frameFile, readFrameMessage } from './host-bridge'
 
 describe('playground iframe', () => {
-    it('locks the frame down and does not embed a user program', () => {
-        expect(IFRAME_BOOTSTRAP).toContain("connect-src 'none'")
-        expect(IFRAME_BOOTSTRAP).toContain("form-action 'none'")
-        expect(IFRAME_BOOTSTRAP).not.toContain('inspection_note')
-        expect(IFRAME_BOOTSTRAP).not.toContain('allow-same-origin')
+    it('locks the frame down and inlines the playground script', () => {
+        const frame = playgroundFrame('<h1>Hello</h1><script src="app.js"></script>', 'app.textContent = "Hi"', true)
+        expect(frame).toContain("connect-src 'none'")
+        expect(frame).toContain('arrayBuffer')
+        expect(frame).toContain("form-action 'none'")
+        expect(frame).toContain('app.textContent = "Hi"')
+        expect(frame).toContain('<h1>Hello</h1>')
+        expect(frame).not.toContain('src="app.js"')
+        expect(frame).not.toContain('allow-same-origin')
     })
 
     it('ignores messages that are not from the frame', () => {
@@ -15,31 +19,40 @@ describe('playground iframe', () => {
         expect(readFrameMessage({ namespace: 'fourss-playground', type: 'ready' }, {} as Window, frame)).toBeNull()
     })
 
-    it('maps a save to a record write and a get to a read', () => {
+    it('treats a playground route that sends a file as a write and a fetch as a read', () => {
         const frame = {} as Window
-        const save = readFrameMessage(
+        const write = readFrameMessage(
             {
                 namespace: 'fourss-playground',
                 type: 'call',
                 id: '1',
-                method: 'save',
-                payload: { entityType: 'inspection_note', data: { note: 'Torque' } }
+                method: 'api',
+                payload: { path: '/photos', method: 'POST', file: new Blob(['Torque'], { type: 'text/plain' }) }
             },
             frame,
             frame
         )
-        const get = readFrameMessage(
+        const fetch = readFrameMessage(
             {
                 namespace: 'fourss-playground',
                 type: 'call',
                 id: '2',
-                method: 'get',
-                payload: { entityType: 'document', entityId: 'doc-1' }
+                method: 'fetch',
+                payload: { path: '/documents/doc-1' }
             },
             frame,
             frame
         )
-        expect(save && 'call' in save && frameCallUsesRecordWrite(save.call.method)).toBe(true)
-        expect(get && 'call' in get && frameCallUsesRecordWrite(get.call.method)).toBe(false)
+        expect(write && 'call' in write && frameCallWrites(write.call)).toBe(true)
+        const buffer = new Uint8Array([1, 2, 3, 4]).buffer
+        const rebuilt = frameFile({
+            name: 'shot.png',
+            type: 'image/png',
+            buffer
+        })
+        expect(rebuilt?.name).toBe('shot.png')
+        expect(rebuilt?.type).toBe('image/png')
+        expect(rebuilt?.size).toBe(4)
+        expect(fetch && 'call' in fetch && frameCallWrites(fetch.call)).toBe(false)
     })
 })

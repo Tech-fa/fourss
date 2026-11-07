@@ -129,7 +129,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppButton from '../AppButton.vue'
@@ -155,6 +155,13 @@ import type {
     PaginatedResponse
 } from '@/util/interfaces'
 import { ContentType, DocumentStatus } from '@/util/interfaces'
+import { documentEditContentPath } from '@/agent/document-markdown'
+import {
+    installAgentDocumentBridge,
+    readEditorDocument,
+    readReadyDocument,
+    writeEditorMarkdown
+} from '@/agent/document-bridge'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -835,7 +842,40 @@ const handleSubmit = async () => {
     }
 }
 
+async function insertAgentDocumentContent(markdown: string) {
+    return writeEditorMarkdown(
+        () => superdocRef.value,
+        markdown,
+        () => {
+            hasSuperdocEdits.value = true
+        }
+    )
+}
+
+function agentDocumentEditPath() {
+    const versionId = fillPendingVersionId.value
+    if (!documentId.value || versionId == null) return ''
+    if (route.fullPath.includes('fillPendingVersion=')) return route.fullPath
+    return documentEditContentPath(documentId.value, versionId)
+}
+
+let releaseAgentDocument: (() => void) | null = null
+
+function syncAgentDocumentBridge() {
+    releaseAgentDocument?.()
+    releaseAgentDocument = null
+    if (isLoading.value || useLegacyForm.value) return
+    releaseAgentDocument = installAgentDocumentBridge({
+        insert: insertAgentDocumentContent,
+        editPath: agentDocumentEditPath,
+        read: () => readReadyDocument(() => readEditorDocument(superdocRef.value))
+    })
+}
+
+watch([isLoading, useLegacyForm], syncAgentDocumentBridge)
+
 onMounted(() => {
+    syncAgentDocumentBridge()
     const routeId = route.params.id as string
     documentId.value = routeId
     isEditVersion.value = route.path.includes('edit-version')
@@ -870,6 +910,11 @@ onMounted(() => {
     }
 
     fetchDocument()
+})
+
+onUnmounted(() => {
+    releaseAgentDocument?.()
+    releaseAgentDocument = null
 })
 </script>
 

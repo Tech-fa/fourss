@@ -60,7 +60,7 @@
 
                     <IconTooltipButton v-else-if="documentData?.contentType === ContentType.EDITOR" buttonStyle="secondary" test-id="edit-document-button"
                         icon-class="fa-solid fa-pen" :text="t('document.view.edit_version')"
-                        :href="`/plan/documents/${documentId}/edit-version?redirect=/plan/documents/${documentId}&fillPendingVersion=${documentData?.versions[documentData?.versions.length - 1].id}`" />
+                        :href="editContentPath(documentData?.versions[documentData?.versions.length - 1].id)" />
 
                 </Can>
 
@@ -868,7 +868,7 @@ import BreadCrums from '@/components/breadCrums.vue'
 import AppButton from '../AppButton.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRoute } from 'vue-router'
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { apiDelete, apiGet, apiPost, apiPut, apiPutFormData, renewToken } from '@/util/api'
 import type { Document, ChangeRequest, DocumentVersion } from '@/util/interfaces'
@@ -903,6 +903,12 @@ import IconTooltipButton from '../IconTooltipButton.vue'
 import Notice from '../Notice.vue'
 import AddContentContributorsDialog from './AddContentContributorsDialog.vue'
 import { userCanEditDocumentContent } from './document-content-access'
+import { documentEditContentPath } from '@/agent/document-markdown'
+import {
+    installAgentDocumentBridge,
+    readEditorDocument,
+    readReadyDocument
+} from '@/agent/document-bridge'
 import {
     versionContentDocxSource,
     type VersionContentResponse
@@ -2074,10 +2080,40 @@ const uploadVersionFile = (version: Document['versions'][number]) => {
     })
 }
 
+function editContentPath(versionId?: number) {
+    if (versionId == null) return ''
+    return documentEditContentPath(String(documentId), versionId)
+}
+
+let releaseAgentDocument: (() => void) | null = null
+
 onMounted(async () => {
+    releaseAgentDocument = installAgentDocumentBridge({
+        editPath: () => {
+            const doc = documentData.value
+            const version = doc?.versions?.[doc.versions.length - 1]
+            if (doc?.contentType !== ContentType.EDITOR || version?.id == null) return ''
+            return editContentPath(version.id)
+        },
+        read: () =>
+            readReadyDocument(
+                () => readEditorDocument(previewSuperDocRef.value),
+                () => {
+                    const doc = documentData.value
+                    if (!doc) return false
+                    if (doc.contentType !== ContentType.EDITOR) return true
+                    return previewLoadError.value
+                }
+            )
+    })
     if (!authStore.state.userDetails.fname) {
         await renewToken(authStore, true)
     }
     fetchDocument()
+})
+
+onUnmounted(() => {
+    releaseAgentDocument?.()
+    releaseAgentDocument = null
 })
 </script>

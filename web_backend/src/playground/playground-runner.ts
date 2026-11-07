@@ -21,6 +21,8 @@ export type HostBridge = {
     entityType: string,
     query: { limit?: number; cursor?: string },
   ) => Promise<unknown>;
+  schema?: (entity?: string) => Promise<unknown>;
+  query?: (query: Record<string, unknown>) => Promise<unknown>;
 };
 
 const BOOTSTRAP = `
@@ -39,6 +41,26 @@ const BOOTSTRAP = `
       },
       list: async (entityType, query) => {
         const result = await __hostList.apply(undefined, [entityType, query || {}], {
+          arguments: { copy: true },
+          result: { promise: true, copy: true }
+        });
+        if (!result || result.ok === false) {
+          throw new Error((result && result.key) + ': ' + ((result && result.message) || 'failed'));
+        }
+        return result.value;
+      },
+      schema: async (entity) => {
+        const result = await __hostSchema.apply(undefined, [entity || ''], {
+          arguments: { copy: true },
+          result: { promise: true, copy: true }
+        });
+        if (!result || result.ok === false) {
+          throw new Error((result && result.key) + ': ' + ((result && result.message) || 'failed'));
+        }
+        return result.value;
+      },
+      query: async (query) => {
+        const result = await __hostQuery.apply(undefined, [query || {}], {
           arguments: { copy: true },
           result: { promise: true, copy: true }
         });
@@ -82,6 +104,20 @@ export class PlaygroundRunner {
             query: { limit?: number; cursor?: string },
           ) => this.wrap(() => bridge.list(entityType, query || {})),
         ),
+      );
+      await jail.set(
+        "__hostSchema",
+        new ivm.Reference(async (entity: string) => {
+          if (!bridge.schema) return { ok: false, key: "PG_021", message: "Schema is not available." };
+          return this.wrap(() => bridge.schema?.(entity) as Promise<unknown>);
+        }),
+      );
+      await jail.set(
+        "__hostQuery",
+        new ivm.Reference(async (query: Record<string, unknown>) => {
+          if (!bridge.query) return { ok: false, key: "PG_021", message: "Query is not available." };
+          return this.wrap(() => bridge.query?.(query || {}) as Promise<unknown>);
+        }),
       );
       const text = await context.evalClosure(
         BOOTSTRAP,

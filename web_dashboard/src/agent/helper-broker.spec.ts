@@ -36,6 +36,8 @@ describe('agent helper confirmation', () => {
         expect(server).toContain(API_ACCESS_DESCRIPTION)
         expect(server).toContain('call api_access')
         expect(server).toContain('select_option')
+        expect(server).toContain('apply_playground')
+        expect(server).toContain('It does not publish.')
 
         const handoff = agentHandoff('http://127.0.0.1:3003/__agent-helper/mcp?token=secret')
         expect(handoff).toContain(AGENT_SERVER_NAME)

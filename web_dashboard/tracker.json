@@ -379,7 +379,6 @@
         "document.drafts.toast_delete_success",
         "document.drafts.toast_fetch_list_failed",
         "document.form.add_category",
-        "document.form.ai_accessible",
         "document.form.ai_write",
         "document.form.ai_write_cancel",
         "document.form.ai_write_empty_prompt",
@@ -1537,7 +1536,6 @@
             },
             "form": {
                 "add_category": true,
-                "ai_accessible": true,
                 "ai_write": true,
                 "ai_write_cancel": true,
                 "ai_write_empty_prompt": true,

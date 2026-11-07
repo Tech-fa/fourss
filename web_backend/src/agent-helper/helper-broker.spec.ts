@@ -73,9 +73,11 @@ describe('agent helper broker', () => {
             'api_access',
             'set_fields',
             'select_option',
+            'apply_playground',
             'submit_form'
         ])
         expect(tools.find((tool) => tool.name === 'api_access')?.description).toContain('localStorage')
+        expect(tools.find((tool) => tool.name === 'apply_playground')?.description).toContain('It does not publish.')
         expect(tools.find((tool) => tool.name === 'submit_form')?.description).toBe(SUBMIT_FORM_REFUSAL)
     })
 

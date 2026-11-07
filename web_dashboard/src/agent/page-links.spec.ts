@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import router from '@/router'
-import { agentPages, linksOnPage, type AgentRoute } from './page-links'
+import { agentPages, includeDocumentEditPath, linksOnPage, type AgentRoute } from './page-links'
 
 const authNames = new Set(['Login', 'ForgotPassword'])
 
 const routes: AgentRoute[] = [
     { name: 'Login', path: '/login' },
     { name: 'ForgotPassword', path: '/forgot-password' },
-    { name: 'Documents', path: '/plan/documents', meta: { subject: 'documents', actions: ['read'] } },
+    { name: 'Documents', path: '/plan/documents', meta: { subject: 'documents', actions: ['read'], purpose: 'List and open controlled documents.' } },
     { name: 'Edit Document', path: '/plan/documents/:id/edit', meta: { subject: 'documents', actions: ['update'] } },
     { name: 'View Template', path: '/plan/documents/settings/templates/:id', meta: { subject: 'document_templates', actions: ['read'] } },
     { path: '/admin/users', meta: { subject: 'users', actions: ['read'] } },
@@ -47,6 +47,11 @@ describe('agentPages', () => {
             currentPath: '/plan/documents',
             can: (route) => route.meta?.subject !== 'users'
         })
+        expect(pages.find((page) => page.path === '/plan/documents')).toEqual({
+            name: 'Documents',
+            path: '/plan/documents',
+            purpose: 'List and open controlled documents.'
+        })
         expect(pages.map((page) => page.path)).toContain('/plan/documents')
         expect(pages.map((page) => page.path)).toContain('/profile')
         expect(pages.map((page) => page.path)).not.toContain('/admin/users')
@@ -79,6 +84,22 @@ describe('the app router', () => {
         const paths = router.getRoutes().map((route) => route.path)
         expect(paths).toContain('/plan/documents')
         expect(paths).toContain('/profile')
+    })
+})
+
+describe('includeDocumentEditPath', () => {
+    it('lists the edit path with the version id and drops the path that has none', () => {
+        const pages = includeDocumentEditPath(
+            [
+                { name: 'View Document', path: '/plan/documents/doc-9' },
+                { name: 'Edit Version', path: '/plan/documents/doc-9/edit-version' }
+            ],
+            '/plan/documents/doc-9/edit-version?redirect=/plan/documents/doc-9&fillPendingVersion=15'
+        )
+        expect(pages.map((page) => page.path)).toEqual([
+            '/plan/documents/doc-9',
+            '/plan/documents/doc-9/edit-version?redirect=/plan/documents/doc-9&fillPendingVersion=15'
+        ])
     })
 })
 

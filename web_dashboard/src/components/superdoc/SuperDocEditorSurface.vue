@@ -1253,6 +1253,27 @@ async function exportDocx(fileName = 'document.docx') {
   return new File([restored], safeName, { type: DOCX_MIME })
 }
 
+function getMarkdown(): string | null {
+  const editor = getActiveEditor()
+  if (!editor || typeof editor.doc?.getMarkdown !== 'function') return null
+  try {
+    const value = editor.doc.getMarkdown({})
+    return typeof value === 'string' ? value : null
+  } catch {
+    return null
+  }
+}
+
+function getPlainText() {
+  const doc = getActiveEditor()?.state?.doc
+  if (!doc) return ''
+  try {
+    return doc.textBetween(0, doc.content.size, '\n', '\n')
+  } catch {
+    return ''
+  }
+}
+
 function isEmpty() {
   if (!superdoc) return true
   const html = superdoc.getHTML?.() ?? []
@@ -1595,6 +1616,8 @@ defineExpose({
   isReady,
   insertContent,
   replaceContent,
+  getMarkdown,
+  getPlainText,
   getPageStyles,
   updatePageStyle,
   setPageMargin,

@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
@@ -86,6 +86,12 @@ import {
     type VersionContentResponse
 } from '@/util/docx-content'
 import Notice from '../Notice.vue'
+import { documentEditContentPath } from '@/agent/document-markdown'
+import {
+    installAgentDocumentBridge,
+    readEditorDocument,
+    readReadyDocument
+} from '@/agent/document-bridge'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -324,7 +330,25 @@ const crumbs = computed(() => {
     ]
 })
 
+let releaseAgentDocument: (() => void) | null = null
+
 onMounted(async () => {
+    releaseAgentDocument = installAgentDocumentBridge({
+        editPath: () => {
+            const version = activeVersion.value
+            if (documentData.value?.contentType !== ContentType.EDITOR || version?.id == null) return ''
+            return documentEditContentPath(documentId, version.id)
+        },
+        read: () =>
+            readReadyDocument(
+                () => readEditorDocument(superDocRef.value),
+                () => {
+                    if (loading.value) return false
+                    if (documentData.value?.contentType !== ContentType.EDITOR) return true
+                    return !docxContentUrl.value
+                }
+            )
+    })
     try {
         if (versionId) {
             const docMeta = await apiGet<Document>(`/documents/${documentId}`, authStore)
@@ -408,6 +432,11 @@ onMounted(async () => {
     } finally {
         loading.value = false
     }
+})
+
+onUnmounted(() => {
+    releaseAgentDocument?.()
+    releaseAgentDocument = null
 })
 
 async function copyCommentLink(commentId: string) {

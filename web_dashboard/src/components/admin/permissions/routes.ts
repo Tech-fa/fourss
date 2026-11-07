@@ -5,7 +5,8 @@ export const permissionsRoutes = [
         component: () => import('./Groups.vue'),
         meta: {
             subject: 'permissions',
-            actions: ['read']
+            actions: ['read'],
+            purpose: 'List permission groups.'
         }
     },
     {
@@ -14,7 +15,8 @@ export const permissionsRoutes = [
         component: () => import('./addGroup.vue'),
         meta: {
             subject: 'permissions',
-            actions: ['create']
+            actions: ['create'],
+            purpose: 'Create a permission group.'
         }
     },
     {
@@ -23,7 +25,8 @@ export const permissionsRoutes = [
         component: () => import('./addGroup.vue'),
         meta: {
             subject: 'permissions',
-            actions: ['update']
+            actions: ['update'],
+            purpose: 'Change a permission group.'
         }
     },
     {
@@ -32,7 +35,8 @@ export const permissionsRoutes = [
         component: () => import('./addGroup.vue'),
         meta: {
             subject: 'permissions',
-            actions: ['read']
+            actions: ['read'],
+            purpose: 'Read a permission group.'
         }
     }
 ]

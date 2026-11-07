@@ -1,4 +1,7 @@
+import { readBrowserApiAccess } from './api-access'
 import { SUBMIT_FORM_REFUSAL } from './confirmation'
+import { includeDocumentEditPath } from './page-links'
+import { runAgentPlayground } from './playground-program'
 
 type ControlArgs = Record<string, unknown>
 
@@ -27,11 +30,24 @@ export function removeHelperPageControl() {
 function createBuiltins(): Record<string, (args: ControlArgs) => unknown> {
     return {
         list_pages() {
-            return { pages: pagesFrom('nav a[href], header a[href], [role=navigation] a[href]', 80) }
-        },
-        describe_page() {
-            const roots = formRoots()
             return {
+                pages: includeDocumentEditPath(
+                    pagesFrom('nav a[href], header a[href], [role=navigation] a[href]', 80),
+                    documentEditPath()
+                )
+            }
+        },
+        async describe_page() {
+            const roots = formRoots()
+            const described: {
+                url: string
+                path: string
+                title: string
+                forms: ReturnType<typeof describeRoot>[]
+                dropdowns: ReturnType<typeof listDropdowns>
+                links: Array<{ name: string; path: string }>
+                document?: string
+            } = {
                 url: location.href,
                 path: location.pathname + location.search + location.hash,
                 title: document.title,
@@ -39,6 +55,21 @@ function createBuiltins(): Record<string, (args: ControlArgs) => unknown> {
                 dropdowns: listDropdowns(document),
                 links: pagesFrom('a[href]', 40)
             }
+            const read = window.__agentReadDocumentContent
+            if (typeof read === 'function') {
+                const result = await read()
+                if (result && typeof result.markdown === 'string') {
+                    described.document = result.markdown
+                    window.__agentDocumentRead = {
+                        complete: result.complete === true,
+                        markdown: result.markdown
+                    }
+                }
+            }
+            return described
+        },
+        api_access() {
+            return readBrowserApiAccess()
         },
         navigate(args) {
             const path = typeof args.path === 'string' ? args.path.trim() : ''
@@ -49,6 +80,9 @@ function createBuiltins(): Record<string, (args: ControlArgs) => unknown> {
         },
         select_option(args) {
             return selectOption(args)
+        },
+        apply_playground(args) {
+            return runAgentPlayground(args)
         },
         set_fields(args) {
             const fields = args.fields
@@ -281,6 +315,17 @@ function describeRoot(root: HTMLFormElement | HTMLElement, index: number) {
         buttons: Array.from(root.querySelectorAll('button, input[type=submit]'))
             .map(buttonText)
             .filter(Boolean)
+    }
+}
+
+function documentEditPath() {
+    const read = window.__agentDocumentEditPath
+    if (typeof read !== 'function') return ''
+    try {
+        const value = read()
+        return typeof value === 'string' ? value : ''
+    } catch {
+        return ''
     }
 }
 

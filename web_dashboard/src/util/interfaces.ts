@@ -3674,6 +3674,7 @@ export interface StandardImplementationDocument {
     documentKey: string
     title: string
     clause: string
+    custom?: boolean
     description: string
     kind: RequiredDocumentKind
     status: ImplementationDocumentStatus
@@ -3683,6 +3684,11 @@ export interface StandardImplementationDocument {
         title: string
         documentCode: string
     } | null
+    linkedDocuments?: {
+        id: string
+        title: string
+        documentCode: string
+    }[]
     updatedAt: number
 }
 

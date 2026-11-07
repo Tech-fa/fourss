@@ -1,5 +1,6 @@
 import {
     API_ACCESS_DESCRIPTION,
+    APPLY_PLAYGROUND_DESCRIPTION,
     HELPER_OFF_MESSAGE,
     SUBMIT_FORM_REFUSAL,
     helperInstructions
@@ -14,6 +15,7 @@ const KNOWN_TOOLS = new Set([
     'api_access',
     'set_fields',
     'select_option',
+    'apply_playground',
     'submit_form'
 ])
 
@@ -427,7 +429,7 @@ function toolDefinitions() {
                 additionalProperties: false
             }
         ),
-        tool('describe_page', 'Read the page that is open: its path, forms, fields, dropdowns, and submit buttons.', {
+        tool('describe_page', 'Read the page that is open: its path, forms, fields, dropdowns, and submit buttons. When a document is open, document is the full document as markdown, including every section.', {
             type: 'object',
             properties: {},
             additionalProperties: false
@@ -439,7 +441,7 @@ function toolDefinitions() {
         }),
         tool(
             'set_fields',
-            'Set values on the form that is open. fields maps a field name, id, or label to the new value. Pass form when the page has more than one form. Document body and editor content are written into the open document editor.',
+            'Set values on the form that is open. fields maps a field name, id, or label to the new value. Pass form when the page has more than one form. Document body and editor content replace one matching section in the open document editor. Replacing the whole document is accepted only after describe_page has returned the complete markdown.',
             {
                 type: 'object',
                 properties: {
@@ -470,6 +472,27 @@ function toolDefinitions() {
                 additionalProperties: false
             }
         ),
+        tool('apply_playground', APPLY_PLAYGROUND_DESCRIPTION, {
+            type: 'object',
+            properties: {
+                html: { type: 'string', description: 'The page the user sees.' },
+                js: { type: 'string', description: 'How that page behaves in the browser.' },
+                backend: {
+                    type: 'string',
+                    description:
+                        'This playground\'s own routes, only when a request needs work on the server. Use route(method, path, async (playground, request) => result). The page calls playground.api(path, { method, body, file }).'
+                },
+                source: {
+                    type: 'string',
+                    description: 'A full app.js script. Stored with html when you write the page yourself.'
+                },
+                name: {
+                    type: 'string',
+                    description: 'Playground name to open or create when none is open.'
+                }
+            },
+            additionalProperties: false
+        }),
         tool('submit_form', SUBMIT_FORM_REFUSAL, {
             type: 'object',
             properties: {
@@ -503,6 +526,12 @@ function invalidArguments(name: string, args: Record<string, unknown>) {
         const option = typeof args.option === 'string' ? args.option.trim() : ''
         if (!field) return 'field is required.'
         if (!option) return 'option is required.'
+    }
+    if (name === 'apply_playground') {
+        const html = typeof args.html === 'string' ? args.html.trim() : ''
+        const backend = typeof args.backend === 'string' ? args.backend.trim() : ''
+        const source = typeof args.source === 'string' ? args.source.trim() : ''
+        if (!html && !backend && !source) return 'html, backend, or source is required.'
     }
     return ''
 }
