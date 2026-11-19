@@ -12,6 +12,7 @@ import { In, IsNull, Like, Not, Repository } from "typeorm";
 import { Document, ContentType } from "./document.entity";
 import { DocumentType } from "./document-type.entity";
 import { DocumentVersion } from "./document-version.entity";
+import { sanitizeDiagramMap } from "./document-diagrams";
 import {
   DocumentTypeDto,
   DocumentFilterDto,
@@ -295,6 +296,7 @@ export class DocumentService implements NotificationInfo, OnModuleInit {
       documentDraftId,
       checklist: checklistInput,
       processIds,
+      diagrams: rawDiagrams,
       ...dtoBody
     } = dto;
     const contentType = dtoBody.contentType || ContentType.FILE;
@@ -414,6 +416,7 @@ export class DocumentService implements NotificationInfo, OnModuleInit {
         changes: dtoBody.changes || undefined,
         createdBy: { id: user.id },
         createdById: user.id,
+        diagrams: sanitizeDiagramMap(rawDiagrams),
         status: await this.resolveInitialWorkflowStatus(
           approvalStrategy,
           team.id,
@@ -4782,6 +4785,7 @@ export class DocumentService implements NotificationInfo, OnModuleInit {
         file: "",
         changes: dtoBody.changes || null,
         createdBy: { id: user.id },
+        diagrams: sanitizeDiagramMap(dto.diagrams),
         status: await this.resolveInitialWorkflowStatus(
           approvalStrategy,
           document.team.id,
@@ -5186,6 +5190,9 @@ export class DocumentService implements NotificationInfo, OnModuleInit {
       version.content = fileUrl;
       if (dto.changes !== undefined) {
         version.changes = dto.changes || null;
+      }
+      if (dto.diagrams !== undefined) {
+        version.diagrams = sanitizeDiagramMap(dto.diagrams);
       }
       await this.applyWorkflowStatusAfterFirstVersionFill(
         document,
@@ -5702,6 +5709,7 @@ export class DocumentService implements NotificationInfo, OnModuleInit {
       title: draft.title,
       documentId: draft.documentId,
       documentVersionId: draft.documentVersionId,
+      diagrams: draft.diagrams ?? null,
     };
 
     if (draft.content) {
@@ -5804,6 +5812,9 @@ export class DocumentService implements NotificationInfo, OnModuleInit {
 
         draft.content = contentUrl;
         draft.updatedAt = new Date().valueOf();
+        if (dto.diagrams !== undefined) {
+          draft.diagrams = sanitizeDiagramMap(dto.diagrams);
+        }
         await this.documentDraftRepository.save(draft);
         return { id: draft.id };
       }
@@ -5828,6 +5839,7 @@ export class DocumentService implements NotificationInfo, OnModuleInit {
         content: contentUrl,
         documentId: resolvedDocumentId,
         documentVersionId,
+        diagrams: sanitizeDiagramMap(createDto.diagrams),
         createdBy: { id: user.id } as User,
         createdById: user.id,
         createdAt: now,

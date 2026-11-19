@@ -26,8 +26,15 @@
                 </p>
             </div>
             <p class="text-sm leading-6 text-neutral-700">
-                Turn it on, then copy the text below into Cursor or Claude Code. That text tells the agent to ask this
-                tab for the OpenAPI document and the login token, and to stop so you can confirm.
+                <template v-if="hosted">
+                    Buho keeps the helper on for this tab. Copy the text below into Cursor or Claude Code if another
+                    agent needs it.
+                </template>
+                <template v-else>
+                    Turn it on, then copy the text below into Cursor or Claude Code. That text tells the agent how to
+                    create an audit program, its schedule entries, an audit instance, and a checklist. It also tells the
+                    agent to ask this tab for the OpenAPI document and the login token, and to stop so you can confirm.
+                </template>
             </p>
             <p class="text-sm text-neutral-800" aria-live="polite">{{ statusText }}</p>
             <div v-if="handoff" class="space-y-2">
@@ -51,25 +58,27 @@
             <AppButton button-style="secondary" type="button" test-id="agent-helper-close" @click="onClose">
                 Close
             </AppButton>
-            <AppButton
-                v-if="!state.enabled"
-                button-style="primary"
-                type="button"
-                :loading="turningOn"
-                test-id="agent-helper-turn-on"
-                @click="turnOn"
-            >
-                Turn on
-            </AppButton>
-            <AppButton
-                v-else
-                button-style="secondary"
-                type="button"
-                test-id="agent-helper-turn-off"
-                @click="turnOff"
-            >
-                Turn off
-            </AppButton>
+            <template v-if="!hosted">
+                <AppButton
+                    v-if="!state.enabled"
+                    button-style="primary"
+                    type="button"
+                    :loading="turningOn"
+                    test-id="agent-helper-turn-on"
+                    @click="turnOn"
+                >
+                    Turn on
+                </AppButton>
+                <AppButton
+                    v-else
+                    button-style="secondary"
+                    type="button"
+                    test-id="agent-helper-turn-off"
+                    @click="turnOff"
+                >
+                    Turn off
+                </AppButton>
+            </template>
             <AppButton
                 v-if="handoff"
                 button-style="primary"
@@ -88,13 +97,14 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppButton from '@/components/AppButton.vue'
 import { agentHandoff } from '@/agent/confirmation'
-import { agentHelperState, setAgentHelperEnabled, subscribeAgentHelper, type AgentHelperState } from '@/agent/helper-client'
+import { agentHelperState, hostedByBuho, setAgentHelperEnabled, subscribeAgentHelper, type AgentHelperState } from '@/agent/helper-client'
 
 defineProps<{
     onClose: () => void
 }>()
 
 const { locale } = useI18n()
+const hosted = hostedByBuho()
 const state = ref<AgentHelperState>(agentHelperState())
 const turningOn = ref(false)
 const copied = ref(false)

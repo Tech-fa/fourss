@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SUBMIT_FORM_REFUSAL } from './confirmation'
 import {
+    agentHelperAuthChanged,
     agentHelperState,
     bootAgentHelper,
     executeAgentCall,
@@ -35,6 +36,7 @@ function hang(signal?: AbortSignal) {
 
 describe('agent helper client', () => {
     afterEach(async () => {
+        delete window.__buhoHost
         await setAgentHelperEnabled(false)
         sessionStorage.clear()
         localStorage.removeItem('auth')
@@ -42,7 +44,70 @@ describe('agent helper client', () => {
         delete window.__appControl
         delete window.__appControlHooks
         delete window.__bindAgentPageLinks
+        delete window.__buhoOffer
         document.body.innerHTML = ''
+    })
+
+    it('leaves the helper off in a regular browser', async () => {
+        const fetchMock = vi.fn()
+        vi.stubGlobal('fetch', fetchMock)
+
+        bootAgentHelper({ push: async () => undefined })
+        await Promise.resolve()
+
+        expect(fetchMock).not.toHaveBeenCalled()
+        expect(agentHelperState().status).toBe('off')
+    })
+
+    it('turns the helper on inside Buho and keeps it on', async () => {
+        window.__buhoHost = true
+        localStorage.setItem('auth', JSON.stringify({ token: 'Bearer browser-token' }))
+        vi.stubGlobal(
+            'fetch',
+            vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+                const url = String(input)
+                if (url.includes('/session')) return Promise.resolve(jsonResponse({ token: 'secret' }))
+                if (url.includes('/wait')) return hang(init?.signal ?? undefined)
+                return Promise.resolve(jsonResponse({ ok: true }))
+            })
+        )
+
+        bootAgentHelper({ push: async () => undefined })
+
+        await vi.waitFor(() => expect(agentHelperState().status).toBe('connected'))
+        expect(sessionStorage.getItem('fourss.agentHelper')).toBeNull()
+        expect(window.__buhoOffer?.mcp?.url).toContain('token=secret')
+
+        await setAgentHelperEnabled(false)
+
+        expect(agentHelperState().status).toBe('connected')
+        expect(window.__buhoOffer?.mcp?.url).toContain('token=secret')
+    })
+
+    it('connects inside Buho after sign-in', async () => {
+        window.__buhoHost = true
+        let signedIn = false
+        vi.stubGlobal(
+            'fetch',
+            vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+                const url = String(input)
+                if (url.includes('/session')) {
+                    return Promise.resolve(signedIn ? jsonResponse({ token: 'secret' }) : jsonResponse({ error: 'no' }, 401))
+                }
+                if (url.includes('/wait')) return hang(init?.signal ?? undefined)
+                return Promise.resolve(jsonResponse({ ok: true }))
+            })
+        )
+
+        bootAgentHelper({ push: async () => undefined })
+        await vi.waitFor(() => expect(agentHelperState().status).toBe('unavailable'))
+        expect(agentHelperState().message).toBe('Sign in to connect the agent helper.')
+
+        signedIn = true
+        localStorage.setItem('auth', JSON.stringify({ token: 'Bearer browser-token' }))
+        agentHelperAuthChanged()
+
+        await vi.waitFor(() => expect(agentHelperState().status).toBe('connected'))
     })
 
     it('restores a turned-on helper after reload', async () => {
@@ -70,6 +135,14 @@ describe('agent helper client', () => {
         )
         expect(agentHelperState().mcpUrl).toBe('https://api.example.com/__agent-helper/mcp?token=secret')
         expect(agentHelperState().enabled).toBe(true)
+        expect(window.__buhoOffer).toEqual({
+            mcp: { name: 'fourss', url: 'https://api.example.com/__agent-helper/mcp?token=secret' }
+        })
+
+        await setAgentHelperEnabled(true)
+        expect(window.__buhoOffer).toEqual({
+            mcp: { name: 'fourss', url: 'https://api.example.com/__agent-helper/mcp?token=secret' }
+        })
     })
 
     it('fills the open page and refuses to confirm it', async () => {
@@ -198,6 +271,7 @@ describe('agent helper client', () => {
 
         await vi.waitFor(() => expect(calls.some((url) => url.includes('/release'))).toBe(true))
         expect(agentHelperState().status).toBe('off')
+        expect(window.__buhoOffer).toBeUndefined()
         expect(sessionStorage.getItem('fourss.agentHelper')).toBe('on')
 
         window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))

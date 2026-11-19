@@ -72,11 +72,18 @@
       </div>
     </div>
     <div id="editor" ref="editorRef" />
+    <DocumentDiagramDialog
+      v-if="diagramOpen"
+      :insert-image="insertDiagramImage"
+      :initial-diagram="editingDiagram"
+      :editing="editingDiagramId != null"
+      @close="closeDiagram"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { attachAutoParagraphDirection, wireAutoParagraphDirection } from './utils/autoParagraphDirection'
 import {
   attachPageNumberKeyboardEscape,
@@ -87,6 +94,15 @@ import {
   wirePageNumberKeyboardEscape,
 } from './utils/pageNumber'
 import { SUPERDOC_FONT_CONFIGS } from './utils/superdoc-fonts'
+import DocumentDiagramDialog from './diagram/DocumentDiagramDialog.vue'
+import type { DiagramImage } from './diagram/diagram-image'
+import {
+  diagramIdFromImageTitle,
+  diagramImageTitle,
+  normalizeDiagramMap,
+  type Diagram,
+  type DiagramMap,
+} from './diagram/diagram-model'
 import {
   findBlockScrollPos,
   findCanonicalNodeIdInDoc,
@@ -142,6 +158,9 @@ const PAGE_BREAK_ICON =
 const PAGE_NUMBER_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" fill="currentColor" aria-hidden="true"><path d="M64 464c-8.8 0-16-7.2-16-16V64c0-8.8 7.2-16 16-16H224v80c0 17.7 14.3 32 32 32h80V448c0 8.8-7.2 16-16 16H64zM384 263.4L280.4 159.8c-4.2-4.2-10.3-6.6-16.4-6.6H256V64c0-8.8 7.2-16 16-16h32V160c0 17.7 14.3 32 32 32h112V263.4zM128 352h32v32H128v-32zm64 0h128v32H192v-32zM128 288h32v32H128v-32zm64 0h96v32H192v-32z"/></svg>'
 
+const DIAGRAM_ICON =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="8" y="2" width="8" height="5" rx="1"/><rect x="2" y="17" width="8" height="5" rx="1"/><rect x="14" y="17" width="8" height="5" rx="1"/><path d="M11 7h2v4h5v2h-5v4h-2v-4H6v-2h5V7z" fill="none"/><path d="M12 7v4M6 15.5V12h12v3.5M12 11H6M12 11h6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>'
+
 const AI_WRITE_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" fill="currentColor" aria-hidden="true"><path d="M234.7 42.7L197 56.8c-3 1.1-5 4-5 7.2s2 6.1 5 7.2l37.7 14.1L248.8 123c1.1 3 4 5 7.2 5s6.1-2 7.2-5l14.1-37.7L315 71.2c3-1.1 5-4 5-7.2s-2-6.1-5-7.2L277.3 42.7 263.2 5c-1.1-3-4-5-7.2-5s-6.1 2-7.2 5L234.7 42.7zM46.1 395.4c-18.7 18.7-18.7 49.1 0 67.9l34.6 34.6c18.7 18.7 49.1 18.7 67.9 0L397.5 248.1c-28.2-23.2-52.5-47.6-75.7-75.8L46.1 395.4zM484.6 25.9C462 3.3 426.2 3.3 403.6 25.9L366.3 63.2c28.2 23.2 52.5 47.6 75.8 75.8l37.2-37.2c22.6-22.6 22.6-58.4 0-81C479.3 20.8 479.3 20.8 484.6 25.9z"/></svg>'
 
@@ -169,6 +188,7 @@ const props = withDefaults(
     horizontalPageScroll?: boolean
     generateAiContent?: (request: SuperDocAiWriteRequest) => Promise<SuperDocAiWriteResult>
     labels: SuperDocLabels
+    diagrams?: DiagramMap
   }>(),
   {
     document: null,
@@ -186,6 +206,7 @@ const props = withDefaults(
     showReaderMask: false,
     showAiWrite: false,
     horizontalPageScroll: false,
+    diagrams: () => ({}),
   },
 )
 
@@ -198,6 +219,7 @@ const emit = defineEmits<{
   highlightSaved: []
   copyCommentLinkRequest: [commentId: string]
   copyNodeLinkRequest: [payload: { nodeId: string; offset?: number }]
+  diagrams: [diagrams: DiagramMap]
 }>()
 
 const toolbarRef = ref<HTMLElement | null>(null)
@@ -227,6 +249,7 @@ let removePageNumberDropdownGuard: (() => void) | null = null
 let commentCopyLinkObserver: MutationObserver | null = null
 let nodeContextMenuEl: HTMLElement | null = null
 let activeContextMenuNodeId: string | null = null
+let activeContextMenuDiagramId: string | null = null
 let activeContextMenuNodeOffset: number | null = null
 let removeNodeContextMenuListeners: (() => void) | null = null
 let lastHighlightSignature = ''
@@ -616,6 +639,247 @@ function isAiWriteAvailable() {
   return Boolean(props.showAiWrite && props.generateAiContent && canMutateDocument() && showToolbarChrome())
 }
 
+const diagramOpen = ref(false)
+const editingDiagramId = ref<string | null>(null)
+const diagramStore = ref<DiagramMap>(normalizeDiagramMap(props.diagrams))
+
+watch(
+  () => props.diagrams,
+  (value) => {
+    diagramStore.value = normalizeDiagramMap(value)
+  }
+)
+
+const editingDiagram = computed(() =>
+  editingDiagramId.value ? diagramStore.value[editingDiagramId.value] ?? null : null
+)
+
+function openDiagram(existingId?: string | null) {
+  if (!canMutateDocument()) return
+  editingDiagramId.value = existingId && diagramStore.value[existingId] ? existingId : null
+  diagramOpen.value = true
+}
+
+function closeDiagram() {
+  diagramOpen.value = false
+  editingDiagramId.value = null
+}
+
+function diagramIdFromNode(node: { type?: { name?: string }; attrs?: { title?: unknown; sdImageId?: unknown } } | null | undefined) {
+  if (!node || node.type?.name !== 'image') return null
+  const fromTitle = diagramIdFromImageTitle(node.attrs?.title)
+  if (fromTitle && diagramStore.value[fromTitle]) return fromTitle
+  const imageId = node.attrs?.sdImageId
+  if (typeof imageId === 'string' && diagramStore.value[imageId]) return imageId
+  return null
+}
+
+function selectedDiagramId() {
+  const selection = getActiveEditor()?.state?.selection
+  if (!selection) return null
+  const selected = diagramIdFromNode(selection.node)
+  if (selected) return selected
+  const around = [selection.$from?.nodeAfter, selection.$from?.nodeBefore]
+  for (const node of around) {
+    const id = diagramIdFromNode(node)
+    if (id) return id
+  }
+  return null
+}
+
+function diagramIdNearPos(doc: { nodeAt: (pos: number) => unknown; resolve: (pos: number) => { nodeAfter?: unknown; nodeBefore?: unknown }; content: { size: number } }, pos: number) {
+  const clamped = Math.max(0, Math.min(pos, doc.content.size))
+  const direct = doc.nodeAt(clamped)
+  const resolved = doc.resolve(clamped)
+  return (
+    diagramIdFromNode(direct as Parameters<typeof diagramIdFromNode>[0]) ||
+    diagramIdFromNode(resolved.nodeAfter as Parameters<typeof diagramIdFromNode>[0]) ||
+    diagramIdFromNode(resolved.nodeBefore as Parameters<typeof diagramIdFromNode>[0])
+  )
+}
+
+function diagramIdAtEvent(event: MouseEvent) {
+  const view = getActiveEditor()?.view
+  const doc = view?.state?.doc
+  if (!view || !doc?.resolve || !doc.nodeAt) return null
+  const positions: number[] = []
+  const fromCoords = view.posAtCoords?.({ left: event.clientX, top: event.clientY })
+  if (typeof fromCoords?.pos === 'number') positions.push(fromCoords.pos)
+  if (typeof view.posAtDOM === 'function' && event.target instanceof Node) {
+    try {
+      positions.push(view.posAtDOM(event.target, 0))
+    } catch {
+      // The click is outside the editor document.
+    }
+  }
+  for (const pos of positions) {
+    const id = diagramIdNearPos(doc, pos)
+    if (id) return id
+  }
+  return null
+}
+
+function diagramIdInMap(id: string | null) {
+  return id && diagramStore.value[id] ? id : null
+}
+
+function diagramImagesInDocument() {
+  const images: { id: string; src: string }[] = []
+  getActiveEditor()?.state?.doc?.descendants?.((node: { type?: { name?: string }; attrs?: { title?: unknown; sdImageId?: unknown; src?: unknown } }) => {
+    if (node.type?.name !== 'image') return
+    const id = diagramIdFromNode(node)
+    if (!id) return
+    images.push({ id, src: typeof node.attrs?.src === 'string' ? node.attrs.src : '' })
+  })
+  return images
+}
+
+function sameImageSource(left: string, right: string) {
+  if (!left || !right) return false
+  if (left === right) return true
+  if (left.startsWith('data:image') && right.startsWith('data:image')) {
+    return left.length === right.length && left.slice(0, 160) === right.slice(0, 160)
+  }
+  return false
+}
+
+function imageElementAt(event: MouseEvent) {
+  const seen = document.elementsFromPoint?.(event.clientX, event.clientY) ?? []
+  for (const element of seen) {
+    if (!(element instanceof Element)) continue
+    if (element instanceof HTMLImageElement) return element
+    const isImageHost =
+      element.classList.contains('superdoc-inline-image') ||
+      element.classList.contains('superdoc-image-fragment') ||
+      element.hasAttribute('data-image-metadata')
+    if (!isImageHost) continue
+    const nested = element.querySelector('img')
+    if (nested instanceof HTMLImageElement) return nested
+  }
+  const target = event.target instanceof Element ? event.target : null
+  const host = target?.closest('img, .superdoc-inline-image, .superdoc-image-fragment, [data-image-metadata]')
+  if (host instanceof HTMLImageElement) return host
+  const nested = host?.querySelector('img')
+  return nested instanceof HTMLImageElement ? nested : null
+}
+
+function diagramIdFromImageElement(image: HTMLImageElement | null) {
+  if (!image) return null
+  const stamped = diagramIdInMap(image.getAttribute('data-diagram-id'))
+  if (stamped) return stamped
+  const fromTitle = diagramIdInMap(diagramIdFromImageTitle(image.getAttribute('title')))
+  if (fromTitle) return fromTitle
+  const src = image.currentSrc || image.getAttribute('src') || image.src
+  return diagramImagesInDocument().find((entry) => sameImageSource(entry.src, src) || sameImageSource(entry.src, image.src))?.id ?? null
+}
+
+function diagramIdFromPointer(event: MouseEvent) {
+  return diagramIdFromImageElement(imageElementAt(event)) || diagramIdAtEvent(event)
+}
+
+function stampDiagramImages() {
+  const root = editorRef.value
+  if (!root) return
+  const images = diagramImagesInDocument()
+  root.querySelectorAll('img').forEach((image) => {
+    const fromTitle = diagramIdInMap(diagramIdFromImageTitle(image.getAttribute('title')))
+    const fromSrc = images.find((entry) => sameImageSource(entry.src, image.src) || sameImageSource(entry.src, image.getAttribute('src') || ''))?.id
+    const id = fromTitle || fromSrc
+    if (id) image.setAttribute('data-diagram-id', id)
+    else image.removeAttribute('data-diagram-id')
+  })
+}
+
+function pointerIsOnImage(event: MouseEvent) {
+  const target = event.target
+  if (!(target instanceof Element)) return false
+  return Boolean(target.closest('img, .superdoc-inline-image, .superdoc-image-fragment, [data-image-metadata]'))
+}
+
+function findDiagramImage(editor: any, id: string) {
+  let found: { node: any; pos: number } | null = null
+  editor.state?.doc?.descendants?.((node: any, pos: number) => {
+    if (diagramIdFromNode(node) !== id) return
+    found = { node, pos }
+    return false
+  })
+  return found
+}
+
+function rememberDiagram(id: string, diagram: Diagram) {
+  diagramStore.value = { ...diagramStore.value, [id]: diagram }
+  emit('diagrams', { ...diagramStore.value })
+}
+
+function getDiagrams() {
+  const editor = getActiveEditor()
+  const doc = editor?.state?.doc
+  if (!doc?.descendants) return { ...diagramStore.value }
+  const used = new Set<string>()
+  doc.descendants((node: { type?: { name?: string }; attrs?: { title?: unknown; sdImageId?: unknown } }) => {
+    const id = diagramIdFromNode(node)
+    if (id) used.add(id)
+  })
+  const next: DiagramMap = {}
+  for (const id of used) {
+    if (diagramStore.value[id]) next[id] = diagramStore.value[id]
+  }
+  return next
+}
+
+function diagramImageOptions(id: string, image: DiagramImage) {
+  const maxWidth = 600
+  const scale = image.width > maxWidth ? maxWidth / image.width : 1
+  return {
+    src: image.src,
+    alt: image.alt,
+    title: diagramImageTitle(id),
+    sdImageId: id,
+    size: {
+      width: Math.max(1, Math.round(image.width * scale)),
+      height: Math.max(1, Math.round(image.height * scale)),
+    },
+  }
+}
+
+function insertNewDiagramImage(editor: any, options: ReturnType<typeof diagramImageOptions>) {
+  const chain = typeof editor.chain === 'function' ? editor.chain() : null
+  if (chain && typeof chain.setImage === 'function') {
+    return Boolean(chain.setImage(options).run())
+  }
+  if (typeof editor.commands?.setImage === 'function') {
+    return Boolean(editor.commands.setImage(options))
+  }
+  return false
+}
+
+function replaceDiagramImage(editor: any, id: string, options: ReturnType<typeof diagramImageOptions>) {
+  const found = findDiagramImage(editor, id)
+  if (!found || !editor.state?.tr || typeof editor.view?.dispatch !== 'function') return false
+  const replacement = found.node.type.create({ ...found.node.attrs, ...options })
+  editor.view.dispatch(editor.state.tr.replaceWith(found.pos, found.pos + found.node.nodeSize, replacement))
+  return true
+}
+
+function insertDiagramImage(image: DiagramImage) {
+  const editor = getActiveEditor()
+  if (!editor) return false
+  const id = editingDiagramId.value ?? crypto.randomUUID()
+  const options = diagramImageOptions(id, image)
+  try {
+    const inserted = editingDiagramId.value
+      ? replaceDiagramImage(editor, id, options)
+      : insertNewDiagramImage(editor, options)
+    if (!inserted) return false
+    rememberDiagram(id, image.diagram)
+    emit('update')
+    return true
+  } catch (error) {
+    console.error('Diagram insert failed', error)
+    return false
+  }
+}
+
 function openAiPrompt() {
   if (!isAiWriteAvailable() || aiWriting.value) return
   const editor = getActiveEditor()
@@ -889,6 +1153,7 @@ function handleEditorReady() {
   })
   isReady.value = true
   lastHighlightSignature = getHighlightSignature(getActiveEditor())
+  nextTick(() => stampDiagramImages())
   wireReaderMaskPaint()
   wireReaderMaskSelection()
   emit('ready')
@@ -909,6 +1174,7 @@ function syncEditorChrome() {
 }
 
 function handleEditorUpdate(params: any) {
+  nextTick(() => stampDiagramImages())
   if (params?.surface) {
     hfSurface.value = params.surface
     if (params.surface === 'body') {
@@ -1215,6 +1481,23 @@ function buildToolbarConfig() {
     })
   }
 
+  if (canMutateDocument()) {
+    customButtons.push({
+      type: 'button',
+      name: 'insertDiagram',
+      group: 'left',
+      icon: DIAGRAM_ICON,
+      tooltip: props.labels.insertDiagram,
+      allowWithoutEditor: false,
+      restoreEditorFocus: false,
+      command: () => openDiagram(selectedDiagramId()),
+      attributes: {
+        ariaLabel: props.labels.insertDiagram,
+        'test-id': 'document-insert-diagram-button',
+      },
+    })
+  }
+
   if (canEditReaderMask()) {
     customButtons.push(readerMaskToolbarButton())
   }
@@ -1411,9 +1694,24 @@ function createContextMenuDivider() {
   return divider
 }
 
-function populateNodeContextMenu(options: { showCopyLink: boolean; showHighlight: boolean; showMask: boolean }) {
+function populateNodeContextMenu(options: {
+  showCopyLink: boolean
+  showHighlight: boolean
+  showMask: boolean
+  showEditDiagram: boolean
+}) {
   const menu = ensureNodeContextMenuShell()
   menu.replaceChildren()
+
+  if (options.showEditDiagram && activeContextMenuDiagramId) {
+    const editButton = createContextMenuButton(props.labels.editDiagram, () => {
+      const id = activeContextMenuDiagramId
+      hideNodeContextMenu()
+      if (id) openDiagram(id)
+    })
+    editButton.setAttribute('test-id', 'document-diagram-edit-menu')
+    menu.appendChild(editButton)
+  }
 
   if (options.showHighlight) {
     const heading = document.createElement('div')
@@ -1449,7 +1747,7 @@ function populateNodeContextMenu(options: { showCopyLink: boolean; showHighlight
   }
 
   if (options.showMask) {
-    if (options.showHighlight) menu.appendChild(createContextMenuDivider())
+    if (options.showHighlight || options.showEditDiagram) menu.appendChild(createContextMenuDivider())
     const maskButton = createContextMenuButton(
       selectionIsFullyMasked(getActiveEditor()) ? props.labels.readerUnmask : props.labels.readerMask,
       () => {
@@ -1462,7 +1760,7 @@ function populateNodeContextMenu(options: { showCopyLink: boolean; showHighlight
   }
 
   if (options.showCopyLink && activeContextMenuNodeId) {
-    if (options.showHighlight || options.showMask) menu.appendChild(createContextMenuDivider())
+    if (options.showHighlight || options.showMask || options.showEditDiagram) menu.appendChild(createContextMenuDivider())
     menu.appendChild(
       createContextMenuButton(
         props.labels.copyParagraphLink,
@@ -1483,17 +1781,20 @@ function hideNodeContextMenu() {
   if (nodeContextMenuEl) nodeContextMenuEl.style.display = 'none'
   activeContextMenuNodeId = null
   activeContextMenuNodeOffset = null
+  activeContextMenuDiagramId = null
 }
 
 function showNodeContextMenu(
   x: number,
   y: number,
-  options: { showCopyLink: boolean; showHighlight: boolean; showMask: boolean },
+  options: { showCopyLink: boolean; showHighlight: boolean; showMask: boolean; showEditDiagram: boolean },
   nodeId: string | null = null,
-  offset = 0
+  offset = 0,
+  diagramId: string | null = null
 ) {
   activeContextMenuNodeId = nodeId
   activeContextMenuNodeOffset = offset > 0 ? offset : null
+  activeContextMenuDiagramId = diagramId
   populateNodeContextMenu(options)
 
   const menu = ensureNodeContextMenuShell()
@@ -1518,9 +1819,27 @@ function onEditorContextMenu(event: MouseEvent) {
   const nodeId =
     pointerTarget?.nodeId ??
     (target instanceof Element ? getNodeIdFromElement(target) : null)
-  const showHighlight = isHighlightToolbarMode() && hasHighlightableSelection(getActiveEditor())
-  const showMask = canEditReaderMask() && hasHighlightableSelection(getActiveEditor())
-  const showCopyLink = Boolean(nodeId)
+  stampDiagramImages()
+  const onImage = pointerIsOnImage(event)
+  const diagramId = diagramIdFromPointer(event)
+  if (diagramId && canMutateDocument()) {
+    event.preventDefault()
+    event.stopPropagation()
+    event.stopImmediatePropagation()
+    showNodeContextMenu(
+      event.clientX,
+      event.clientY,
+      { showCopyLink: false, showHighlight: false, showMask: false, showEditDiagram: true },
+      null,
+      0,
+      diagramId
+    )
+    return
+  }
+
+  const showHighlight = isHighlightToolbarMode() && hasHighlightableSelection(getActiveEditor()) && !onImage
+  const showMask = canEditReaderMask() && hasHighlightableSelection(getActiveEditor()) && !onImage
+  const showCopyLink = Boolean(nodeId) && !onImage
 
   if (!showHighlight && !showCopyLink && !showMask) {
     hideNodeContextMenu()
@@ -1532,7 +1851,7 @@ function onEditorContextMenu(event: MouseEvent) {
   showNodeContextMenu(
     event.clientX,
     event.clientY,
-    { showCopyLink, showHighlight, showMask },
+    { showCopyLink, showHighlight, showMask, showEditDiagram: false },
     nodeId,
     pointerTarget?.offset ?? 0
   )
@@ -1571,6 +1890,7 @@ function disconnectNodeContextMenu() {
   nodeContextMenuEl?.remove()
   nodeContextMenuEl = null
   activeContextMenuNodeId = null
+  activeContextMenuDiagramId = null
 }
 
 function hasComments(): boolean {
@@ -1624,6 +1944,7 @@ defineExpose({
   scrollToComment,
   scrollToElement,
   hasComments,
+  getDiagrams,
 })
 
 function getCommentIdFromDialog(dialog: Element): string | null {
@@ -1809,6 +2130,7 @@ onUnmounted(() => {
   oleRestoreEntries = []
   aiPromptOpen.value = false
   aiWriting.value = false
+  diagramOpen.value = false
   superdoc?.destroy()
   superdoc = null
 })
@@ -1863,6 +2185,19 @@ onUnmounted(() => {
 :deep(.sd-reader-mask-hidden::selection) {
   background: #111827;
   color: #111827;
+}
+
+:deep(.sd-reader-mask-hidden) img,
+:deep(.sd-reader-mask-hidden) .superdoc-inline-image,
+:deep(.sd-reader-mask-hidden) .superdoc-image-fragment,
+:deep(.sd-reader-mask-marked) img,
+:deep(.sd-reader-mask-marked) .superdoc-inline-image,
+:deep(.sd-reader-mask-marked) .superdoc-image-fragment {
+  background: transparent !important;
+  color: initial !important;
+  -webkit-text-fill-color: initial !important;
+  user-select: auto !important;
+  -webkit-user-select: auto !important;
 }
 
 #toolbar {

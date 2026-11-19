@@ -39,7 +39,6 @@ export const sectionMap: Record<PdcaSectionKey, string[]> = {
         'audit_personnels',
         'audit_roles',
         'audit_activity_types',
-        'audit_criteria',
         'audit_document_types',
         'audit_programs',
         'audit_instances',

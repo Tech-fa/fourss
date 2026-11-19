@@ -42,5 +42,6 @@ export class QueueModule {
     await this.producer.createQueue(Events.OBJECTIVE_PI_STATUS_SYNC);
     await this.producer.createQueue(Events.DOCUMENT_AI_INDEX);
     await this.producer.createQueue(Events.CLIENT_LLM_USAGE);
+    await this.producer.createQueue(Events.INTEGRATION_EVENT);
   }
 }

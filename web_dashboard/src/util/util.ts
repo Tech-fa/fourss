@@ -285,6 +285,46 @@ export const formatDateToInput = (date: number): string => {
     const newDate =  DateTime.fromMillis(+date).setZone('utc').toFormat('yyyy-MM-dd')
     return newDate;
 }
+
+export const programPeriodBounds = (startDate?: number, duration?: number) => {
+    const startMs = Number(startDate)
+    const years = Number(duration)
+    if (!Number.isFinite(startMs) || startMs <= 0 || !Number.isInteger(years) || years < 1) {
+        return undefined
+    }
+    const start = DateTime.fromMillis(startMs, { zone: 'utc' })
+    const end = start.plus({ years }).minus({ days: 1 })
+    return { start, end }
+}
+
+export const programCoveredYears = (startDate?: number, duration?: number): number[] => {
+    const bounds = programPeriodBounds(startDate, duration)
+    if (!bounds) return []
+    const years: number[] = []
+    for (let year = bounds.start.year; year <= bounds.end.year; year += 1) {
+        years.push(year)
+    }
+    return years
+}
+
+export const scheduleMonthInProgram = (
+    startDate?: number,
+    duration?: number,
+    year?: number,
+    month?: number
+): boolean => {
+    const bounds = programPeriodBounds(startDate, duration)
+    if (!bounds || !year || !month) return false
+    const slot = year * 12 + month
+    const startSlot = bounds.start.year * 12 + bounds.start.month
+    const endSlot = bounds.end.year * 12 + bounds.end.month
+    return slot >= startSlot && slot <= endSlot
+}
+
+export const dateInputToUtcMillis = (value: string): number => {
+    const [year, month, day] = value.split('-').map(Number)
+    return Date.UTC(year, (month || 1) - 1, day || 1)
+}
 export const formatDateToInputWithTime = (date: number): string => {
     return DateTime.fromMillis(+date).setZone('utc').toFormat("yyyy-MM-dd'T'HH:mm")
 }

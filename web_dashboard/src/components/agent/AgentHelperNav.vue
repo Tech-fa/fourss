@@ -8,6 +8,7 @@
             <span class="truncate">Agent helper</span>
         </button>
         <button
+            v-if="!hosted"
             type="button"
             role="switch"
             class="relative h-6 w-11 shrink-0 rounded-full"
@@ -30,8 +31,9 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useDialog } from '@/stores/dialog'
 import AgentHelperDialog from './AgentHelperDialog.vue'
-import { agentHelperState, setAgentHelperEnabled, subscribeAgentHelper, type AgentHelperState } from '@/agent/helper-client'
+import { agentHelperState, hostedByBuho, setAgentHelperEnabled, subscribeAgentHelper, type AgentHelperState } from '@/agent/helper-client'
 
+const hosted = hostedByBuho()
 const dialog = useDialog()
 const state = ref<AgentHelperState>(agentHelperState())
 let unsubscribe = () => {}

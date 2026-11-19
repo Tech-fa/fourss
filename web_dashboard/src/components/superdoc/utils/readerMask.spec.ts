@@ -140,6 +140,24 @@ describe('paintReaderMasks', () => {
     expect(editing.getAttribute('aria-label')).toBeNull()
     expect(editing.textContent).toBe('secret')
   })
+
+  it('leaves images visible when the surrounding text is masked', () => {
+    const root = document.createElement('div')
+    const run = document.createElement('span')
+    run.className = 'superdoc-text-run'
+    run.style.backgroundColor = READER_MASK_COLOR
+    const image = document.createElement('img')
+    image.className = 'superdoc-inline-image'
+    image.alt = 'Organization chart'
+    run.append(image)
+    root.append(run)
+
+    paintReaderMasks(root, { hidden: true, hiddenLabel: 'Hidden' })
+
+    expect(run.contains(image)).toBe(true)
+    expect(image.classList.contains(READER_MASK_HIDDEN_CLASS)).toBe(false)
+    expect(run.classList.contains(READER_MASK_HIDDEN_CLASS)).toBe(false)
+  })
 })
 
 describe('redactMaskedSelection', () => {

@@ -300,6 +300,7 @@ export interface DocumentVersion {
     status: DocumentStatus
     createdBy: User
     checklist?: DocumentChecklist | null
+    diagrams?: Record<string, unknown> | null
 }
 
 export interface OrganizationUnitSettings {
@@ -352,6 +353,7 @@ export interface DocumentVersion {
     document: Document
     changes?: string
     status: DocumentStatus
+    diagrams?: Record<string, unknown> | null
 }
 
 export enum DocumentStatus {
@@ -418,6 +420,7 @@ export interface DocumentDraftDetail {
     createdBy?: DocumentDraftCreatedBy
     /** Signed URL for draft docx content (SuperDoc). */
     contentUrl?: string
+    diagrams?: Record<string, unknown> | null
 }
 export interface UserNotification {
     id: number
@@ -738,6 +741,9 @@ export interface UserLinkedRecord {
     relations: UserLinkedRelation[]
     createdAt: number | null
     route: string | null
+    status?: string | null
+    dueDate?: number | null
+    urgency?: 'overdue' | 'due_soon' | 'scheduled' | null
 }
 
 export interface UserLinkedRecordsGroup {
@@ -1095,15 +1101,6 @@ export interface AuditActivityType extends ListItem {
     }
 }
 
-export interface AuditCriteriaDto {
-    id: string
-    name: string
-    description: string
-    isDefault?: boolean
-    standardId?: string
-    standard?: StandardDto
-}
-
 export interface StandardDto {
     id: string
     name: string
@@ -1114,12 +1111,6 @@ export interface StandardDto {
 export interface AddStandardDto {
     name: string
     description?: string
-}
-
-export interface AddAuditCriteriaDto {
-    name: string
-    description?: string
-    standardId?: string
 }
 
 export enum AuditProgramStatus {
@@ -1165,13 +1156,26 @@ export interface AuditInstance {
     location?: string
     scope?: string
     objective?: string
-    auditCriteria: AuditCriteriaDto
-    auditCriteriaId?: string
+    criteria?: string
     auditSummary?: string
     createdAt: number
     updatedAt: number
     teamMembers?: AuditTeamMemberResponse[]
     scheduleEntry?: AuditProgramScheduleEntry
+    attachments?: AuditInstanceAttachment[]
+}
+
+export interface AuditInstanceAttachment {
+    id: string
+    auditInstanceId: string
+    fileName: string
+    filePath: string
+    createdAt: number
+    createdBy?: {
+        id: string
+        fname: string
+        lname: string
+    }
 }
 
 export interface AuditInstanceResponse {
@@ -1187,21 +1191,6 @@ export interface AuditInstanceResponse {
             id: string
             name: string
         }
-        organizationUnits?: Array<{
-            id: number
-            name?: string
-            title?: any
-            members?: Array<{
-                id: number
-                role: string
-                user?: {
-                    id: string
-                    fname: string
-                    lname: string
-                    email: string
-                }
-            }>
-        }>
     }
     auditDocumentId?: string
     startDate?: number
@@ -1269,7 +1258,7 @@ export interface ChecklistDefinition {
     version: number
     isDraft?: boolean
     activityType: AuditActivityType
-    organizationUnits?: OrganizationUnit[]
+    teams?: OrganizationUnit[]
     createdAt: number
     updatedAt: number
     createdBy: User
@@ -1312,16 +1301,10 @@ export interface AuditProgram {
     scope?: string
     objective?: string
     expectedDate: number
-    targetYear?: number
+    startDate?: number
     status: AuditProgramStatus
-    includeChildren?: boolean
     duration?: number
     standards?: StandardDto[]
-    organizationUnits?: {
-        id: number
-        name: string
-        title?: string
-    }[]
     auditActivityType: AuditActivityType
     auditInstances?: {
         id: string
@@ -1329,23 +1312,16 @@ export interface AuditProgram {
         endDate?: number
         scope?: string
         objective?: string
-        criteria?: {
-            id: string
-            name: string
-        }
+        criteria?: string
     }[]
     scheduleEntries?: AuditProgramScheduleEntry[]
 }
 
 export interface AuditProgramScheduleEntry {
     id?: string
+    year: number
     month: number
-    processId: string
-    process?: {
-        id: string
-        name: string
-        code?: string | null
-    }
+    process: string
     notes?: string
     isUnplanned?: boolean
     amendmentReason?: string
@@ -1481,6 +1457,8 @@ export interface AuditFindingResponseDTO {
         name?: string
         problemStatement?: string
         dueDate?: number
+        auditId?: string | null
+        findingId?: string | null
     } | null
     evidences?: string[]
     recommendations?: string | null
@@ -1521,7 +1499,6 @@ export interface AuditReportData {
     auditInstanceId: string
     auditId: string
     auditInstanceStatus: AuditInstanceStatus
-    auditProgramOrgUnit: string
 
     // Objective & Scope Section
     objective: string
@@ -1532,7 +1509,6 @@ export interface AuditReportData {
     endDate: number
     startTime: number
     auditType: string
-    processOwners: string
     auditMembers: string
 
     // Checklists & Findings Section
@@ -1694,18 +1670,6 @@ export interface NonConformityRepresentative {
     email: string
 }
 
-export interface NonConformityProcessOwner {
-    id: string
-    fname: string
-    lname: string
-}
-
-export interface NonConformityProcessSummary {
-    id: string
-    name: string
-    code?: string | null
-}
-
 export interface NonConformityResponseDTO {
     id: string
     name: string
@@ -1775,8 +1739,17 @@ export interface NonConformityResponseDTO {
         }
     }>
     closingComment?: string
-    processes?: NonConformityProcessSummary[]
-    processOwners?: NonConformityProcessOwner[]
+    findingId?: string | null
+    auditId?: string | null
+    finding?: {
+        id: string
+        title: string
+        auditInstance?: {
+            id: string
+            auditId?: string | null
+            auditProgramId: string
+        } | null
+    } | null
     responsibleUserId?: string | null
     responsibleUser?: {
         id: string
@@ -1933,7 +1906,7 @@ export interface NonConformity {
     performanceIndicatorId?: string | null
     status: NCStatus
     isOverdue?: boolean
-    organizationUnit: OrganizationUnit
+    team: {id:string, name:string}
     nonConformityRiskLevel: NonConformityRiskLevel
     nonConformityType: NonConformityType
     category?: NonConformityCategory

@@ -23,6 +23,7 @@
             :show-reader-mask="showReaderMask"
             :show-ai-write="canUseAiWrite"
             :labels="labels"
+            :diagrams="diagrams"
             :generate-ai-content="resolveAiContent"
             @ready="onReady"
             @update="emit('update')"
@@ -32,6 +33,7 @@
             @highlight-saved="emit('highlight-saved')"
             @copy-comment-link-request="emit('copy-comment-link', $event)"
             @copy-node-link-request="emit('copy-node-link', $event)"
+            @diagrams="emit('diagrams', $event)"
         />
     </div>
 </template>
@@ -40,6 +42,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import EmbeddedSuperDoc from './superdoc/SuperDocEditorSurface.vue'
+import type { DiagramMap } from './superdoc/diagram/diagram-model'
 import { buildRedlinedDocx } from './superdoc/utils/superdoc-diff'
 import type {
     SuperDocAiWriteRequest,
@@ -64,6 +67,7 @@ type EmbeddedEditor = {
     getPlainText: () => string
     scrollToComment: (commentId: string) => Promise<boolean>
     scrollToElement: (nodeId: string, offset?: number) => Promise<boolean>
+    getDiagrams: () => DiagramMap
     isReady: boolean
 }
 
@@ -86,6 +90,7 @@ const props = withDefaults(
         horizontalPageScroll?: boolean
         generateAiContent?: (request: SuperDocAiWriteRequest) => Promise<SuperDocAiWriteResult>
         initialMarkdown?: string
+        diagrams?: DiagramMap
     }>(),
     {
         document: null,
@@ -102,7 +107,8 @@ const props = withDefaults(
         showHighlightToolbar: false,
         showReaderMask: false,
         horizontalPageScroll: false,
-        initialMarkdown: ''
+        initialMarkdown: '',
+        diagrams: () => ({})
     }
 )
 
@@ -115,6 +121,7 @@ const emit = defineEmits<{
     'highlight-saved': []
     'copy-comment-link': [commentId: string]
     'copy-node-link': [payload: { nodeId: string; offset?: number }]
+    diagrams: [diagrams: DiagramMap]
 }>()
 
 const { t, locale } = useI18n()
@@ -156,7 +163,9 @@ const labels = computed<SuperDocLabels>(() => ({
     aiWriteCancel: t('document.form.ai_write_cancel'),
     aiWriteError: t('document.form.ai_write_error'),
     aiWriteEmptyPrompt: t('document.form.ai_write_empty_prompt'),
-    aiWriteInsertFailed: t('document.form.ai_write_insert_failed')
+    aiWriteInsertFailed: t('document.form.ai_write_insert_failed'),
+    insertDiagram: t('document.form.insert_diagram'),
+    editDiagram: t('document.form.diagram_edit_title')
 }))
 
 const canUseAiWrite = computed(() => {
@@ -296,6 +305,11 @@ function getPlainText() {
     return editorRef.value.getPlainText()
 }
 
+function getDiagrams() {
+    if (!isReady.value || !editorRef.value) return props.diagrams ?? {}
+    return editorRef.value.getDiagrams()
+}
+
 async function insertInitialMarkdown() {
     const markdown = props.initialMarkdown?.trim()
     if (!isReady.value || insertedInitialMarkdown.value || !markdown) return
@@ -354,7 +368,8 @@ defineExpose({
     getPlainText,
     runDiff,
     scrollToComment,
-    scrollToElement
+    scrollToElement,
+    getDiagrams
 })
 </script>
 

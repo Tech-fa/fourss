@@ -174,7 +174,7 @@ export function paintReaderMasks(
       isReaderMaskColor(node.style.backgroundColor) ||
       isReaderMaskColor(node.getAttribute('data-color'))
 
-    if (!masked) {
+    if (!masked || nodeContainsImage(node)) {
       node.classList.remove(READER_MASK_MARKED_CLASS, READER_MASK_HIDDEN_CLASS)
       if (node.getAttribute(MASKED_TEXT_ATTR)) {
         if (node.getAttribute('role') === 'img') node.removeAttribute('role')
@@ -203,6 +203,20 @@ export function paintReaderMasks(
     if (node.getAttribute('role') === 'img') node.removeAttribute('role')
     node.removeAttribute('aria-label')
   })
+
+  root.querySelectorAll('img, .superdoc-inline-image, .superdoc-image-fragment').forEach((node) => {
+    if (!(node instanceof HTMLElement)) return
+    node.classList.remove(READER_MASK_MARKED_CLASS, READER_MASK_HIDDEN_CLASS)
+  })
+}
+
+function nodeContainsImage(node: HTMLElement) {
+  return (
+    node.tagName === 'IMG' ||
+    node.classList.contains('superdoc-inline-image') ||
+    node.classList.contains('superdoc-image-fragment') ||
+    Boolean(node.querySelector('img, .superdoc-inline-image, .superdoc-image-fragment'))
+  )
 }
 
 function selectedText(node: Text, range: Range): string {

@@ -42,6 +42,7 @@ import {
   UserIdParamDto,
   UserIdResponseDto,
   UserProfileResponseDto,
+  MyTasksQueryDto,
   UserSearchQueryDto,
   UserSearchResponseDto,
 } from "./user.dto";
@@ -131,12 +132,32 @@ export class UserController {
 
   @Get("myTasks")
   @ApiOperation({ summary: "List tasks assigned to the signed-in user." })
+  @ApiQuery({
+    name: "due",
+    required: false,
+    enum: ["overdue", "due_soon"],
+    description: "Limits immediate actions to overdue or due soon.",
+  })
+  @ApiQuery({
+    name: "days_soon",
+    required: false,
+    type: Number,
+    description: "How many days from today count as due soon. Defaults to 3.",
+  })
   @ApiOkResponse({ type: UserLinkedRecordsResponseDto })
   @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
-  async getMyTasks(@Res() res: Response, @Req() req) {
+  @ApiBadRequestResponse({ type: CatalogErrorResponseDto })
+  async getMyTasks(
+    @Res() res: Response,
+    @Req() req,
+    @Query() query: MyTasksQueryDto,
+  ) {
     return formatResponse(
       this.logger,
-      this.userService.getMyTasks(req.user.id),
+      this.userService.getMyTasks(req.user.id, {
+        due: query.due,
+        daysSoon: query.days_soon,
+      }),
       res,
       "My tasks fetched successfully",
     );

@@ -249,7 +249,8 @@
                             <div
                                 class="w-full border border-neutral-200 rounded-lg overflow-hidden pb-10 h-[1200px] document-content-superdoc">
                                 <SuperDocEditor ref="superdocRef" :key="editorContentKey" :document="superdocSource"
-                                    :user="superdocUser" show-open-docx @docx-selected="openDocxInSuperdoc"
+                                    :diagrams="diagramMap" :user="superdocUser" show-open-docx
+                                    @docx-selected="openDocxInSuperdoc" @diagrams="diagramMap = $event"
                                     @update="onSuperdocUpdate" />
                             </div>
                         </div>
@@ -300,6 +301,8 @@ import AppInput from '../AppInput.vue'
 import ToggleSwitch from '../ToggleSwitch.vue'
 import FileUploader from '../FileUploader.vue'
 import SuperDocEditor from '../SuperDocEditor.vue'
+import { appendDiagrams, diagramsForEditorDocument } from './document-diagrams'
+import { normalizeDiagramMap, type DiagramMap } from '../superdoc/diagram/diagram-model'
 import { useAuthStore } from '@/stores/auth'
 import { useDialog } from '@/stores/dialog'
 import { useToast } from '@/stores/notification'
@@ -328,6 +331,7 @@ import Notice from '../Notice.vue'
 import { documentEditContentPath } from '@/agent/document-markdown'
 import {
     installAgentDocumentBridge,
+    readDocumentForAgent,
     readEditorDocument,
     readReadyDocument,
     writeEditorMarkdown
@@ -496,6 +500,12 @@ const DOCX_MIME =
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 const superdocRef = ref<InstanceType<typeof SuperDocEditor> | null>(null)
+const diagramMap = ref<DiagramMap>({})
+const baselineDiagrams = ref<DiagramMap>({})
+
+function editorDiagrams() {
+    return superdocRef.value?.getDiagrams() ?? diagramMap.value
+}
 
 /** SuperDoc loads docx; null for new docs (starts blank). */
 const superdocSource = ref<File | Blob | string | null>(null)
@@ -523,6 +533,8 @@ function openDocxInSuperdoc(file: File) {
     if (!formData.value.title?.trim()) {
         formData.value.title = file.name.replace(/\.docx$/i, '')
     }
+    diagramMap.value = {}
+    baselineDiagrams.value = {}
     resetSuperdocEditor(file)
 }
 
@@ -893,6 +905,7 @@ const switchToChecklist = async () => {
 
 const applyDraftContentToForm = (draft: DocumentDraftDetail) => {
     contentMode.value = ContentType.EDITOR
+    diagramMap.value = normalizeDiagramMap(draft.diagrams)
     const contentUrl = draft.contentUrl?.trim() || ''
     if (isSuperdocLoadableContent(contentUrl)) {
         resetSuperdocEditor(contentUrl)
@@ -937,6 +950,7 @@ const buildDocumentDraftFormData = async (options?: {
     const docxFile = await exportSuperdocDocx(fileName)
     const payload = new FormData()
     payload.append('file', docxFile)
+    appendDiagrams(payload, editorDiagrams())
     if (options?.documentId != null) {
         payload.append('documentId', options.documentId)
     }
@@ -1114,6 +1128,12 @@ const fetchDocument = async () => {
                     : document.latestPublishedVersionContentUrl ??
                     document.pendingVersionContentUrl ??
                     null
+            const loadedDiagrams = diagramsForEditorDocument(
+                document.versions,
+                isEditVersion.value && Boolean(document.pendingVersionContentUrl)
+            )
+            baselineDiagrams.value = loadedDiagrams
+            diagramMap.value = loadedDiagrams
             if (docxUrl) {
                 resetSuperdocEditor(docxUrl)
             } else if (document.latestPublishedVersionContent || document.pendingVersionContent) {
@@ -1401,6 +1421,7 @@ const discardLinkedDraft = async () => {
             : pendingVersionSuperdocSource.value
         await apiDelete(`/documents/drafts/${id}`, authStore)
         linkedDraftId.value = ''
+        diagramMap.value = baselineDiagrams.value
         resetSuperdocEditor(restoreSource)
 
         if (route.query.draftId) {
@@ -1603,6 +1624,7 @@ const handleSubmit = async (values: any) => {
                 }
                 const uploadForm = new FormData()
                 uploadForm.append('file', docxFile)
+                appendDiagrams(uploadForm, editorDiagrams())
                 if (formData.value.changes?.trim()) {
                     uploadForm.append('changes', formData.value.changes.trim())
                 }
@@ -1651,6 +1673,7 @@ const handleSubmit = async (values: any) => {
             }
             const versionForm = new FormData()
             versionForm.append('file', docxFile)
+            appendDiagrams(versionForm, editorDiagrams())
             if (formData.value.changes?.trim()) {
                 versionForm.append('changes', formData.value.changes.trim())
             }
@@ -1713,6 +1736,9 @@ const handleSubmit = async (values: any) => {
         if (fileToSend) {
             formDataToSend.append('file', fileToSend)
         }
+        if (contentMode.value === ContentType.EDITOR) {
+            formDataToSend.append('diagrams', JSON.stringify(editorDiagrams()))
+        }
 
         if (contentMode.value === ContentType.CHECKLIST) {
             formDataToSend.append(
@@ -1768,6 +1794,8 @@ const openTemplateModal = () => {
     dialogStore.openDialog(DocumentTemplateModal, {
         onSelect: (content: string, templateId: string) => {
             formData.value.selectedTemplateId = templateId
+            diagramMap.value = {}
+            baselineDiagrams.value = {}
             resetSuperdocEditor(content || null)
             dialogStore.closeDialog()
         },
@@ -1817,11 +1845,17 @@ onMounted(() => {
     releaseAgentDocument = installAgentDocumentBridge({
         insert: insertAgentDocumentContent,
         editPath: agentDocumentEditPath,
+        acceptNewSections: () => isCreateDocument.value,
         read: () =>
-            readReadyDocument(
-                () => readEditorDocument(superdocRef.value),
-                () => contentMode.value !== ContentType.EDITOR
-            )
+            readDocumentForAgent({
+                creating: isCreateDocument.value,
+                editorOpen: contentMode.value === ContentType.EDITOR,
+                readOpenEditor: () =>
+                    readReadyDocument(
+                        () => readEditorDocument(superdocRef.value),
+                        () => contentMode.value !== ContentType.EDITOR
+                    )
+            })
     })
     const routeId = route.params.id as string
     const isNewVersionPath = route.path.includes('new-version') || route.path.includes('edit-version')

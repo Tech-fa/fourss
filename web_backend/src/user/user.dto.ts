@@ -6,6 +6,8 @@ import {
   IsInt,
   IsNotEmpty,
   IsNumber,
+  Max,
+  Min,
   IsOptional,
   IsString,
   IsUUID,
@@ -82,6 +84,31 @@ export class UserSearchQueryDto {
   @IsOptional()
   @IsString()
   name?: string;
+}
+
+export class MyTasksQueryDto {
+  @ApiPropertyOptional({
+    enum: ["overdue", "due_soon"],
+    description:
+      "Limits immediate actions to overdue or due soon. Omit to return every assigned action.",
+  })
+  @IsOptional()
+  @IsIn(["overdue", "due_soon"])
+  due?: "overdue" | "due_soon";
+
+  @ApiPropertyOptional({
+    minimum: 1,
+    maximum: 365,
+    default: 3,
+    description:
+      "How many days from today count as due soon. Defaults to 3.",
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  days_soon?: number;
 }
 
 export class UserIdParamDto {

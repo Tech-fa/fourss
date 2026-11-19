@@ -24,6 +24,7 @@ describe('installAgentPageLinks', () => {
         delete window.__agentInsertDocumentContent
         delete window.__agentReadDocumentContent
         delete window.__agentDocumentEditPath
+        delete window.__agentDocumentAcceptNewSections
         delete window.__agentDocumentRead
         localStorage.removeItem('auth')
     })
@@ -135,5 +136,49 @@ describe('installAgentPageLinks', () => {
         expect(written).toContain('Keep this purpose.')
         expect(written).toContain('New scope.')
         expect(written).not.toContain('Old scope.')
+    })
+
+    it('writes a section into an empty document and keeps it for the next write', async () => {
+        let written = ''
+        window.__appControl = { call: () => ({ from: 'shell' }) }
+        window.__agentReadDocumentContent = async () => ({ markdown: '', complete: true })
+        window.__agentDocumentRead = { complete: true, markdown: '' }
+        window.__agentInsertDocumentContent = async (markdown) => {
+            written = markdown
+            return true
+        }
+        installAgentPageLinks(fakeRouter())
+
+        const filled = (await window.__appControl?.call('set_fields', {
+            fields: { 'document body': '## 1. Purpose\n\nState the purpose.\n' }
+        })) as { set: string[] }
+
+        expect(filled.set).toEqual(['Document body'])
+        expect(written).toContain('1. Purpose')
+        expect(written).toContain('State the purpose.')
+        expect(window.__agentDocumentRead?.markdown).toContain('State the purpose.')
+        expect(window.__agentDocumentRead?.complete).toBe(true)
+    })
+
+    it('adds the next section on the new-document page', async () => {
+        let written = ''
+        const current = '## 1. Purpose\n\nKeep this purpose.\n'
+        window.__appControl = { call: () => ({ from: 'shell' }) }
+        window.__agentReadDocumentContent = async () => ({ markdown: current, complete: false })
+        window.__agentDocumentRead = { complete: true, markdown: current }
+        window.__agentDocumentAcceptNewSections = () => true
+        window.__agentInsertDocumentContent = async (markdown) => {
+            written = markdown
+            return true
+        }
+        installAgentPageLinks(fakeRouter())
+
+        await window.__appControl?.call('set_fields', {
+            fields: { 'editor content': '## 2. Scope\n\nThe scope.\n' }
+        })
+
+        expect(written).toContain('Keep this purpose.')
+        expect(written).toContain('2. Scope')
+        expect(written).toContain('The scope.')
     })
 })

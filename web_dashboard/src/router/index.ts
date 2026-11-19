@@ -5,9 +5,14 @@ import { AuthRoutes } from "@/components/auth/routes";
 import { usersRoutes } from "@/components/admin/users/routes";
 import { ref } from "vue";
 import { permissionsRoutes } from "@/components/admin/permissions/routes";
+import { reminderRoutes } from "@/components/admin/reminders/routes";
 import { documentRoutes } from "@/components/document/routes";
 import { sharedStandardsRoutes, SHARED_STANDARD_DOCUMENT, SHARED_STANDARD_LIST, standardsRoutes } from "@/components/standards/routes";
 import { playgroundRoutes } from "@/components/playground/routes";
+import { integrationRoutes } from "@/components/integrations/routes";
+import { auditRoutes } from "@/components/audit/routes.js";
+import { nonConformityRoutes } from "@/components/non-conformities/routes";
+import { tasksRoutes } from "@/components/tasks/routes";
 
 export const isRouteChanging = ref(false);
 
@@ -34,9 +39,14 @@ const router = createRouter({
         ...orgUnitTypeRoutes,
         ...usersRoutes,
         ...permissionsRoutes,
+        ...reminderRoutes,
         ...documentRoutes,
         ...standardsRoutes,
         ...playgroundRoutes,
+        ...integrationRoutes,
+        ...auditRoutes,
+        ...nonConformityRoutes,
+        ...tasksRoutes,
       ],
     },
     {

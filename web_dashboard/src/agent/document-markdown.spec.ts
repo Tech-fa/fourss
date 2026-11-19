@@ -71,6 +71,63 @@ describe('document markdown edits', () => {
         ).toThrow(/No section matches "Missing"/)
     })
 
+    it('writes the first section into an empty document', () => {
+        const planned = planDocumentBodyWrite({
+            current: '',
+            incoming: '## 1. Purpose\n\nState the purpose.\n',
+            readComplete: true
+        })
+        expect(planned.markdown).toContain('1. Purpose')
+        expect(planned.markdown).toContain('State the purpose.')
+    })
+
+    it('writes a whole document into an empty editor before any section exists', () => {
+        const incoming = '# Policy\n\n## 1. Purpose\n\nState the purpose.\n\n## 2. Scope\n\nThe scope.\n'
+        const planned = planDocumentBodyWrite({
+            current: ' \n',
+            incoming,
+            readComplete: false
+        })
+        expect(planned.markdown).toContain('State the purpose.')
+        expect(planned.markdown).toContain('The scope.')
+    })
+
+    it('adds a missing section while a new document is being written', () => {
+        const planned = planDocumentBodyWrite({
+            current: '## 1. Purpose\n\nKeep this purpose.\n',
+            incoming: '## 2. Scope\n\nThe scope.\n',
+            readComplete: true,
+            acceptNewSections: true
+        })
+        expect(planned.markdown).toContain('Keep this purpose.')
+        expect(planned.markdown).toContain('2. Scope')
+        expect(planned.markdown).toContain('The scope.')
+    })
+
+    it('replaces a new document when the next write is the whole document', () => {
+        const planned = planDocumentBodyWrite({
+            current: '## 1. Purpose\n\nKeep this purpose.\n',
+            incoming: '# Policy\n\n## 1. Purpose\n\nState the purpose.\n\n## 2. Scope\n\nThe scope.\n',
+            readComplete: true,
+            acceptNewSections: true
+        })
+        expect(planned.markdown).toContain('# Policy')
+        expect(planned.markdown).toContain('The scope.')
+        expect(planned.markdown).not.toContain('Keep this purpose.')
+    })
+
+    it('still replaces one existing section while new sections are allowed', () => {
+        const planned = planDocumentBodyWrite({
+            current: policy,
+            incoming: '## Scope\n\nNew scope.\n',
+            readComplete: false,
+            acceptNewSections: true
+        })
+        expect(planned.markdown).toContain('Keep this purpose.')
+        expect(planned.markdown).toContain('New scope.')
+        expect(planned.markdown).not.toContain('Old scope.')
+    })
+
     it('accepts markdown that still contains the document text', () => {
         expect(markdownCoversText(policy, 'Keep this purpose. Old scope. Keep definitions.')).toBe(true)
         expect(markdownCoversText('## Scope\n\nOld scope.', 'Keep this purpose. Old scope. Keep definitions.')).toBe(

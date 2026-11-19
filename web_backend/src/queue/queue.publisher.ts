@@ -76,6 +76,15 @@ export class QueuePublisher {
     this.publish(Events.CLIENT_LLM_USAGE, data);
   }
 
+  public publishIntegration(data: {
+    integrationId: string;
+    revisionId: string;
+    event: string;
+    payload: unknown;
+  }) {
+    this.publish(Events.INTEGRATION_EVENT, data);
+  }
+
   async publish(event: Events, data) {
     this.queue.publish("exchange1", getRouteName(event), data);
   }

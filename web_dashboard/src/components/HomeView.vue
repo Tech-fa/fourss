@@ -673,6 +673,12 @@ const navigations = computed<NavItem[]>(() => [
                         path: '/admin/org-tree',
                         subject: 'teams',
                         icon: h('i', { class: 'fa-solid fa-sitemap text-neutral-700 ' })
+            },
+            {
+                name: t('nav.reminders'),
+                path: '/admin/reminders',
+                subject: 'reminders',
+                icon: h('i', { class: 'fa-solid fa-bell text-neutral-700 ' })
             }
         ]
     },
@@ -681,6 +687,24 @@ const navigations = computed<NavItem[]>(() => [
         path: '/plan/documents',
         subject: 'documents',
         icon: h('i', { class: 'fa-solid fa-file-lines text-neutral-700 ' })
+    },
+    {
+        name: t('nav.audit'),
+        path: '/check/audits',
+        subject: 'audits',
+        icon: h('i', { class: 'fa-solid fa-clipboard-list text-neutral-700 ' })
+    },
+    {
+        name: t('nav.nonConformities'),
+        path: '/act/non-conformities',
+        subject: 'non_conformities',
+        icon: h('i', { class: 'fa-solid fa-triangle-exclamation text-neutral-700 ' })
+    },
+    {
+        name: t('nav.tasks'),
+        path: '/tasks',
+        subject: 'immediate_actions',
+        icon: h('i', { class: 'fa-solid fa-list-check text-neutral-700 ' })
     },
     {
         name: t('nav.standards'),
@@ -693,6 +717,12 @@ const navigations = computed<NavItem[]>(() => [
         path: '/plan/playground',
         subject: 'playgrounds',
         icon: h('i', { class: 'fa-solid fa-flask text-neutral-700 ' })
+    },
+    {
+        name: t('nav.integrations'),
+        path: '/plan/integrations',
+        subject: 'integrations',
+        icon: h('i', { class: 'fa-solid fa-plug text-neutral-700 ' })
     },
 ])
 

@@ -22,7 +22,10 @@ import { TeamMember } from "../teams/team-member.entity";
 import { Role } from "../permissions/role.entity";
 import { CacheService } from "../cache/cache.service";
 import { CACHE_PREFIX } from "../permissions/dto";
-import { fetchUserLinkedRecords } from "./user-linked-records";
+import {
+  fetchUserLinkedRecords,
+  type FetchUserLinkedRecordsOptions,
+} from "./user-linked-records";
 @Injectable()
 export class UsersService {
   constructor(
@@ -64,8 +67,8 @@ export class UsersService {
     if (!user) throw new NotFoundException(userHttpError("USER_001"));
     return user;
   }
-  async getMyTasks(userId: string) {
-    return fetchUserLinkedRecords(this.dataSource, userId);
+  async getMyTasks(userId: string, options?: FetchUserLinkedRecordsOptions) {
+    return fetchUserLinkedRecords(this.dataSource, userId, options);
   }
   async findAllBy(cond, relations = []): Promise<User[]> {
     return await this.userRepository.find({

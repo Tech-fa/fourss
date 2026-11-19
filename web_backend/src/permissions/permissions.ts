@@ -33,6 +33,14 @@ export const userPermission = {
   entity_route: "admin/users/@@id@@",
 };
 
+export const remindersPermission = {
+  subject: "reminders",
+  label: "Reminders",
+  actions: actions,
+  service_tag: "reminders",
+  base_route: "admin/reminders",
+};
+
 export const approvalStrategyPermission = {
   subject: "approval_strategies",
   label: "Approval Strategy",
@@ -120,6 +128,229 @@ export const playgroundsPermission = {
   module_included: true,
 };
 
+export const integrationsPermission = {
+  subject: "integrations",
+  label: "Integration",
+  actions: actions,
+  service_tag: "integrations",
+  base_route: "plan/integrations",
+  entity_route: "plan/integrations/@@id@@",
+  entityName: "Integration",
+  module_included: true,
+};
+
+export const nonConformityTypePermission = {
+  subject: "non_conformity_types",
+  label: "Non-Conformity Type",
+  actions: actions,
+  service_tag: "non_conformities",
+  base_route: "act/non-conformities/types",
+};
+
+export const nonConformityRiskLevelPermission = {
+  subject: "non_conformity_risk_levels",
+  label: "Non-Conformity Risk Level",
+  actions: actions,
+  service_tag: "non_conformities",
+  base_route: "act/non-conformities/risk-levels",
+};
+
+export const nonConformityRepresentativePermission = {
+  subject: "non_conformity_representatives",
+  label: "Non-Conformity Representative",
+  actions: actions,
+  service_tag: "non_conformities",
+  base_route: "act/non-conformities/representatives",
+};
+
+export const nonConformityCorrectiveActionPermission = {
+  subject: "non_conformity_corrective_actions",
+  label: "Corrective Action",
+  actions: actions,
+  service_tag: "non_conformities",
+  base_route: "act/non-conformities",
+};
+
+export const caChangeRequestPermission = {
+  subject: "ca_change_requests",
+  label: "Corrective Action Change Request",
+  actions: actions,
+  service_tag: "non_conformities",
+  base_route: "act/non-conformities",
+};
+
+export const immediateActionPermission = {
+  subject: "immediate_actions",
+  label: "Immediate Action",
+  actions: actions,
+  service_tag: "non_conformities",
+  base_route: "act/non-conformities",
+  entityName: "ImmediateAction",
+};
+
+export const immediateActionEvidencePermission = {
+  subject: "immediate_action_evidence",
+  label: "Immediate Action Evidence",
+  actions: actions,
+  service_tag: "non_conformities",
+  base_route: "act/non-conformities",
+};
+
+export const rootCauseAnalysisPermission = {
+  subject: "root_cause_analyses",
+  label: "Root Cause Analysis",
+  actions: actions,
+  service_tag: "non_conformities",
+  base_route: "act/non-conformities",
+};
+
+export const investigationPermission = {
+  subject: "investigations",
+  label: "Investigation",
+  actions: actions,
+  service_tag: "non_conformities",
+  base_route: "act/non-conformities",
+};
+
+export const investigationEvidencePermission = {
+  subject: "investigation_evidence",
+  label: "Investigation Evidence",
+  actions: actions,
+  service_tag: "non_conformities",
+  base_route: "act/non-conformities",
+};
+
+export const caEffectivenessEvidencePermission = {
+  subject: "ca_effectiveness_evidence",
+  label: "Corrective Action Effectiveness Evidence",
+  actions: actions,
+  service_tag: "non_conformities",
+  base_route: "act/non-conformities",
+};
+
+export const rcaFiveWhyStepPermission = {
+  subject: "rca_five_why_steps",
+  label: "Five Whys",
+  actions: actions,
+  service_tag: "non_conformities",
+  base_route: "act/non-conformities",
+};
+
+export const auditRolePermission = {
+  subject: "audit_roles",
+  label: "Audit Role",
+  actions: actions,
+  service_tag: "audits",
+  base_route: "check/audits/settings",
+};
+
+export const auditPersonnelPermission = {
+  subject: "audit_personnels",
+  label: "Audit Personnel",
+  actions: actions,
+  service_tag: "audits",
+  base_route: "check/audits/settings",
+};
+
+export const auditDocumentTypePermission = {
+  subject: "audit_document_types",
+  label: "Audit Document Type",
+  actions: actions,
+  service_tag: "audits",
+  base_route: "check/audits/settings",
+};
+
+export const auditActivityTypePermission = {
+  subject: "audit_activity_types",
+  label: "Audit Activity Type",
+  actions: actions,
+  service_tag: "audits",
+  base_route: "check/audits/settings",
+};
+
+export const auditChecklistDefinitionPermission = {
+  subject: "audit_checklist_definitions",
+  label: "Audit Checklist",
+  actions: actions,
+  service_tag: "audits",
+  base_route: "check/audits/settings",
+};
+
+export const auditInstancePermission = {
+  subject: "audit_instances",
+  label: "Audit Instance",
+  actions: actions,
+  service_tag: "audits",
+  base_route: "check/audits",
+  entity_route: "check/audits/@@id@@",
+  entityName: "AuditInstance",
+};
+
+export const auditChecklistResponsePermission = {
+  subject: "audit_checklist_responses",
+  label: "Audit Checklist Response",
+  actions: actions,
+  service_tag: "audits",
+  base_route: "check/audits",
+  entity_route: "check/audits/@@id@@",
+};
+
+export const auditFindingPermission = {
+  subject: "audit_findings",
+  label: "Audit Finding",
+  actions: actions,
+  service_tag: "audits",
+  base_route: "check/audits",
+  entity_route: "check/audits/@@id@@",
+  entityName: "AuditFinding",
+};
+
+export const auditProgramPermission = {
+  subject: "audit_programs",
+  label: "Audit Program",
+  actions: actions,
+  service_tag: "audits",
+  base_route: "check/audits",
+  entity_route: "check/audits/@@id@@",
+  entityName: "AuditProgram",
+  module_included: true,
+  submodules: [
+    auditRolePermission,
+    auditPersonnelPermission,
+    auditDocumentTypePermission,
+    auditActivityTypePermission,
+    auditChecklistDefinitionPermission,
+    auditInstancePermission,
+    auditChecklistResponsePermission,
+    auditFindingPermission,
+  ],
+};
+
+export const nonConformityPermission = {
+  subject: "non_conformities",
+  label: "Non-Conformity",
+  actions: actions,
+  service_tag: "non_conformities",
+  base_route: "act/non-conformities",
+  entity_route: "act/non-conformities/@@id@@",
+  entityName: "NonConformity",
+  module_included: true,
+  submodules: [
+    nonConformityTypePermission,
+    nonConformityRiskLevelPermission,
+    nonConformityRepresentativePermission,
+    nonConformityCorrectiveActionPermission,
+    caChangeRequestPermission,
+    immediateActionPermission,
+    immediateActionEvidencePermission,
+    rootCauseAnalysisPermission,
+    investigationPermission,
+    investigationEvidencePermission,
+    caEffectivenessEvidencePermission,
+    rcaFiveWhyStepPermission,
+  ],
+};
+
 interface PermissionTree {
   subject: string;
   label: string;
@@ -143,6 +374,7 @@ export const permissions: {
   teamsPermission,
   permissionPermission,
   userPermission,
+  remindersPermission,
   DocumentTypePermission,
   DocumentPermission,
   DocumentTemplatePermission,
@@ -151,6 +383,29 @@ export const permissions: {
   changeRequestPermission,
   standardsPermission,
   playgroundsPermission,
+  integrationsPermission,
+  auditProgramPermission,
+  auditRolePermission,
+  auditPersonnelPermission,
+  auditDocumentTypePermission,
+  auditActivityTypePermission,
+  auditChecklistDefinitionPermission,
+  auditInstancePermission,
+  auditChecklistResponsePermission,
+  auditFindingPermission,
+  nonConformityPermission,
+  nonConformityTypePermission,
+  nonConformityRiskLevelPermission,
+  nonConformityRepresentativePermission,
+  nonConformityCorrectiveActionPermission,
+  caChangeRequestPermission,
+  immediateActionPermission,
+  immediateActionEvidencePermission,
+  rootCauseAnalysisPermission,
+  investigationPermission,
+  investigationEvidencePermission,
+  caEffectivenessEvidencePermission,
+  rcaFiveWhyStepPermission,
 };
 
 export const permissionTree: {
@@ -158,10 +413,14 @@ export const permissionTree: {
 } = {
   userPermission,
   permissionPermission,
+  remindersPermission,
   DocumentPermission,
   teamsPermission,
   standardsPermission,
   playgroundsPermission,
+  integrationsPermission,
+  auditProgramPermission,
+  nonConformityPermission,
 };
 
 export const processOwnerModules: PermissionTree[] = [
@@ -177,6 +436,16 @@ export const defaultRoles = [
       {
         subject: "all",
         action: "manage",
+      },
+    ],
+    description: "Admin role gives access to all modules and features",
+  },
+  {
+    name: "Observer",
+    permissions: [
+      {
+        subject: "all",
+        action: "read",
       },
     ],
     description: "Admin role gives access to all modules and features",

@@ -12,15 +12,18 @@ export function installAgentDocumentBridge(source: {
     read?: () => Promise<AgentDocumentRead | null> | AgentDocumentRead | null
     editPath?: () => string
     insert?: (markdown: string) => Promise<boolean | void> | boolean | void
+    acceptNewSections?: () => boolean
 }) {
     const previous = {
         read: window.__agentReadDocumentContent,
         editPath: window.__agentDocumentEditPath,
-        insert: window.__agentInsertDocumentContent
+        insert: window.__agentInsertDocumentContent,
+        acceptNewSections: window.__agentDocumentAcceptNewSections
     }
     if (source.read) window.__agentReadDocumentContent = source.read
     if (source.editPath) window.__agentDocumentEditPath = source.editPath
     if (source.insert) window.__agentInsertDocumentContent = source.insert
+    if (source.acceptNewSections) window.__agentDocumentAcceptNewSections = source.acceptNewSections
     return () => {
         if (source.read && window.__agentReadDocumentContent === source.read) {
             window.__agentReadDocumentContent = previous.read
@@ -31,7 +34,23 @@ export function installAgentDocumentBridge(source: {
         if (source.insert && window.__agentInsertDocumentContent === source.insert) {
             window.__agentInsertDocumentContent = previous.insert
         }
+        if (
+            source.acceptNewSections &&
+            window.__agentDocumentAcceptNewSections === source.acceptNewSections
+        ) {
+            window.__agentDocumentAcceptNewSections = previous.acceptNewSections
+        }
     }
+}
+
+/** The add-document page has no saved body yet. Report that empty document before the editor is opened. */
+export function readDocumentForAgent(input: {
+    creating: boolean
+    editorOpen: boolean
+    readOpenEditor: () => Promise<AgentDocumentRead | null> | AgentDocumentRead | null
+}) {
+    if (input.creating && !input.editorOpen) return { markdown: '', complete: true }
+    return input.readOpenEditor()
 }
 
 export async function readReadyDocument(
@@ -72,7 +91,7 @@ export async function writeEditorMarkdown(
             const inserted = current.replaceContent
                 ? await current.replaceContent(markdown, 'markdown')
                 : await current.insertContent?.(markdown, 'markdown')
-            if (inserted) {
+            if (inserted && editorKeptContent(current, markdown)) {
                 onChanged()
                 return true
             }
@@ -80,4 +99,14 @@ export async function writeEditorMarkdown(
         await new Promise((resolve) => setTimeout(resolve, 200))
     }
     throw new Error('The document editor is not ready.')
+}
+
+function editorKeptContent(editor: EditorHandle, markdown: string) {
+    if (!markdown.trim()) return true
+    const plain = editor.getPlainText?.() ?? ''
+    const exported = editor.getMarkdown?.()
+    const canRead = editor.getPlainText != null || typeof exported === 'string'
+    if (!canRead) return true
+    if (plain.trim()) return true
+    return typeof exported === 'string' && exported.trim().length > 0
 }

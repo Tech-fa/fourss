@@ -39,16 +39,21 @@ export function planDocumentBodyWrite(input: {
     current: string | null
     incoming: string
     readComplete: boolean
+    /** New-document page: a heading that is not in the editor yet is added. */
+    acceptNewSections?: boolean
 }) {
     const incoming = normalize(input.incoming).trim()
     if (!incoming) throw new Error('The document body is empty.')
+    if (isBlankDocument(input.current)) return { markdown: incoming }
     const section = singleSection(incoming)
     if (section) {
         if (input.current == null) {
             throw new Error('Read the document with describe_page before replacing a section.')
         }
         const replaced = replaceSection(input.current, incoming)
-        if (replaced.status === 'missing') throw new Error(`No section matches "${section.title}".`)
+        if (replaced.status === 'missing') {
+            return missingSection(input, incoming)
+        }
         if (replaced.status === 'ambiguous') {
             throw new Error(`More than one section matches "${section.title}".`)
         }
@@ -59,6 +64,33 @@ export function planDocumentBodyWrite(input: {
     }
     if (!input.readComplete) throw new Error(FULL_DOCUMENT_REPLACE)
     return { markdown: incoming }
+}
+
+function missingSection(
+    input: { current: string | null; readComplete: boolean; acceptNewSections?: boolean },
+    incoming: string
+) {
+    const section = singleSection(incoming)
+    const title = section?.title ?? ''
+    if (!input.acceptNewSections || input.current == null) {
+        throw new Error(`No section matches "${title}".`)
+    }
+    const incomingHeadings = headings(incoming)
+    if (incomingHeadings.length === 1) return { markdown: appendSection(input.current, incoming) }
+    if (!input.readComplete) throw new Error(FULL_DOCUMENT_REPLACE)
+    return { markdown: incoming }
+}
+
+function isBlankDocument(markdown: string | null) {
+    return markdown != null && !normalize(markdown).trim()
+}
+
+function appendSection(current: string, incoming: string) {
+    const base = normalize(current).replace(/\s*$/, '')
+    const section = incoming.trim()
+    const body = section.endsWith('\n') ? section : `${section}\n`
+    if (!base) return body
+    return `${base}\n\n${body}`
 }
 
 function replaceSection(current: string, incoming: string): SectionReplacement {

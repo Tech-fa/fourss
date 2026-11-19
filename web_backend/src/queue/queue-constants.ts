@@ -16,6 +16,7 @@ export enum Events {
   OBJECTIVE_PI_STATUS_SYNC = 'objective_pi_status_sync',
   DOCUMENT_AI_INDEX = 'document_ai_index',
   CLIENT_LLM_USAGE = 'client_llm_usage',
+  INTEGRATION_EVENT = 'integration_event',
 }
 
 export const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

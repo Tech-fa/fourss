@@ -32,6 +32,8 @@ let abortController: AbortController | null = null
 let sessionToken = ''
 let currentPageId = ''
 let hideBound = false
+let retryTimer = 0
+let failedToken = ''
 
 export function agentHelperState() {
     return state
@@ -56,19 +58,34 @@ export function bootAgentHelper(router: AgentRouter) {
         })
         window.addEventListener('pageshow', (event) => {
             if (!(event instanceof PageTransitionEvent) || !event.persisted) return
-            if (agentHelperEnabled()) void start()
+            if (hostedByBuho() || agentHelperEnabled()) void start()
         })
     }
-    if (agentHelperEnabled()) void start()
+    if (hostedByBuho() || agentHelperEnabled()) void start()
 }
 
 export function setAgentHelperEnabled(enabled: boolean): Promise<void> {
     if (!enabled) {
+        if (hostedByBuho()) return Promise.resolve()
         disconnect()
         return Promise.resolve()
     }
     sessionStorage.setItem(STORAGE_KEY, 'on')
     return start()
+}
+
+export function agentHelperAuthChanged() {
+    if (!hostedByBuho()) return
+    const token = authToken()
+    if (!token) {
+        failedToken = ''
+        clearRetry()
+        if (state.status === 'connected' || state.status === 'connecting') disconnect()
+        return
+    }
+    if (state.status === 'connected' || state.status === 'connecting') return
+    if (token === failedToken) return
+    void start()
 }
 
 export async function executeAgentCall(call: AgentCall, router: AgentRouter | null) {
@@ -96,8 +113,29 @@ export async function executeAgentCall(call: AgentCall, router: AgentRouter | nu
     }
 }
 
+declare global {
+    interface Window {
+        __buhoHost?: boolean
+        __buhoOffer?: { mcp?: { name?: string; url?: string } }
+    }
+}
+
+export function hostedByBuho() {
+    return window.__buhoHost === true
+}
+
+function setBuhoOffer(mcpUrl: string) {
+    if (mcpUrl) {
+        window.__buhoOffer = { mcp: { name: 'fourss', url: mcpUrl } }
+        return
+    }
+    delete window.__buhoOffer
+}
+
 function publish(next: AgentHelperState) {
     state = next
+    if (next.status === 'connected' && next.mcpUrl) setBuhoOffer(next.mcpUrl)
+    else if (next.status !== 'connecting') setBuhoOffer('')
     for (const listener of listeners) listener(state)
 }
 
@@ -106,7 +144,23 @@ function stopLoop() {
     abortController = null
 }
 
+function clearRetry() {
+    window.clearTimeout(retryTimer)
+    retryTimer = 0
+}
+
+function scheduleHostRetry() {
+    if (!hostedByBuho() || !authToken()) return
+    clearRetry()
+    retryTimer = window.setTimeout(() => {
+        retryTimer = 0
+        if (!hostedByBuho() || state.status === 'connected' || state.status === 'connecting') return
+        void start()
+    }, 2000)
+}
+
 function disconnect() {
+    clearRetry()
     const token = sessionToken
     const pageId = currentPageId
     sessionToken = ''
@@ -120,6 +174,7 @@ function disconnect() {
 }
 
 function stopBecausePageIsLeaving() {
+    clearRetry()
     const token = sessionToken
     const pageId = currentPageId
     sessionToken = ''
@@ -132,6 +187,7 @@ function stopBecausePageIsLeaving() {
 }
 
 async function start() {
+    clearRetry()
     stopLoop()
     const current = ++generation
     const controller = new AbortController()
@@ -140,7 +196,7 @@ async function start() {
     let session: Response
     try {
         if (!apiBase()) {
-            fail(HELPER_UNAVAILABLE)
+            fail(HELPER_UNAVAILABLE, true)
             return
         }
         session = await fetch(helperPath('session'), {
@@ -152,24 +208,25 @@ async function start() {
         })
     } catch (error) {
         if (current !== generation || isAbort(error)) return
-        fail(HELPER_UNAVAILABLE)
+        fail(HELPER_UNAVAILABLE, true)
         return
     }
     if (current !== generation || controller.signal.aborted) return
     if (session.status === 401) {
-        fail('Sign in, then turn the agent helper on.')
+        fail(signInMessage())
         return
     }
     if (!session.ok) {
-        fail(HELPER_UNAVAILABLE)
+        fail(HELPER_UNAVAILABLE, true)
         return
     }
     const payload = await readJson(session)
     const token = typeof payload.token === 'string' ? payload.token : ''
     if (!token) {
-        fail(HELPER_UNAVAILABLE)
+        fail(HELPER_UNAVAILABLE, true)
         return
     }
+    failedToken = ''
     sessionToken = token
     installHelperPageControl()
     window.__bindAgentPageLinks?.()
@@ -191,7 +248,7 @@ async function pump(current: number, signal: AbortSignal, token: string) {
             })
         } catch (error) {
             if (current !== generation || isAbort(error)) return
-            fail(HELPER_UNAVAILABLE)
+            fail(HELPER_UNAVAILABLE, true)
             return
         }
         if (current !== generation || signal.aborted) return
@@ -204,8 +261,12 @@ async function pump(current: number, signal: AbortSignal, token: string) {
             )
             return
         }
+        if (response.status === 401) {
+            fail(signInMessage())
+            return
+        }
         if (!response.ok) {
-            fail(HELPER_UNAVAILABLE)
+            fail(HELPER_UNAVAILABLE, true)
             return
         }
         const payload = await readJson(response)
@@ -234,24 +295,34 @@ async function pump(current: number, signal: AbortSignal, token: string) {
             })
         } catch (error) {
             if (current !== generation || isAbort(error)) return
-            fail(HELPER_UNAVAILABLE)
+            fail(HELPER_UNAVAILABLE, true)
+            return
+        }
+        if (posted.status === 401 && current === generation && !signal.aborted) {
+            fail(signInMessage())
             return
         }
         if (!posted.ok && current === generation && !signal.aborted) {
-            fail(HELPER_UNAVAILABLE)
+            fail(HELPER_UNAVAILABLE, true)
             return
         }
     }
 }
 
-function fail(message: string) {
+function signInMessage() {
+    return hostedByBuho() ? 'Sign in to connect the agent helper.' : 'Sign in, then turn the agent helper on.'
+}
+
+function fail(message: string, retry = false) {
     const token = sessionToken
     const pageId = currentPageId
     sessionToken = ''
     currentPageId = ''
     sessionStorage.removeItem(STORAGE_KEY)
     if (token && pageId) void release(token, pageId)
+    failedToken = authToken()
     publish({ enabled: false, status: 'unavailable', mcpUrl: '', message })
+    if (retry) scheduleHostRetry()
 }
 
 function helperPath(name: string, token = '') {
@@ -264,16 +335,19 @@ function apiBase() {
     return (getRuntimeConfig().apiUrl || '').trim().replace(/\/+$/, '')
 }
 
-function authHeader(): Record<string, string> {
+function authToken() {
     try {
         const parsed = JSON.parse(localStorage.getItem('auth') || '')
-        if (parsed && typeof parsed === 'object' && typeof parsed.token === 'string' && parsed.token.trim()) {
-            return { authorization: parsed.token }
-        }
+        if (parsed && typeof parsed === 'object' && typeof parsed.token === 'string') return parsed.token.trim()
     } catch {
-        return {}
+        return ''
     }
-    return {}
+    return ''
+}
+
+function authHeader(): Record<string, string> {
+    const token = authToken()
+    return token ? { authorization: token } : {}
 }
 
 function release(token: string, pageId: string) {

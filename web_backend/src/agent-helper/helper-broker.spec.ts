@@ -1,3 +1,6 @@
+import { AUDIT_PROGRAM_GUIDE } from './audit-program'
+import { INTEGRATIONS_GUIDE } from './integrations'
+import { NON_CONFORMITY_GUIDE } from './non-conformity'
 import { HELPER_OFF_MESSAGE, LEAVE_CONFIRMATION_TO_THE_USER, STAY_ON_PAGE_RULE, SUBMIT_FORM_REFUSAL } from './instructions'
 import { AgentHelperBroker, type HelperHttpRequest, type HelperHttpResponse } from './helper-broker'
 
@@ -56,6 +59,10 @@ describe('agent helper broker', () => {
         expect(body.result.serverInfo.name).toBe('app-helper')
         expect(body.result.instructions).toContain(LEAVE_CONFIRMATION_TO_THE_USER)
         expect(body.result.instructions).toContain(STAY_ON_PAGE_RULE)
+        expect(body.result.instructions).toContain(AUDIT_PROGRAM_GUIDE)
+        expect(body.result.instructions).toContain(NON_CONFORMITY_GUIDE)
+        expect(body.result.instructions).toContain(INTEGRATIONS_GUIDE)
+        expect(body.result.instructions).toContain('Do not supply a why or a because')
         expect(body.result.instructions).not.toContain('then submit_form')
 
         const listed = await broker.handle(
@@ -76,6 +83,9 @@ describe('agent helper broker', () => {
             'apply_playground',
             'submit_form'
         ])
+        expect(tools.find((tool) => tool.name === 'set_fields')?.description).toContain(
+            'When that document is empty, the value is the new document'
+        )
         expect(tools.find((tool) => tool.name === 'api_access')?.description).toContain('localStorage')
         expect(tools.find((tool) => tool.name === 'apply_playground')?.description).toContain('It does not publish.')
         expect(tools.find((tool) => tool.name === 'submit_form')?.description).toBe(SUBMIT_FORM_REFUSAL)

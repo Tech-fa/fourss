@@ -56,6 +56,9 @@ export class DocumentVersion {
   @Column({ name: "changes", type: "text", nullable: true })
   changes: string | null;
 
+  @Column({ type: "json", nullable: true })
+  diagrams: Record<string, unknown> | null;
+
   @Column({ name: "reason_for_change", type: "text", nullable: true })
   reasonForChange: string;
 

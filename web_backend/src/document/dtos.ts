@@ -218,6 +218,14 @@ export class CreateDocumentDto {
   @IsOptional()
   documentTemplateId?: string;
 
+  @ApiPropertyOptional({
+    description: "Diagram id to diagram configuration, sent as JSON text in multipart requests.",
+  })
+  @IsOptional()
+  @Transform(({ value }) => parseDiagramField(value))
+  @IsObject()
+  diagrams?: Record<string, unknown>;
+
   /** If set, the draft is deleted after the document is created (not linked). */
   @ApiPropertyOptional({
     format: "uuid",
@@ -288,6 +296,14 @@ export class CreateDocumentVersionDto {
     return value;
   })
   checklist?: CreateDocumentChecklistDto;
+
+  @ApiPropertyOptional({
+    description: "Diagram id to diagram configuration, sent as JSON text in multipart requests.",
+  })
+  @IsOptional()
+  @Transform(({ value }) => parseDiagramField(value))
+  @IsObject()
+  diagrams?: Record<string, unknown>;
 }
 
 /** Body for adding/replacing editor content on a pending version. Docx is sent as multipart field `file`. */
@@ -301,6 +317,14 @@ export class UploadVersionEditorContentDto {
   @IsUUID()
   @IsOptional()
   documentDraftId?: string;
+
+  @ApiPropertyOptional({
+    description: "Diagram id to diagram configuration, sent as JSON text in multipart requests.",
+  })
+  @IsOptional()
+  @Transform(({ value }) => parseDiagramField(value))
+  @IsObject()
+  diagrams?: Record<string, unknown>;
 }
 
 /** Body for adding/replacing checklist content on a pending version. */
@@ -926,6 +950,18 @@ export class CreateDocumentTemplateDto {
   description: string;
 }
 
+function parseDiagramField(value: unknown) {
+  if (value == null || value === "") return undefined;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+  return value;
+}
+
 export class CreateDocumentDraftDto {
   @ApiPropertyOptional({ format: "uuid" })
   @IsString()
@@ -943,9 +979,25 @@ export class CreateDocumentDraftDto {
   })
   @IsNumber()
   documentVersionId?: number;
+
+  @ApiPropertyOptional({
+    description: "Diagram id to diagram configuration, sent as JSON text in multipart requests.",
+  })
+  @IsOptional()
+  @Transform(({ value }) => parseDiagramField(value))
+  @IsObject()
+  diagrams?: Record<string, unknown>;
 }
 
-export class UpdateDocumentDraftDto {}
+export class UpdateDocumentDraftDto {
+  @ApiPropertyOptional({
+    description: "Diagram id to diagram configuration, sent as JSON text in multipart requests.",
+  })
+  @IsOptional()
+  @Transform(({ value }) => parseDiagramField(value))
+  @IsObject()
+  diagrams?: Record<string, unknown>;
+}
 
 export class DocumentDraftFilterDto {
   @ApiPropertyOptional()
@@ -1029,6 +1081,11 @@ export class DocumentDraftDetailDto {
   /** Signed URL for draft docx content (SuperDoc). */
   @ApiPropertyOptional({ description: "Signed URL for the draft file." })
   contentUrl?: string;
+
+  @ApiPropertyOptional({
+    description: "Diagram id to diagram configuration for pictures in the draft.",
+  })
+  diagrams?: Record<string, unknown> | null;
 }
 
 export class AssistDocumentWriteMessageDto {

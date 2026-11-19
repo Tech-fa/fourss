@@ -1,3 +1,7 @@
+import { AUDIT_PROGRAM_GUIDE } from './audit-program'
+import { INTEGRATIONS_GUIDE } from './integrations'
+import { NON_CONFORMITY_GUIDE } from './non-conformity'
+
 /**
  * Same confirmation sentences as the dashboard handoff and the desktop shell.
  * helper-broker.spec.ts fails if this copy drifts.
@@ -36,5 +40,5 @@ export function helperInstructions(): string {
         'The tools change the window the user is looking at.',
         STAY_ON_PAGE_RULE,
         LEAVE_CONFIRMATION_TO_THE_USER
-    ].join(' ')
+    ].join(' ') + '\n\n' + AUDIT_PROGRAM_GUIDE + '\n\n' + NON_CONFORMITY_GUIDE + '\n\n' + INTEGRATIONS_GUIDE
 }

@@ -4,6 +4,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import i18n from '@/i18n'
 import { apiCall } from '@/util/api'
+import { agentHelperAuthChanged } from '@/agent/helper-client'
 export interface UserDetails {
     permissions: Permission[]
     companyName?: string
@@ -66,6 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
         if (userDetails.locale) {
             setLocale(userDetails.locale)
         }
+        agentHelperAuthChanged()
     }
     function renewToken(token: string, userDetails: UserDetails) {
         const expiryDate = parseJwt(token).exp
@@ -79,6 +81,7 @@ export const useAuthStore = defineStore('auth', () => {
                 expiryDate
             })
         )
+        agentHelperAuthChanged()
     }
     function logout() {
         const userId = state.value.userDetails?.id || state.value.userDetails?.email
@@ -91,6 +94,7 @@ export const useAuthStore = defineStore('auth', () => {
         state.value.expiryDate = 0
         localStorage.removeItem('auth')
         localStorage.removeItem('permissions')
+        agentHelperAuthChanged()
     }
 
     function isAdmin() {

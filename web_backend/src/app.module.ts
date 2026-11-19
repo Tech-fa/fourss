@@ -33,6 +33,10 @@ import { Team } from "./teams/team.entity";
 import { TeamMember } from "./teams/team-member.entity";
 import { BootstrapService } from "./bootstrap.service";
 import { AgentHelperModule } from "./agent-helper/agent-helper.module";
+import { AuditModule } from "./audit/audit.module";
+import { RemindersModule } from "./reminders/reminder.module";
+import { NonConformityModule } from "./non-conformities/non-conformity.module";
+import { IntegrationModule } from "./integrations/integration.module";
 
 @Module({
   imports: [
@@ -71,6 +75,10 @@ import { AgentHelperModule } from "./agent-helper/agent-helper.module";
     NotificationModule,
     NotificationHandlerModule,
     PermissionHandlerModule,
+    AuditModule,
+    RemindersModule,
+    NonConformityModule,
+    IntegrationModule,
     ScheduleModule.forRoot(),
     AgentHelperModule,
     TypeOrmModule.forFeature([User, Role, Team, TeamMember]),

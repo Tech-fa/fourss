@@ -80,9 +80,11 @@ function bindAgentPageLinks(router: Router) {
                     const planned = planDocumentBodyWrite({
                         current,
                         incoming: markdown,
-                        readComplete: prior?.complete === true
+                        readComplete: prior?.complete === true,
+                        acceptNewSections: window.__agentDocumentAcceptNewSections?.() === true
                     })
                     await insert(planned.markdown)
+                    window.__agentDocumentRead = { complete: true, markdown: planned.markdown }
                     insertedBody = true
                 }
             }
@@ -168,6 +170,7 @@ declare global {
             | { markdown: string; complete: boolean }
             | null
         __agentDocumentEditPath?: () => string
+        __agentDocumentAcceptNewSections?: () => boolean
         __agentDocumentRead?: { complete: boolean; markdown: string }
     }
 }

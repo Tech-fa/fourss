@@ -42,6 +42,8 @@ export type SuperDocLabels = {
     aiWriteError: string
     aiWriteEmptyPrompt: string
     aiWriteInsertFailed: string
+    insertDiagram: string
+    editDiagram: string
 }
 
 export type SuperDocInitPayload = {

@@ -118,10 +118,12 @@
                 :key="editorContentKey"
                 class="h-full"
                 :document="superdocSource"
+                :diagrams="diagramMap"
                 :user="superdocUser"
                 show-open-docx
                 show-reader-mask
                 @docx-selected="openDocxInSuperdoc"
+                @diagrams="diagramMap = $event"
                 @update="onSuperdocUpdate"
             />
         </div>
@@ -136,6 +138,8 @@ import AppButton from '../AppButton.vue'
 import AppInput from '../AppInput.vue'
 import ToggleSwitch from '../ToggleSwitch.vue'
 import SuperDocEditor from '../SuperDocEditor.vue'
+import { appendDiagrams, diagramsForEditorDocument } from './document-diagrams'
+import { normalizeDiagramMap, type DiagramMap } from '../superdoc/diagram/diagram-model'
 import Spinner from '../Spinner.vue'
 import ConfirmDialog from '../ConfirmDialog.vue'
 import DocumentForm from './document-form.vue'
@@ -187,7 +191,13 @@ const isDiscardingDraft = ref(false)
 const editorContentKey = ref(0)
 
 const superdocRef = ref<InstanceType<typeof SuperDocEditor> | null>(null)
+const diagramMap = ref<DiagramMap>({})
+const baselineDiagrams = ref<DiagramMap>({})
 const superdocSource = ref<File | Blob | string | null>(null)
+
+function editorDiagrams() {
+    return superdocRef.value?.getDiagrams() ?? diagramMap.value
+}
 const hasSuperdocEdits = ref(false)
 
 const pendingVersionSuperdocSource = ref<File | Blob | string | null>(null)
@@ -355,10 +365,13 @@ function openDocxInSuperdoc(file: File) {
     if (!formData.value.title?.trim()) {
         formData.value.title = file.name.replace(/\.docx$/i, '')
     }
+    diagramMap.value = {}
+    baselineDiagrams.value = {}
     resetSuperdocEditor(file)
 }
 
 const applyDraftContentToForm = (draft: DocumentDraftDetail) => {
+    diagramMap.value = normalizeDiagramMap(draft.diagrams)
     const contentUrl = draft.contentUrl?.trim() || ''
     if (isSuperdocLoadableContent(contentUrl)) {
         resetSuperdocEditor(contentUrl)
@@ -403,6 +416,7 @@ const buildDocumentDraftFormData = async (options?: {
     const docxFile = await exportSuperdocDocx(fileName)
     const payload = new FormData()
     payload.append('file', docxFile)
+    appendDiagrams(payload, editorDiagrams())
     if (options?.documentId != null) {
         payload.append('documentId', options.documentId)
     }
@@ -529,6 +543,8 @@ const fetchDocument = async () => {
                 fromVersionNumber.value = sourceVersion.versionNumber
                 try {
                     docxUrl = await resolveVersionContentUrl(sourceVersion)
+                    diagramMap.value = normalizeDiagramMap(sourceVersion.diagrams)
+                    baselineDiagrams.value = diagramMap.value
                 } catch (error: any) {
                     const isLegacy = error?.message === 'LEGACY_HTML'
                     toast.showToast(
@@ -550,6 +566,14 @@ const fetchDocument = async () => {
                     : (document.latestPublishedVersionContentUrl ??
                       document.pendingVersionContentUrl ??
                       null)
+        }
+        if (docxUrl === null || fromVersionId.value == null) {
+            const loadedDiagrams = diagramsForEditorDocument(
+                document.versions,
+                isEditVersion.value && Boolean(document.pendingVersionContentUrl)
+            )
+            baselineDiagrams.value = loadedDiagrams
+            diagramMap.value = loadedDiagrams
         }
         resetSuperdocEditor(docxUrl)
 
@@ -648,6 +672,7 @@ const discardLinkedDraft = async () => {
             : pendingVersionSuperdocSource.value
         await apiDelete(`/documents/drafts/${id}`, authStore)
         linkedDraftId.value = ''
+        diagramMap.value = baselineDiagrams.value
         resetSuperdocEditor(restoreSource)
 
         if (route.query.draftId) {
@@ -774,6 +799,7 @@ const handleSubmit = async () => {
             }
             const uploadForm = new FormData()
             uploadForm.append('file', docxFile)
+            appendDiagrams(uploadForm, editorDiagrams())
             if (formData.value.changes?.trim()) {
                 uploadForm.append('changes', formData.value.changes.trim())
             }
@@ -817,6 +843,7 @@ const handleSubmit = async () => {
         }
         const versionForm = new FormData()
         versionForm.append('file', docxFile)
+        appendDiagrams(versionForm, editorDiagrams())
         if (formData.value.changes?.trim()) {
             versionForm.append('changes', formData.value.changes.trim())
         }

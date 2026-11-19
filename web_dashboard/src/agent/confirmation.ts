@@ -1,8 +1,10 @@
+import { AUDIT_PROGRAM_GUIDE } from './audit-program'
+import { INTEGRATIONS_GUIDE } from './integrations'
+import { NON_CONFORMITY_GUIDE } from './non-conformity'
+
 /**
- * These sentences are the confirmation rules from the desktop shell.
- * control.rs owns the confirmation sentence and the submit refusal.
- * agent_context.rs owns the stay-on-page sentence.
- * helper-broker.spec.ts fails if either copy drifts.
+ * These sentences are the confirmation rules for the Fourss agent helper.
+ * helper-broker.spec.ts fails if the dashboard and server copies drift.
  */
 export const LEAVE_CONFIRMATION_TO_THE_USER =
     'After you change the page, stop. Do not call submit_form, and do not click a confirmation button. The user approves the change by clicking that button.'
@@ -33,7 +35,7 @@ export function helperInstructions(): string {
         'The tools change the window the user is looking at.',
         STAY_ON_PAGE_RULE,
         LEAVE_CONFIRMATION_TO_THE_USER
-    ].join(' ')
+    ].join(' ') + '\n\n' + AUDIT_PROGRAM_GUIDE + '\n\n' + NON_CONFORMITY_GUIDE + '\n\n' + INTEGRATIONS_GUIDE
 }
 
 export function agentHandoff(mcpUrl: string) {

@@ -5,7 +5,6 @@ export class File {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @Index()
     @Column({ name: 'file_url', type: 'text' })
     fileUrl: string;
 

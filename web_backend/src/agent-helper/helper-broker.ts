@@ -441,7 +441,7 @@ function toolDefinitions() {
         }),
         tool(
             'set_fields',
-            'Set values on the form that is open. fields maps a field name, id, or label to the new value. Pass form when the page has more than one form. Document body and editor content replace one matching section in the open document editor. Replacing the whole document is accepted only after describe_page has returned the complete markdown.',
+            'Set values on the form that is open. fields maps a field name, id, or label to the new value. Pass form when the page has more than one form. Document body and editor content write the open document editor. When that document is empty, the value is the new document, sent in one write. When it already has sections, the value replaces the one matching section. On the new-document page, a section that is not there yet is added. Replacing the whole document is accepted only after describe_page has returned the complete markdown.',
             {
                 type: 'object',
                 properties: {

@@ -36,6 +36,9 @@ export class DocumentDraft {
   @Column({ type: 'text' })
   content: string;
 
+  @Column({ type: 'json', nullable: true })
+  diagrams: Record<string, unknown> | null;
+
   @ManyToOne(() => User)
   @JoinColumn({ name: 'created_by' })
   createdBy: User;
