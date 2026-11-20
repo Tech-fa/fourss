@@ -111,8 +111,14 @@ export class CreateAuditReportBodyDto extends CreateAuditReportDto {
 }
 
 export class CreateAuditInstanceAttachmentBodyDto {
-  @ApiProperty({ type: 'string', format: 'binary' })
-  file: string;
+  @ApiPropertyOptional({ type: 'string', format: 'binary', description: 'The file to upload. Omit this when fileId is set.' })
+  file?: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'A file already stored by a connection. Send this as JSON instead of a multipart file.',
+  })
+  fileId?: string;
 }
 
 export class BulkChecklistResponseBodyDto extends BulkCreateUpdateAuditChecklistResponseDto {

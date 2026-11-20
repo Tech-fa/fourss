@@ -1260,8 +1260,11 @@ export class AuditController {
   }
 
   @Post('findings')
-  @ApiOperation({ summary: 'Create an audit finding.' })
-  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Create an audit finding.',
+    description: 'For a file already stored by a connection, send JSON and set evidences[].fileId. A new file can still be uploaded as multipart.',
+  })
+  @ApiConsumes('application/json', 'multipart/form-data')
   @ApiBody({ type: CreateAuditFindingBodyDto })
   @ApiOkResponse({ type: AuditIdResponseDto })
   @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
@@ -1633,8 +1636,11 @@ export class AuditController {
   }
 
   @Post('instances/:instanceId/attachments')
-  @ApiOperation({ summary: 'Add a checklist attachment to an audit instance.' })
-  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Add a checklist attachment to an audit instance.',
+    description: 'Send a multipart file, or JSON { fileId } for a file already stored by a connection.',
+  })
+  @ApiConsumes('multipart/form-data', 'application/json')
   @ApiBody({ type: CreateAuditInstanceAttachmentBodyDto })
   @ApiOkResponse({ type: AuditInstanceAttachmentResponseDto })
   @ApiUnauthorizedResponse({ type: UnauthorizedResponseDto })
@@ -1648,6 +1654,7 @@ export class AuditController {
   async createAuditInstanceAttachment(
     @Param('instanceId') instanceId: string,
     @UploadedFile() file: Express.Multer.File,
+    @Body() body: CreateAuditInstanceAttachmentBodyDto,
     @Res() res: Response,
     @Req() req,
   ) {
@@ -1657,6 +1664,7 @@ export class AuditController {
         instanceId,
         req.user,
         file,
+        body?.fileId,
       ),
       res,
       'Audit instance attachment created successfully',

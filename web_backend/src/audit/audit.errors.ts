@@ -149,6 +149,7 @@ export const AUDIT_ERROR_MAP = {
     message: 'Attachments can only be changed while the audit is in progress',
   },
   AUDIT_083: { message: 'Choose a file to attach' },
+  AUDIT_084: { message: 'That file was not found.' },
 } as const;
 
 export type AuditErrorCode = keyof typeof AUDIT_ERROR_MAP;

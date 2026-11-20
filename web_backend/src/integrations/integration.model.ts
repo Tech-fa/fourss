@@ -417,7 +417,7 @@ function parseSteps(value: unknown, inputs: ConfigField[]): SetupStep[] {
     if (!item || typeof item !== "object") throw new IntegrationError("Each step needs a title and an instruction.");
     const step = item as Record<string, unknown>;
     const id = String(step.id || "");
-    if (!STEP_ID.test(id)) throw new IntegrationError("Each step needs an id made of letters, numbers, _ or -.");
+    if (!STEP_ID.test(id)) throw new IntegrationError("Each step id must start with a letter, then letters, numbers, _ or -.");
     if (seen.has(id)) throw new IntegrationError(`Step "${id}" is listed twice.`);
     seen.add(id);
     const fields = Array.isArray(step.fields) ? step.fields.map((field) => String(field)) : [];

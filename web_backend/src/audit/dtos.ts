@@ -1335,6 +1335,14 @@ export class CreateAuditFindingEvidences {
   @IsString()
   @IsOptional()
   documentId: string;
+
+  @ApiPropertyOptional({
+    format: 'uuid',
+    description: 'A file already stored by a connection. Use this for AUDIT_EVIDENCE_FILE instead of a multipart file.',
+  })
+  @IsString()
+  @IsOptional()
+  fileId?: string;
 }
 
 export class UpdateAuditFindingDto {

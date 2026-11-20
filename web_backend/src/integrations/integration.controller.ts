@@ -126,7 +126,7 @@ export class IntegrationController {
   @connectionId()
   @ApiOperation({
     summary: "Call a route the connection program registered.",
-    description: "Runs route() from the revision the user is looking at. This does not accept the draft.",
+    description: "Runs route() from the revision the user is looking at. This does not accept the draft. When the route throws, the response message is that error.",
   })
   @ApiBody({ type: CallRouteDto })
   @ApiOkResponse({ description: "The value the route returned." })

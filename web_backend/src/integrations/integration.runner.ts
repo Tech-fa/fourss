@@ -2,7 +2,7 @@ import ivm from "isolated-vm";
 import { Capabilities, HookName, prepareSource } from "./integration.model";
 
 const RESULT_LIMIT = 262144;
-const CALL_TIMEOUT_MS = 5000;
+const CALL_TIMEOUT_MS = 120000;
 
 export type HookHttpInit = {
   method?: string;
@@ -16,6 +16,14 @@ export type IntegrationHookHost = {
   stateGet: (key: string) => Promise<string | null>;
   stateSet: (key: string, value: string) => Promise<void>;
   http: (url: string, init: HookHttpInit) => Promise<unknown>;
+  save: (bytes: unknown, name: string, options: { contentType?: string }) => Promise<{
+    fileId: string;
+    name: string;
+    size: number;
+    contentType: string;
+    url: string;
+  }>;
+  extractText: (fileId: string) => Promise<{ text: string; source: "extracted" | "ocr"; confidence?: number; pages?: number }>;
   emit: (event: string, payload: unknown) => Promise<void>;
   log: (message: string) => Promise<void>;
   setStatus?: (text: string) => Promise<void>;
@@ -50,9 +58,22 @@ const BOOTSTRAP = `
         set: (key, value) => callHost(__stateSet, [String(key || ""), value == null ? "" : String(value)])
       },
       http: (url, init) => callHost(__http, [String(url || ""), init || {}]),
+      save: (bytes, name, options) => callHost(__save, [bytes, String(name || ""), options || {}]),
+      extractText: (fileId) => callHost(__extractText, [String(fileId || "")]),
       emit: (event, payload) => callHost(__emit, [String(event || ""), payload == null ? null : payload]),
       log: (message) => callHost(__log, [String(message || "")]),
       setStatus: (text) => callHost(__setStatus, [String(text || "")])
+    };
+    const savedConfig = JSON.parse($3);
+    for (const key of Object.keys(savedConfig)) {
+      if (key !== "get" && key !== "set") ctx.config[key] = savedConfig[key];
+    }
+    const writeConfig = ctx.config.set;
+    ctx.config.set = (key, value) => {
+      const name = String(key || "");
+      const text = value == null ? "" : String(value);
+      if (name && name !== "get" && name !== "set") ctx.config[name] = text;
+      return writeConfig(name, text);
     };
     const routes = [];
     const schedules = {};
@@ -99,6 +120,27 @@ const BOOTSTRAP = `
       }
       return pattern;
     }
+    function queryFrom(path, given) {
+      if (given && typeof given === "object" && Object.keys(given).length) return given;
+      const query = {};
+      const search = String(path || "").split("?")[1] || "";
+      for (const part of search.split("&")) {
+        if (!part) continue;
+        const eq = part.indexOf("=");
+        const rawKey = eq === -1 ? part : part.slice(0, eq);
+        const rawValue = eq === -1 ? "" : part.slice(eq + 1);
+        let key = rawKey;
+        let value = rawValue.split("+").join(" ");
+        try {
+          key = decodeURIComponent(rawKey);
+          value = decodeURIComponent(value);
+        } catch (error) {
+          key = rawKey;
+        }
+        query[key] = value;
+      }
+      return query;
+    }
     function matchRoute(method, path) {
       const pieces = String(path || "").split("?")[0].split("/").filter(Boolean);
       for (const item of routes) {
@@ -134,7 +176,10 @@ const BOOTSTRAP = `
     } else if (mode.kind === "route") {
       const found = matchRoute(String(mode.method || "").toUpperCase(), mode.path);
       if (!found) throw new Error("NO_ROUTE");
-      result = await found.handler(ctx, Object.assign({}, payload || {}, { params: found.params }));
+      const request = Object.assign({}, payload || {}, { params: found.params });
+      request.query = queryFrom(mode.path, request.query);
+      ctx.query = request.query;
+      result = await found.handler(ctx, request);
     } else if (mode.kind === "schedule") {
       const found = schedules[mode.name];
       if (!found) throw new Error("NO_HOOK");
@@ -188,7 +233,7 @@ export function runIntegrationHook(
   payload: unknown,
   host: IntegrationHookHost,
   capabilities: Capabilities,
-  options: { integrationId?: string; resident?: boolean; now?: () => number } = {},
+  options: { integrationId?: string; resident?: boolean; now?: () => number; config?: Record<string, string> } = {},
 ): { promise: Promise<unknown>; cancel: () => void } {
   const dispatch: ProgramDispatch = typeof hook === "string" ? { kind: "hook", name: hook } : hook;
   let isolate: ivm.Isolate | null = null;
@@ -209,6 +254,11 @@ export function runIntegrationHook(
       await jail.set("__configSet", reference(async (key: string, value: string) => host.configSet(key, value)));
       await jail.set("__stateGet", reference(async (key: string) => host.stateGet(key)));
       await jail.set("__stateSet", reference(async (key: string, value: string) => host.stateSet(key, value)));
+      await jail.set("__save", reference(async (bytes: unknown, name: string, options: { contentType?: string }) => {
+        const type = options && typeof options === "object" ? options.contentType : undefined;
+        return host.save(bytes, name, { contentType: type ? String(type) : undefined });
+      }));
+      await jail.set("__extractText", reference(async (fileId: string) => host.extractText(fileId)));
       await jail.set("__http", reference(async (url: string, init: HookHttpInit) => {
         const origin = originOf(url);
         if (!origin || !capabilities.outboundHosts.includes(origin)) {
@@ -230,7 +280,8 @@ export function runIntegrationHook(
       }));
       const encoded = JSON.stringify(payload === undefined ? null : payload);
       if (encoded.length > RESULT_LIMIT) throw new Error("The payload is too large.");
-      const text = await context.evalClosure(BOOTSTRAP, [prepareSource(source), JSON.stringify(dispatch), encoded], {
+      const config = configSnapshot(options.config);
+      const text = await context.evalClosure(BOOTSTRAP, [prepareSource(source), JSON.stringify(dispatch), encoded, config], {
         ...(options.resident ? {} : { timeout: CALL_TIMEOUT_MS }),
         arguments: { copy: true },
         result: { promise: true, copy: true },
@@ -256,6 +307,17 @@ export function runIntegrationHook(
       isolate?.dispose();
     },
   };
+}
+
+function configSnapshot(config: Record<string, string> | undefined): string {
+  const saved: Record<string, string> = {};
+  for (const [key, value] of Object.entries(config || {})) {
+    if (!key || key === "get" || key === "set") continue;
+    saved[key] = value == null ? "" : String(value);
+  }
+  const text = JSON.stringify(saved);
+  if (text.length > RESULT_LIMIT) throw new Error("The config is too large.");
+  return text;
 }
 
 function reference(run: (...args: any[]) => Promise<unknown>) {

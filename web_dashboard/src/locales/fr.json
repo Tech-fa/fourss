@@ -3082,7 +3082,8 @@
             "AUDIT_080": "Impossible de téléverser la pièce jointe",
             "AUDIT_081": "Pièce jointe introuvable",
             "AUDIT_082": "Les pièces jointes ne peuvent être modifiées que pendant l'audit",
-            "AUDIT_083": "Choisissez un fichier à joindre"
+            "AUDIT_083": "Choisissez un fichier à joindre",
+            "AUDIT_084": "Ce fichier est introuvable."
         },
         "non_conformity": {
             "NON_CONFORMITY_001": "La personne responsable n'appartient pas à l'équipe choisie",

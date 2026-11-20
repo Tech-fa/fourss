@@ -103,6 +103,29 @@ describe("integration flow", () => {
     expect(restored.status).toBe("active");
   });
 
+  it("rejects a step id that does not start with a letter", () => {
+    const created = createFlow({ id: "i1", name: "Slack", userId: "u1", now: 1, revisionId: "r1" });
+    expect(() =>
+      propose(
+        created,
+        {
+          inputs: [],
+          steps: [
+            {
+              id: "1",
+              title: "Token",
+              instruction: "Paste the bot token.",
+              fields: [],
+              doneWhen: "manual",
+            },
+          ],
+        },
+        2,
+        "r2",
+      ),
+    ).toThrow("Each step id must start with a letter, then letters, numbers, _ or -.");
+  });
+
   it("omits secret values from the view", () => {
     const ready = saveValues(draft(), { clientId: "client-1", clientSecret: "super-secret" }, undefined, 3);
     const presented = view(ready, origin);

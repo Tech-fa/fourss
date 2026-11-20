@@ -3090,7 +3090,8 @@
             "AUDIT_080": "Could not upload the attachment",
             "AUDIT_081": "Attachment not found",
             "AUDIT_082": "Attachments can only be changed while the audit is in progress",
-            "AUDIT_083": "Choose a file to attach"
+            "AUDIT_083": "Choose a file to attach",
+            "AUDIT_084": "That file was not found."
         },
         "non_conformity": {
             "NON_CONFORMITY_001": "The responsible person is not on the selected team",

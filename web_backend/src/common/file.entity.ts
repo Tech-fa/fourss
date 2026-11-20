@@ -10,4 +10,7 @@ export class File {
 
     @Column({ name: 'file_name', type: 'text' })
     fileName: string;
+
+    @Column({ name: 'content_type', type: 'varchar', length: 255, nullable: true })
+    contentType: string | null;
 }

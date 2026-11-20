@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
+import { CommonModule } from "../common/common.module";
 import { QueueModule } from "../queue/queue.module";
 import { IntegrationFailure } from "./integration-failure.entity";
 import { IntegrationLease } from "./integration-lease.entity";
@@ -29,6 +30,7 @@ import { IntegrationService } from "./integration.service";
       IntegrationSubscription,
     ]),
     QueueModule,
+    CommonModule,
   ],
   controllers: [IntegrationController],
   providers: [IntegrationService, IntegrationCronService, IntegrationHandler],

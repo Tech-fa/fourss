@@ -18,6 +18,7 @@ import {
   QueryDeepPartialEntity,
 } from 'typeorm';
 
+import { storedEvidenceUrl } from './evidence-file';
 import { AuditPersonnel } from './entities/audit-personnel.entity';
 import { AuditRole } from './entities/audit-role.entity';
 import { AuditDocumentType } from './entities/document-type.entity';
@@ -4842,30 +4843,37 @@ export class AuditService implements NotificationInfo, OnModuleInit {
     auditInstanceId: string,
     user: UserRequest,
     file?: Express.Multer.File,
+    fileId?: string,
   ): Promise<AuditInstanceAttachmentResponseDto> {
-    if (!file) {
+    const storedId = String(fileId || "").trim();
+    if (!file && !storedId) {
       throw new BadRequestException(auditHttpError('AUDIT_083'));
     }
 
     const auditInstance = await this.requireAuditInstance(auditInstanceId);
     this.assertAttachmentsEditable(auditInstance.status);
 
-    let fileUrl: string;
-    try {
-      fileUrl = await this.fileService.uploadFile(file);
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      this.logger.error(error);
-      throw new BadRequestException(auditHttpError('AUDIT_080'));
+    let storedFile = storedId
+      ? await this.fileRepository.findOne({ where: { id: storedId } })
+      : null;
+    if (storedId && !storedFile) {
+      throw new BadRequestException(auditHttpError('AUDIT_084'));
     }
-
-    const storedFile = await this.fileRepository.findOne({
-      where: { fileUrl },
-    });
     if (!storedFile) {
-      throw new BadRequestException(auditHttpError('AUDIT_080'));
+      let fileUrl: string;
+      try {
+        fileUrl = await this.fileService.uploadFile(file);
+      } catch (error) {
+        if (error instanceof HttpException) {
+          throw error;
+        }
+        this.logger.error(error);
+        throw new BadRequestException(auditHttpError('AUDIT_080'));
+      }
+      storedFile = await this.fileRepository.findOne({ where: { fileUrl } });
+      if (!storedFile) {
+        throw new BadRequestException(auditHttpError('AUDIT_080'));
+      }
     }
 
     const createdBy = await this.userRepository.findOne({
@@ -5598,6 +5606,11 @@ export class AuditService implements NotificationInfo, OnModuleInit {
     return { filesUsed, action: 'created' };
   }
 
+  private async evidenceFileUrl(id: string): Promise<string | null> {
+    const row = await this.fileRepository.findOne({ where: { id } });
+    return row?.fileUrl ?? null;
+  }
+
   /**
    * Private helper to create and save evidences for an audit finding.
    * Handles validation, file upload, and entity creation.
@@ -5621,8 +5634,9 @@ export class AuditService implements NotificationInfo, OnModuleInit {
           throw new BadRequestException(auditHttpError('AUDIT_062'));
         }
       }
-      let fileUrl: string | null = null;
+      let fileUrl = await storedEvidenceUrl(evidence, (id) => this.evidenceFileUrl(id));
       if (
+        !fileUrl &&
         evidence.evidenceType === AuditFindingEvidenceType.AUDIT_EVIDENCE_FILE
       ) {
         fileUrl = await this.fileService.uploadFile(files?.[fileIndex]);
@@ -5677,8 +5691,9 @@ export class AuditService implements NotificationInfo, OnModuleInit {
           throw new BadRequestException(auditHttpError('AUDIT_062'));
         }
       }
-      let fileUrl: string | null = null;
+      let fileUrl = await storedEvidenceUrl(evidence, (id) => this.evidenceFileUrl(id));
       if (
+        !fileUrl &&
         evidence.evidenceType === AuditFindingEvidenceType.AUDIT_EVIDENCE_FILE
       ) {
         if (files && files[fileIndex]) {

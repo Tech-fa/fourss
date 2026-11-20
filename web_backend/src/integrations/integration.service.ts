@@ -32,7 +32,9 @@ import {
   visibleRevision,
 } from "./integration.model";
 import { HookHttpInit, ProgramDispatch, runIntegrationHook } from "./integration.runner";
+import { responseBody } from "./integration.http";
 import { decryptSecret, encryptSecret } from "./integration.secrets";
+import { ConnectionFileService } from "../common/connection-file.service";
 
 const LEASE_MS = 90_000;
 
@@ -62,6 +64,7 @@ export class IntegrationService implements OnModuleInit {
     @InjectRepository(IntegrationSubscription)
     private readonly subscriptions: Repository<IntegrationSubscription>,
     private readonly publisher: QueuePublisher,
+    private readonly connectionFiles: ConnectionFileService,
   ) {}
 
   async onModuleInit() {
@@ -244,7 +247,7 @@ export class IntegrationService implements OnModuleInit {
       headers: {},
       query: {},
       body,
-    });
+    }, undefined, true);
     if (result.status >= 400) {
       const message = result.body && typeof result.body === "object" && "message" in result.body
         ? String((result.body as { message?: unknown }).message)
@@ -437,7 +440,19 @@ export class IntegrationService implements OnModuleInit {
     path: string,
     request: { method: string; headers: unknown; query: unknown; body: unknown },
     fallback?: HookName,
+    exposeError = false,
   ) {
+    const failed = (message: string) => {
+      if (message.includes("NO_ROUTE")) {
+        return { status: 404, body: { message: "That route is not registered." } };
+      }
+      return {
+        status: 500,
+        body: {
+          message: exposeError ? redactMessage(message) : "The integration failed to handle this request.",
+        },
+      };
+    };
     try {
       const value = await this.runRevision(state, revision, {
         kind: "route",
@@ -454,14 +469,11 @@ export class IntegrationService implements OnModuleInit {
         } catch (hookError) {
           const hookMessage = hookError instanceof Error ? hookError.message : "The hook failed.";
           await this.record(state.id, revision.id, fallback, hookMessage);
-          return { status: 500, body: { message: "The integration failed to handle this request." } };
+          return failed(hookMessage);
         }
       }
       await this.record(state.id, revision.id, "route", message);
-      return {
-        status: message.includes("NO_ROUTE") ? 404 : 500,
-        body: { message: message.includes("NO_ROUTE") ? "That route is not registered." : "The integration failed to handle this request." },
-      };
+      return failed(message);
     }
   }
 
@@ -500,6 +512,8 @@ export class IntegrationService implements OnModuleInit {
           await this.states.save({ integrationId: state.id, stateKey: key.slice(0, 128), value });
         },
         http: (url, init) => this.fetchOutbound(url, init),
+        save: (bytes, name, options) => this.connectionFiles.save(bytes, name, options?.contentType),
+        extractText: (fileId) => this.connectionFiles.extract(fileId),
         emit: async (event, body) => {
           if (!QUEUE_EVENT.test(event)) throw new Error("That event name is not usable.");
           const allowed = revision.capabilities.queueEvents;
@@ -522,7 +536,11 @@ export class IntegrationService implements OnModuleInit {
         },
       },
       revision.capabilities,
-      { integrationId: state.id, resident },
+      {
+        integrationId: state.id,
+        resident,
+        config: Object.fromEntries(Object.entries(values).map(([key, stored]) => [key, stored.value])),
+      },
     );
   }
 
@@ -536,14 +554,10 @@ export class IntegrationService implements OnModuleInit {
       method: init.method || "GET",
       headers,
       body: !hasBody ? undefined : typeof init.body === "string" ? init.body : JSON.stringify(init.body),
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(30000),
     });
-    const text = await response.text();
-    try {
-      return { status: response.status, body: text ? JSON.parse(text) : null };
-    } catch {
-      return { status: response.status, body: text };
-    }
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return { status: response.status, body: responseBody(buffer, response.headers.get("content-type") || "") };
   }
 
   private async record(integrationId: string, revisionId: string, hook: string, message: string) {

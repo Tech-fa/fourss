@@ -57,12 +57,37 @@ export class LocalFileService implements FileService {
     }
   }
 
+  async saveBytes(name: string, bytes: Buffer, contentType: string) {
+    const cleanFileName = cleanName(name);
+    const fileName = `${uuidv4()}_${cleanFileName}`;
+    const destination = this.resolvePath(fileName);
+    await fs.mkdir(path.dirname(destination), { recursive: true });
+    await fs.writeFile(destination, bytes);
+    const saved = await this.fileRepository.save({
+      fileUrl: fileName,
+      fileName: name.trim().slice(0, 255) || cleanFileName,
+      contentType: contentType.slice(0, 255),
+    });
+    return {
+      fileId: saved.id,
+      name: saved.fileName,
+      size: bytes.length,
+      contentType: saved.contentType || contentType,
+      url: await this.getSignedUrlForDownload(fileName),
+    };
+  }
+
+  async readStored(id: string): Promise<{ buffer: Buffer; name: string; contentType: string | null } | null> {
+    const row = await this.fileRepository.findOne({ where: { id } });
+    if (!row) return null;
+    const buffer = await this.getFileBuffer(row.fileUrl);
+    if (!buffer) return null;
+    return { buffer, name: row.fileName, contentType: row.contentType ?? null };
+  }
+
   async uploadFile(file: any, skipFileEntity: boolean = false) {
     const rand = uuidv4();
-    const cleanFileName = String(file.originalname || "file").replace(
-      /[^a-zA-Z0-9._-]/g,
-      "_",
-    );
+    const cleanFileName = cleanName(file.originalname || "file");
     const fileName = `${rand}_${cleanFileName}`;
     const destination = this.resolvePath(fileName);
     await fs.mkdir(path.dirname(destination), { recursive: true });
@@ -124,4 +149,9 @@ export class LocalFileService implements FileService {
     }
     return full;
   }
+}
+
+function cleanName(name: string) {
+  const clean = String(name || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
+  return clean.slice(0, 180) || "file";
 }
