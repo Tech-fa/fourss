@@ -3,6 +3,7 @@ import { SUBMIT_FORM_REFUSAL } from './confirmation'
 import { getRuntimeConfig } from '@/util/runtime-config'
 
 const STORAGE_KEY = 'fourss.agentHelper'
+const MCP_TOKEN_KEY = 'fourss.agentHelper.mcp'
 const HELPER_UNAVAILABLE = 'Could not reach the agent helper. Turn it on to try again.'
 
 export type AgentHelperStatus = 'off' | 'connecting' | 'connected' | 'unavailable'
@@ -72,6 +73,20 @@ export function setAgentHelperEnabled(enabled: boolean): Promise<void> {
     }
     sessionStorage.setItem(STORAGE_KEY, 'on')
     return start()
+}
+
+export function endAgentHelperSession() {
+    const headers = authHeader()
+    localStorage.removeItem(MCP_TOKEN_KEY)
+    if (headers.authorization && apiBase()) {
+        void fetch(helperPath('session/end'), {
+            method: 'POST',
+            keepalive: true,
+            headers: { ...headers, 'content-type': 'application/json' },
+            body: '{}'
+        }).catch(() => undefined)
+    }
+    disconnect()
 }
 
 export function agentHelperAuthChanged() {
@@ -199,11 +214,12 @@ async function start() {
             fail(HELPER_UNAVAILABLE, true)
             return
         }
+        const remembered = rememberedToken()
         session = await fetch(helperPath('session'), {
             method: 'POST',
             cache: 'no-store',
             headers: { ...authHeader(), 'content-type': 'application/json' },
-            body: '{}',
+            body: remembered ? JSON.stringify({ token: remembered }) : '{}',
             signal: controller.signal
         })
     } catch (error) {
@@ -228,6 +244,7 @@ async function start() {
     }
     failedToken = ''
     sessionToken = token
+    rememberToken(token)
     installHelperPageControl()
     window.__bindAgentPageLinks?.()
     publish({ enabled: true, status: 'connected', mcpUrl: helperPath('mcp', token), message: '' })
@@ -335,14 +352,51 @@ function apiBase() {
     return (getRuntimeConfig().apiUrl || '').trim().replace(/\/+$/, '')
 }
 
-function authToken() {
+function authRecord() {
     try {
         const parsed = JSON.parse(localStorage.getItem('auth') || '')
-        if (parsed && typeof parsed === 'object' && typeof parsed.token === 'string') return parsed.token.trim()
+        return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : null
+    } catch {
+        return null
+    }
+}
+
+function authUserId() {
+    const details = authRecord()?.userDetails
+    if (!details || typeof details !== 'object') return ''
+    const id = (details as { id?: unknown }).id
+    return typeof id === 'string' ? id : ''
+}
+
+function rememberedToken() {
+    const userId = authUserId()
+    if (!userId) return ''
+    try {
+        const parsed = JSON.parse(localStorage.getItem(MCP_TOKEN_KEY) || '')
+        if (
+            parsed &&
+            typeof parsed === 'object' &&
+            parsed.userId === userId &&
+            typeof parsed.token === 'string' &&
+            parsed.token.trim()
+        ) {
+            return parsed.token.trim()
+        }
     } catch {
         return ''
     }
     return ''
+}
+
+function rememberToken(token: string) {
+    const userId = authUserId()
+    if (!userId || !token) return
+    localStorage.setItem(MCP_TOKEN_KEY, JSON.stringify({ userId, token }))
+}
+
+function authToken() {
+    const token = authRecord()?.token
+    return typeof token === 'string' ? token.trim() : ''
 }
 
 function authHeader(): Record<string, string> {

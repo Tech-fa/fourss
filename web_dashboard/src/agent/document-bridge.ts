@@ -13,17 +13,23 @@ export function installAgentDocumentBridge(source: {
     editPath?: () => string
     insert?: (markdown: string) => Promise<boolean | void> | boolean | void
     acceptNewSections?: () => boolean
+    api?: () => unknown
+    changed?: () => void
 }) {
     const previous = {
         read: window.__agentReadDocumentContent,
         editPath: window.__agentDocumentEditPath,
         insert: window.__agentInsertDocumentContent,
-        acceptNewSections: window.__agentDocumentAcceptNewSections
+        acceptNewSections: window.__agentDocumentAcceptNewSections,
+        api: window.__agentDocumentApi,
+        changed: window.__agentDocumentChanged
     }
     if (source.read) window.__agentReadDocumentContent = source.read
     if (source.editPath) window.__agentDocumentEditPath = source.editPath
     if (source.insert) window.__agentInsertDocumentContent = source.insert
     if (source.acceptNewSections) window.__agentDocumentAcceptNewSections = source.acceptNewSections
+    if (source.api) window.__agentDocumentApi = source.api
+    if (source.changed) window.__agentDocumentChanged = source.changed
     return () => {
         if (source.read && window.__agentReadDocumentContent === source.read) {
             window.__agentReadDocumentContent = previous.read
@@ -39,6 +45,12 @@ export function installAgentDocumentBridge(source: {
             window.__agentDocumentAcceptNewSections === source.acceptNewSections
         ) {
             window.__agentDocumentAcceptNewSections = previous.acceptNewSections
+        }
+        if (source.api && window.__agentDocumentApi === source.api) {
+            window.__agentDocumentApi = previous.api
+        }
+        if (source.changed && window.__agentDocumentChanged === source.changed) {
+            window.__agentDocumentChanged = previous.changed
         }
     }
 }

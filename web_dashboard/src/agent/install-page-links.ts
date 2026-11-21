@@ -3,7 +3,7 @@ import { AuthRoutes } from '@/components/auth/routes'
 import { useAuthStore } from '@/stores/auth'
 import { readBrowserApiAccess } from './api-access'
 import { clickLabeled } from './click-labeled'
-import { planDocumentBodyWrite } from './document-markdown'
+import { applyDocumentOperations, readDocumentBlocks, type DocumentApi } from './document-commands'
 import { agentPages, includeDocumentEditPath, linksOnPage, type AgentRoute } from './page-links'
 import { runAgentPlayground } from './playground-program'
 
@@ -53,6 +53,12 @@ function bindAgentPageLinks(router: Router) {
     const originalCall = control.__agentOriginalCall
     control.__agentPatched = true
     control.call = async (name, args = {}) => {
+        if (name === 'document_blocks') return readDocumentBlocks(documentApi(), args)
+        if (name === 'document_apply') {
+            const result = applyDocumentOperations(documentApi(), args.operations)
+            window.__agentDocumentChanged?.()
+            return result
+        }
         if (name === 'api_access') return readBrowserApiAccess()
         if (name === 'apply_playground') return runAgentPlayground(args)
         if (name === 'submit_form' && typeof args.button === 'string' && args.button.trim()) {
@@ -60,39 +66,13 @@ function bindAgentPageLinks(router: Router) {
             if (clicked) return { submitted: true, button: clicked }
         }
         if (name === 'set_fields' && args.fields && typeof args.fields === 'object') {
-            const fields = { ...(args.fields as Record<string, unknown>) }
-            let insertedBody = false
-            for (const key of Object.keys(fields)) {
-                if (!DOCUMENT_BODY_FIELDS.has(key.trim().toLowerCase())) continue
-                const markdown = fields[key]
-                delete fields[key]
-                if (typeof markdown === 'string' && markdown.trim()) {
-                    const insert = window.__agentInsertDocumentContent
-                    if (!insert) throw new Error('The document editor is not ready.')
-                    const live = await window.__agentReadDocumentContent?.()
-                    const prior = window.__agentDocumentRead
-                    const current =
-                        live?.complete === true
-                            ? live.markdown
-                            : prior?.complete === true
-                              ? prior.markdown
-                              : null
-                    const planned = planDocumentBodyWrite({
-                        current,
-                        incoming: markdown,
-                        readComplete: prior?.complete === true,
-                        acceptNewSections: window.__agentDocumentAcceptNewSections?.() === true
-                    })
-                    await insert(planned.markdown)
-                    window.__agentDocumentRead = { complete: true, markdown: planned.markdown }
-                    insertedBody = true
+            for (const key of Object.keys(args.fields as Record<string, unknown>)) {
+                if (DOCUMENT_BODY_FIELDS.has(key.trim().toLowerCase())) {
+                    throw new Error(
+                        'Write the document with document_apply. document_blocks lists the blocks and their node ids.'
+                    )
                 }
             }
-            if (!Object.keys(fields).length) {
-                if (insertedBody) return { set: ['Document body'], missing: [] }
-                throw new Error('fields must include at least one field.')
-            }
-            args = { ...args, fields }
         }
         return originalCall(name, args)
     }
@@ -172,5 +152,14 @@ declare global {
         __agentDocumentEditPath?: () => string
         __agentDocumentAcceptNewSections?: () => boolean
         __agentDocumentRead?: { complete: boolean; markdown: string }
+        __agentDocumentApi?: () => unknown
+        __agentDocumentChanged?: () => void
     }
+}
+
+function documentApi(): DocumentApi | null {
+    const read = window.__agentDocumentApi
+    if (typeof read !== 'function') return null
+    const api = read()
+    return api && typeof api === 'object' ? (api as DocumentApi) : null
 }

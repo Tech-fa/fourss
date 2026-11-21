@@ -895,6 +895,10 @@ function syncAgentDocumentBridge() {
     releaseAgentDocument = installAgentDocumentBridge({
         insert: insertAgentDocumentContent,
         editPath: agentDocumentEditPath,
+        api: () => superdocRef.value?.documentApi() ?? null,
+        changed: () => {
+            hasSuperdocEdits.value = true
+        },
         read: () => readReadyDocument(() => readEditorDocument(superdocRef.value))
     })
 }

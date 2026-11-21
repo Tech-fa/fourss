@@ -96,6 +96,191 @@ describe('helper page control', () => {
         })) as { selected: string }
         expect(native.selected).toBe('Policy')
         expect((document.getElementById('kind') as HTMLSelectElement).value).toBe('policy')
+
+        await expect(
+            window.__appControl?.call('select_option', { field: 'Category', option: 'Missing' })
+        ).rejects.toThrow('Visible options: Procedure, Policy')
+    })
+
+    it('chooses search, API search, and multi-select options', async () => {
+        document.body.innerHTML = `
+            <div>
+                <label>Standard *</label>
+                <div test-id="standard-select">
+                    <div id="searcheable-select-dropdown">
+                        <input type="text" placeholder="Search standard" />
+                        <button type="button"></button>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label>Linked non-conformity</label>
+                <div id="searcheable-api-select2-dropdown" test-id="linked-nc-selector">
+                    <input type="text" placeholder="Search non-conformities" />
+                    <button type="button"></button>
+                </div>
+            </div>
+            <div>
+                <label>Teams</label>
+                <div test-id="teams-select">
+                    <div id="team-chips"></div>
+                    <div id="multi-select-dropdown">
+                        <button type="button"><span class="text-neutral-500">Select teams</span></button>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label>Checklists</label>
+                <div>
+                    <div id="checklist-chips"></div>
+                    <div id="searcheable-multi-select-dropdown">
+                        <input type="text" placeholder="Search checklists" />
+                        <button type="button"></button>
+                    </div>
+                </div>
+            </div>
+        `
+        const standards = ['ISO 9001', 'ISO 14001', 'ISO 27001']
+        const standardRoot = document.getElementById('searcheable-select-dropdown') as HTMLElement
+        const standardInput = standardRoot.querySelector('input') as HTMLInputElement
+        const standardList = document.createElement('ul')
+        const renderStandards = () => {
+            const query = standardInput.value.toLowerCase().replace(/\s+/g, '')
+            const shown = query
+                ? standards.filter((item) => item.toLowerCase().replace(/\s+/g, '').includes(query))
+                : standards
+            standardList.innerHTML = shown.map((item) => `<li>${item}</li>`).join('')
+            if (!standardRoot.contains(standardList)) standardRoot.append(standardList)
+        }
+        standardInput.addEventListener('focus', renderStandards)
+        standardInput.addEventListener('input', renderStandards)
+        let standard = ''
+        standardRoot.addEventListener('click', (event) => {
+            const item = (event.target as Element).closest('li')
+            if (!item) return
+            standard = item.textContent || ''
+            standardInput.value = standard
+        })
+
+        const apiRoot = document.getElementById('searcheable-api-select2-dropdown') as HTMLElement
+        const apiInput = apiRoot.querySelector('input') as HTMLInputElement
+        let linked = ''
+        apiInput.addEventListener('input', () => {
+            window.setTimeout(() => {
+                apiRoot.querySelector('ul')?.remove()
+                const list = document.createElement('ul')
+                list.innerHTML = `<li>${apiInput.value}</li>`
+                apiRoot.append(list)
+            }, 40)
+        })
+        apiRoot.addEventListener('click', (event) => {
+            const item = (event.target as Element).closest('li')
+            if (!item) return
+            linked = item.textContent || ''
+            apiInput.value = linked
+        })
+
+        const teams = document.getElementById('multi-select-dropdown') as HTMLElement
+        const teamChips = document.getElementById('team-chips') as HTMLElement
+        const teamButton = teams.querySelector('button') as HTMLButtonElement
+        teamButton.addEventListener('click', () => {
+            if (teams.querySelector('ul')) {
+                teams.querySelector('ul')?.remove()
+                return
+            }
+            const list = document.createElement('ul')
+            list.innerHTML = '<li>Quality</li><li>Safety</li>'
+            teams.append(list)
+        })
+        teams.addEventListener('click', (event) => {
+            const item = (event.target as Element).closest('li')
+            if (!item) return
+            const chip = document.createElement('div')
+            chip.textContent = item.textContent || ''
+            teamChips.append(chip)
+            teams.querySelector('ul')?.remove()
+        })
+
+        const checks = document.getElementById('searcheable-multi-select-dropdown') as HTMLElement
+        const checkChips = document.getElementById('checklist-chips') as HTMLElement
+        const checkInput = checks.querySelector('input') as HTMLInputElement
+        const checkList = document.createElement('ul')
+        const checkOptions = ['Internal audit', 'Supplier audit']
+        checkInput.addEventListener('input', () => {
+            const query = checkInput.value.toLowerCase().replace(/\s+/g, '')
+            checkList.innerHTML = checkOptions
+                .filter((item) => item.toLowerCase().replace(/\s+/g, '').includes(query))
+                .map((item) => `<li>${item}</li>`)
+                .join('')
+            if (!checks.contains(checkList)) checks.append(checkList)
+        })
+        checks.addEventListener('click', (event) => {
+            const item = (event.target as Element).closest('li')
+            if (!item) return
+            const chip = document.createElement('div')
+            chip.textContent = item.textContent || ''
+            checkChips.append(chip)
+            checkList.remove()
+        })
+
+        installHelperPageControl()
+        const described = (await window.__appControl?.call('describe_page')) as {
+            dropdowns: Array<{
+                label: string
+                placeholder: string
+                value: string
+                testId: string
+                multiple: boolean
+                searchable: boolean
+                remote: boolean
+                selected: string[]
+            }>
+        }
+        expect(described.dropdowns.map((dropdown) => dropdown.label)).toEqual([
+            'Standard',
+            'Linked non-conformity',
+            'Teams',
+            'Checklists'
+        ])
+        expect(described.dropdowns.map((dropdown) => dropdown.multiple)).toEqual([false, false, true, true])
+        expect(described.dropdowns.map((dropdown) => dropdown.searchable)).toEqual([true, true, false, true])
+        expect(described.dropdowns.map((dropdown) => dropdown.remote)).toEqual([false, true, false, false])
+        expect(described.dropdowns[2].placeholder).toBe('Select teams')
+        expect(described.dropdowns[2].value).toBe('')
+        expect(described.dropdowns[2].selected).toEqual([])
+        expect(described.dropdowns[0].testId).toBe('standard-select')
+
+        const selected = (await window.__appControl?.call('select_option', {
+            field: 'Standard',
+            option: 'ISO 14001'
+        })) as { selected: string }
+        expect(selected.selected).toBe('ISO 14001')
+        expect(standard).toBe('ISO 14001')
+
+        const linkedResult = (await window.__appControl?.call('select_option', {
+            field: 'linked-nc-selector',
+            option: 'NC-14'
+        })) as { selected: string }
+        expect(linkedResult.selected).toBe('NC-14')
+        expect(linked).toBe('NC-14')
+
+        const firstTeam = (await window.__appControl?.call('select_option', {
+            field: 'Teams',
+            option: 'Quality'
+        })) as { values: string[] }
+        const secondTeam = (await window.__appControl?.call('select_option', {
+            field: 'Teams',
+            option: 'Safety'
+        })) as { values: string[] }
+        expect(firstTeam.values).toEqual(['Quality'])
+        expect(secondTeam.values).toEqual(['Quality', 'Safety'])
+
+        const checklist = (await window.__appControl?.call('select_option', {
+            field: 'Search checklists',
+            option: 'Supplier'
+        })) as { selected: string; values: string[] }
+        expect(checklist.selected).toBe('Supplier audit')
+        expect(checklist.values).toEqual(['Supplier audit'])
     })
 
     it('refuses to submit and does not replace the shell control', async () => {

@@ -1846,6 +1846,10 @@ onMounted(() => {
         insert: insertAgentDocumentContent,
         editPath: agentDocumentEditPath,
         acceptNewSections: () => isCreateDocument.value,
+        api: () => superdocRef.value?.documentApi() ?? null,
+        changed: () => {
+            hasSuperdocEdits.value = true
+        },
         read: () =>
             readDocumentForAgent({
                 creating: isCreateDocument.value,

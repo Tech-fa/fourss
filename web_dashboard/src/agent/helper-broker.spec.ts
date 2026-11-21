@@ -9,6 +9,8 @@ import { NON_CONFORMITY_GUIDE } from './non-conformity'
 import {
     AGENT_SERVER_NAME,
     LEAVE_CONFIRMATION_TO_THE_USER,
+    DOCUMENT_EDITOR_RULE,
+    PLATFORM_CONTEXT,
     STAY_ON_PAGE_RULE,
     SUBMIT_FORM_REFUSAL,
     agentHandoff,
@@ -20,6 +22,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
 describe('agent helper confirmation', () => {
     it('keeps the Fourss confirmation rules', () => {
         const instructions = helperInstructions()
+        expect(instructions.startsWith(PLATFORM_CONTEXT)).toBe(true)
+        expect(instructions).toContain(DOCUMENT_EDITOR_RULE)
         expect(instructions).toContain(LEAVE_CONFIRMATION_TO_THE_USER)
         expect(instructions).toContain(STAY_ON_PAGE_RULE)
         expect(instructions).toContain('call api_access')
@@ -27,18 +31,22 @@ describe('agent helper confirmation', () => {
         expect(instructions).not.toContain('then submit_form')
 
         const server = readFileSync(resolve(root, 'fourss/web_backend/src/agent-helper/instructions.ts'), 'utf8')
+        expect(server).toContain(PLATFORM_CONTEXT)
         expect(server).toContain(LEAVE_CONFIRMATION_TO_THE_USER)
         expect(server).toContain(STAY_ON_PAGE_RULE)
         expect(server).toContain(SUBMIT_FORM_REFUSAL)
         expect(server).toContain(API_ACCESS_DESCRIPTION)
         expect(server).toContain('call api_access')
         expect(server).toContain('select_option')
+        expect(server).toContain('A multi-select adds one option each time you call it.')
+        expect(instructions).toContain('A multi-select adds one option each time you call it.')
         expect(server).toContain('apply_playground')
         expect(server).toContain('It does not publish.')
 
         const handoff = agentHandoff('http://127.0.0.1:3003/__agent-helper/mcp?token=secret')
         expect(handoff).toContain(AGENT_SERVER_NAME)
         expect(handoff).toContain('http://127.0.0.1:3003/__agent-helper/mcp?token=secret')
+        expect(handoff).toContain(PLATFORM_CONTEXT)
         expect(handoff).toContain(LEAVE_CONFIRMATION_TO_THE_USER)
         expect(handoff).toContain(STAY_ON_PAGE_RULE)
         expect(handoff).toContain('this browser tab is closed')

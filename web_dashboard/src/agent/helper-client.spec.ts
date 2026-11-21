@@ -4,6 +4,7 @@ import {
     agentHelperAuthChanged,
     agentHelperState,
     bootAgentHelper,
+    endAgentHelperSession,
     executeAgentCall,
     setAgentHelperEnabled
 } from './helper-client'
@@ -40,6 +41,7 @@ describe('agent helper client', () => {
         await setAgentHelperEnabled(false)
         sessionStorage.clear()
         localStorage.removeItem('auth')
+        localStorage.removeItem('fourss.agentHelper.mcp')
         vi.unstubAllGlobals()
         delete window.__appControl
         delete window.__appControlHooks
@@ -143,6 +145,98 @@ describe('agent helper client', () => {
         expect(window.__buhoOffer).toEqual({
             mcp: { name: 'fourss', url: 'https://api.example.com/__agent-helper/mcp?token=secret' }
         })
+    })
+
+    it('reuses the token saved for this login', async () => {
+        sessionStorage.setItem('fourss.agentHelper', 'on')
+        localStorage.setItem(
+            'auth',
+            JSON.stringify({ token: 'Bearer browser-token', userDetails: { id: 'user-1' } })
+        )
+        localStorage.setItem(
+            'fourss.agentHelper.mcp',
+            JSON.stringify({ userId: 'user-1', token: 'stored-token' })
+        )
+        const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+            const url = String(input)
+            if (url.includes('/session') && !url.includes('/session/end')) {
+                return Promise.resolve(jsonResponse({ token: 'stored-token' }))
+            }
+            if (url.includes('/wait')) return hang(init?.signal ?? undefined)
+            return Promise.resolve(jsonResponse({ ok: true }))
+        })
+        vi.stubGlobal('fetch', fetchMock)
+
+        bootAgentHelper({ push: async () => undefined })
+
+        await vi.waitFor(() => expect(agentHelperState().status).toBe('connected'))
+        expect(fetchMock).toHaveBeenCalledWith(
+            'https://api.example.com/__agent-helper/session',
+            expect.objectContaining({
+                method: 'POST',
+                body: JSON.stringify({ token: 'stored-token' })
+            })
+        )
+        expect(agentHelperState().mcpUrl).toBe('https://api.example.com/__agent-helper/mcp?token=stored-token')
+        expect(JSON.parse(localStorage.getItem('fourss.agentHelper.mcp') || '')).toEqual({
+            userId: 'user-1',
+            token: 'stored-token'
+        })
+    })
+
+    it('does not send a token saved for a different login', async () => {
+        sessionStorage.setItem('fourss.agentHelper', 'on')
+        localStorage.setItem(
+            'auth',
+            JSON.stringify({ token: 'Bearer browser-token', userDetails: { id: 'user-2' } })
+        )
+        localStorage.setItem(
+            'fourss.agentHelper.mcp',
+            JSON.stringify({ userId: 'user-1', token: 'stored-token' })
+        )
+        const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+            const url = String(input)
+            if (url.includes('/session')) return Promise.resolve(jsonResponse({ token: 'fresh-token' }))
+            if (url.includes('/wait')) return hang(init?.signal ?? undefined)
+            return Promise.resolve(jsonResponse({ ok: true }))
+        })
+        vi.stubGlobal('fetch', fetchMock)
+
+        bootAgentHelper({ push: async () => undefined })
+
+        await vi.waitFor(() => expect(agentHelperState().status).toBe('connected'))
+        expect(fetchMock).toHaveBeenCalledWith(
+            'https://api.example.com/__agent-helper/session',
+            expect.objectContaining({ method: 'POST', body: '{}' })
+        )
+        expect(JSON.parse(localStorage.getItem('fourss.agentHelper.mcp') || '')).toEqual({
+            userId: 'user-2',
+            token: 'fresh-token'
+        })
+    })
+
+    it('drops the saved token when the login ends', async () => {
+        localStorage.setItem(
+            'auth',
+            JSON.stringify({ token: 'Bearer browser-token', userDetails: { id: 'user-1' } })
+        )
+        localStorage.setItem(
+            'fourss.agentHelper.mcp',
+            JSON.stringify({ userId: 'user-1', token: 'stored-token' })
+        )
+        const fetchMock = vi.fn(async () => jsonResponse({ ok: true }))
+        vi.stubGlobal('fetch', fetchMock)
+
+        endAgentHelperSession()
+
+        expect(localStorage.getItem('fourss.agentHelper.mcp')).toBeNull()
+        expect(fetchMock).toHaveBeenCalledWith(
+            'https://api.example.com/__agent-helper/session/end',
+            expect.objectContaining({
+                method: 'POST',
+                headers: expect.objectContaining({ authorization: 'Bearer browser-token' })
+            })
+        )
     })
 
     it('fills the open page and refuses to confirm it', async () => {

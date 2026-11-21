@@ -2089,6 +2089,7 @@ let releaseAgentDocument: (() => void) | null = null
 
 onMounted(async () => {
     releaseAgentDocument = installAgentDocumentBridge({
+        api: () => previewSuperDocRef.value?.documentApi() ?? null,
         editPath: () => {
             const doc = documentData.value
             const version = doc?.versions?.[doc.versions.length - 1]

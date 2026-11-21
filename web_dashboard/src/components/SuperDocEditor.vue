@@ -21,10 +21,8 @@
             :can-comment="canComment"
             :show-highlight-toolbar="showHighlightToolbar"
             :show-reader-mask="showReaderMask"
-            :show-ai-write="canUseAiWrite"
             :labels="labels"
             :diagrams="diagrams"
-            :generate-ai-content="resolveAiContent"
             @ready="onReady"
             @update="emit('update')"
             @docx-selected="emit('docx-selected', $event)"
@@ -45,15 +43,11 @@ import EmbeddedSuperDoc from './superdoc/SuperDocEditorSurface.vue'
 import type { DiagramMap } from './superdoc/diagram/diagram-model'
 import { buildRedlinedDocx } from './superdoc/utils/superdoc-diff'
 import type {
-    SuperDocAiWriteRequest,
     SuperDocAiWriteResult,
     SuperDocDocumentSource,
     SuperDocLabels,
     SuperDocUser
 } from '@/util/superdoc-iframe-messages'
-import { apiPost } from '@/util/api'
-import { formatApiErrorMessage } from '@/util/util'
-import { useAuthStore } from '@/stores/auth'
 
 type DiffResult = { blob: Blob; hasChanges: boolean; changedComponents: string[] }
 
@@ -68,6 +62,7 @@ type EmbeddedEditor = {
     scrollToComment: (commentId: string) => Promise<boolean>
     scrollToElement: (nodeId: string, offset?: number) => Promise<boolean>
     getDiagrams: () => DiagramMap
+    documentApi: () => unknown
     isReady: boolean
 }
 
@@ -86,9 +81,7 @@ const props = withDefaults(
         canComment?: boolean
         showHighlightToolbar?: boolean
         showReaderMask?: boolean
-        showAiWrite?: boolean
         horizontalPageScroll?: boolean
-        generateAiContent?: (request: SuperDocAiWriteRequest) => Promise<SuperDocAiWriteResult>
         initialMarkdown?: string
         diagrams?: DiagramMap
     }>(),
@@ -125,7 +118,6 @@ const emit = defineEmits<{
 }>()
 
 const { t, locale } = useI18n()
-const authStore = useAuthStore()
 const editorRef = ref<EmbeddedEditor | null>(null)
 const editorActive = ref(true)
 const editorKey = ref(0)
@@ -168,66 +160,12 @@ const labels = computed<SuperDocLabels>(() => ({
     editDiagram: t('document.form.diagram_edit_title')
 }))
 
-const canUseAiWrite = computed(() => {
-    if (props.showAiWrite === false) return false
-    if (props.generateAiContent) return true
-    if (props.showAiWrite === true) return true
-    return (
-        props.documentMode === 'editing' &&
-        props.role !== 'viewer' &&
-        !props.showHighlightToolbar &&
-        authStore.hasPermissions({ subject: 'documents', actions: ['create', 'update'] })
-    )
-})
-
 function assertEditor() {
     const editor = editorRef.value
     if (!editor || !isReady.value) {
         throw new Error('SuperDoc editor is not ready')
     }
     return editor
-}
-
-async function defaultGenerateAiContent(request: SuperDocAiWriteRequest): Promise<SuperDocAiWriteResult> {
-    const result = await apiPost<{
-        model: string
-        content: string
-        contentType?: SuperDocAiWriteResult['contentType']
-    }>(
-        '/documents/agent/write',
-        {
-            prompt: request.prompt,
-            extraContext: {
-                documentContext: request.documentContext,
-                selection: request.selection,
-                outputInstructions: request.outputInstructions,
-                outputFormat: request.outputFormat
-            }
-        },
-        authStore
-    )
-    if (!result?.content?.trim()) {
-        throw new Error(t('document.form.ai_write_error'))
-    }
-    return {
-        content: result.content,
-        contentType: result.contentType ?? request.outputFormat
-    }
-}
-
-async function resolveAiContent(request: SuperDocAiWriteRequest): Promise<SuperDocAiWriteResult> {
-    try {
-        const generate = props.generateAiContent ?? defaultGenerateAiContent
-        return await generate(request)
-    } catch (error) {
-        const data = (error as { response?: { data?: unknown } })?.response?.data
-        const message =
-            formatApiErrorMessage(data, t, 'errors.document') ||
-            formatApiErrorMessage(data, t, 'errors.llm') ||
-            (error instanceof Error ? error.message : '') ||
-            t('document.form.ai_write_error')
-        throw new Error(message)
-    }
 }
 
 function onReady() {
@@ -310,6 +248,10 @@ function getDiagrams() {
     return editorRef.value.getDiagrams()
 }
 
+function documentApi() {
+    return editorRef.value?.documentApi?.() ?? null
+}
+
 async function insertInitialMarkdown() {
     const markdown = props.initialMarkdown?.trim()
     if (!isReady.value || insertedInitialMarkdown.value || !markdown) return
@@ -338,7 +280,6 @@ watch(
         props.canComment,
         props.showHighlightToolbar,
         props.showReaderMask,
-        canUseAiWrite.value,
         locale.value
     ],
     async () => {
@@ -369,7 +310,8 @@ defineExpose({
     runDiff,
     scrollToComment,
     scrollToElement,
-    getDiagrams
+    getDiagrams,
+    documentApi
 })
 </script>
 

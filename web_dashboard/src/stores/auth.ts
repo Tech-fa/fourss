@@ -4,7 +4,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import i18n from '@/i18n'
 import { apiCall } from '@/util/api'
-import { agentHelperAuthChanged } from '@/agent/helper-client'
+import { agentHelperAuthChanged, endAgentHelperSession } from '@/agent/helper-client'
 export interface UserDetails {
     permissions: Permission[]
     companyName?: string
@@ -88,6 +88,7 @@ export const useAuthStore = defineStore('auth', () => {
         if (userId) {
             localStorage.removeItem(`agentChat:${userId}`)
         }
+        endAgentHelperSession()
         state.value.token = null
         state.value.isLoggedIn = false
         state.value.userDetails = {} as UserDetails

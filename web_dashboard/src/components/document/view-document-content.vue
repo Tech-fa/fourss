@@ -334,6 +334,7 @@ let releaseAgentDocument: (() => void) | null = null
 
 onMounted(async () => {
     releaseAgentDocument = installAgentDocumentBridge({
+        api: () => superDocRef.value?.documentApi() ?? null,
         editPath: () => {
             const version = activeVersion.value
             if (documentData.value?.contentType !== ContentType.EDITOR || version?.id == null) return ''

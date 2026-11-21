@@ -16,6 +16,8 @@ const KNOWN_TOOLS = new Set([
     'set_fields',
     'select_option',
     'apply_playground',
+    'document_blocks',
+    'document_apply',
     'submit_form'
 ])
 
@@ -429,7 +431,7 @@ function toolDefinitions() {
                 additionalProperties: false
             }
         ),
-        tool('describe_page', 'Read the page that is open: its path, forms, fields, dropdowns, and submit buttons. When a document is open, document is the full document as markdown, including every section.', {
+        tool('describe_page', 'Read the page that is open: its path, forms, fields, dropdowns, and submit buttons. dropdowns includes every select on the page, including search and multi-select. When a document is open, document is the full document as markdown, including every section.', {
             type: 'object',
             properties: {},
             additionalProperties: false
@@ -441,7 +443,7 @@ function toolDefinitions() {
         }),
         tool(
             'set_fields',
-            'Set values on the form that is open. fields maps a field name, id, or label to the new value. Pass form when the page has more than one form. Document body and editor content write the open document editor. When that document is empty, the value is the new document, sent in one write. When it already has sections, the value replaces the one matching section. On the new-document page, a section that is not there yet is added. Replacing the whole document is accepted only after describe_page has returned the complete markdown.',
+            'Set values on the form that is open. fields maps a field name, id, or label to the new value. Pass form when the page has more than one form. This does not write the document. Use document_blocks and document_apply for the open document editor.',
             {
                 type: 'object',
                 properties: {
@@ -461,14 +463,50 @@ function toolDefinitions() {
         ),
         tool(
             'select_option',
-            'Choose an option in a dropdown on the open page. field is the label or placeholder, such as Category. option is the visible option text. This opens the dropdown and selects that option. It does not submit the form.',
+            'Choose an option in a dropdown on the open page. field is the label or placeholder, such as Category. option is the visible option text. This works for every select, including Select2, a search box, an API search, and a multi-select. A search field is filled with the option text so the match can load. A multi-select adds that one option. Call it again to add another. This opens the dropdown and selects that option. It does not submit the form.',
             {
                 type: 'object',
                 properties: {
-                    field: { type: 'string', description: 'Dropdown label or placeholder.' },
-                    option: { type: 'string', description: 'Visible option text to select.' }
+                    field: { type: 'string', description: 'Dropdown label, placeholder, or test id.' },
+                    option: { type: 'string', description: 'Visible option text. A search field is filled with this text.' }
                 },
                 required: ['field', 'option'],
+                additionalProperties: false
+            }
+        ),
+        tool(
+            'document_blocks',
+            'Read the open SuperDoc document as blocks. Each block has ordinal, nodeId, nodeType, headingLevel, and text. offset and limit choose a window. limit defaults to 40 and is at most 80. Use a nodeId with document_apply.',
+            {
+                type: 'object',
+                properties: {
+                    offset: { type: 'integer', minimum: 0, description: 'First block to return. Defaults to 0.' },
+                    limit: { type: 'integer', minimum: 1, maximum: 80, description: 'How many blocks to return. Defaults to 40.' }
+                },
+                additionalProperties: false
+            }
+        ),
+        tool(
+            'document_apply',
+            'Change the open SuperDoc document. operations is a list of { operationId, input }. Allowed operationId values are create.paragraph, create.heading, create.table, lists.create, lists.insert, insert, replace, blocks.delete, and tables.setCellText. create.heading input is { level, text, at }. create.paragraph input is { text, at }. at is { kind: "documentEnd" }, { kind: "documentStart" }, or { kind: "before" or "after", target: { kind: "block", nodeType, nodeId } }. create.table input is { rows, columns, at }. lists.create input is { mode: "fromParagraphs", target: { kind: "block", nodeType: "paragraph", nodeId }, kind: "bullet" or "ordered" }. lists.insert input is { target: { kind: "block", nodeType: "listItem", nodeId }, position: "before" or "after", text }. insert input is { value, type: "text" } and appends when target is omitted. replace input is { target, text }. Read nodeId values with document_blocks first. This does not save the document.',
+            {
+                type: 'object',
+                properties: {
+                    operations: {
+                        type: 'array',
+                        description: 'SuperDoc document operations to run in order.',
+                        items: {
+                            type: 'object',
+                            properties: {
+                                operationId: { type: 'string' },
+                                input: { type: 'object' }
+                            },
+                            required: ['operationId'],
+                            additionalProperties: false
+                        }
+                    }
+                },
+                required: ['operations'],
                 additionalProperties: false
             }
         ),
@@ -526,6 +564,11 @@ function invalidArguments(name: string, args: Record<string, unknown>) {
         const option = typeof args.option === 'string' ? args.option.trim() : ''
         if (!field) return 'field is required.'
         if (!option) return 'option is required.'
+    }
+    if (name === 'document_apply') {
+        if (!Array.isArray(args.operations) || !args.operations.length) {
+            return 'operations must list at least one SuperDoc operation.'
+        }
     }
     if (name === 'apply_playground') {
         const html = typeof args.html === 'string' ? args.html.trim() : ''

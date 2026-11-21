@@ -26,6 +26,8 @@ describe('installAgentPageLinks', () => {
         delete window.__agentDocumentEditPath
         delete window.__agentDocumentAcceptNewSections
         delete window.__agentDocumentRead
+        delete window.__agentDocumentApi
+        delete window.__agentDocumentChanged
         localStorage.removeItem('auth')
     })
 
@@ -97,7 +99,7 @@ describe('installAgentPageLinks', () => {
         delete window.__agentApplyPlayground
     })
 
-    it('returns the browser token and replaces one section of the open document', async () => {
+    it('returns the browser token and leaves the document body to SuperDoc operations', async () => {
         const policy = '# Policy\n\n## Purpose\n\nKeep this purpose.\n\n## Scope\n\nOld scope.\n'
         let written = ''
         window.__appControl = { call: () => ({ from: 'shell' }) }
@@ -124,61 +126,46 @@ describe('installAgentPageLinks', () => {
 
         await expect(
             window.__appControl?.call('set_fields', {
-                fields: { 'document body': '# Policy\n\n## Purpose\n\nGone.\n\n## Scope\n\nGone.\n' }
+                fields: { 'document body': '# Policy\n\n## Purpose\n\nGone.\n' }
             })
-        ).rejects.toThrow(/complete markdown/)
-
-        window.__agentDocumentRead = { complete: true, markdown: policy }
-        const filled = (await window.__appControl?.call('set_fields', {
-            fields: { 'editor content': '## Scope\n\nNew scope.\n' }
-        })) as { set: string[] }
-        expect(filled.set).toEqual(['Document body'])
-        expect(written).toContain('Keep this purpose.')
-        expect(written).toContain('New scope.')
-        expect(written).not.toContain('Old scope.')
+        ).rejects.toThrow(/document_apply/)
+        expect(written).toBe('')
     })
 
-    it('writes a section into an empty document and keeps it for the next write', async () => {
-        let written = ''
+    it('reads blocks and applies SuperDoc operations on the open editor', async () => {
+        const executed: unknown[] = []
+        let changed = false
         window.__appControl = { call: () => ({ from: 'shell' }) }
-        window.__agentReadDocumentContent = async () => ({ markdown: '', complete: true })
-        window.__agentDocumentRead = { complete: true, markdown: '' }
-        window.__agentInsertDocumentContent = async (markdown) => {
-            written = markdown
-            return true
-        }
-        installAgentPageLinks(fakeRouter())
-
-        const filled = (await window.__appControl?.call('set_fields', {
-            fields: { 'document body': '## 1. Purpose\n\nState the purpose.\n' }
-        })) as { set: string[] }
-
-        expect(filled.set).toEqual(['Document body'])
-        expect(written).toContain('1. Purpose')
-        expect(written).toContain('State the purpose.')
-        expect(window.__agentDocumentRead?.markdown).toContain('State the purpose.')
-        expect(window.__agentDocumentRead?.complete).toBe(true)
-    })
-
-    it('adds the next section on the new-document page', async () => {
-        let written = ''
-        const current = '## 1. Purpose\n\nKeep this purpose.\n'
-        window.__appControl = { call: () => ({ from: 'shell' }) }
-        window.__agentReadDocumentContent = async () => ({ markdown: current, complete: false })
-        window.__agentDocumentRead = { complete: true, markdown: current }
-        window.__agentDocumentAcceptNewSections = () => true
-        window.__agentInsertDocumentContent = async (markdown) => {
-            written = markdown
-            return true
-        }
-        installAgentPageLinks(fakeRouter())
-
-        await window.__appControl?.call('set_fields', {
-            fields: { 'editor content': '## 2. Scope\n\nThe scope.\n' }
+        window.__agentDocumentApi = () => ({
+            blocks: {
+                list: () => ({
+                    total: 1,
+                    blocks: [{ ordinal: 1, nodeId: 'h1', nodeType: 'heading', headingLevel: 1, text: 'Purpose' }]
+                })
+            },
+            plan: {
+                execute: (input: { entries: unknown[] }) => {
+                    executed.push(input.entries)
+                    return { receipts: [{ status: 'passed' }] }
+                }
+            }
         })
+        window.__agentDocumentChanged = () => {
+            changed = true
+        }
+        installAgentPageLinks(fakeRouter())
 
-        expect(written).toContain('Keep this purpose.')
-        expect(written).toContain('2. Scope')
-        expect(written).toContain('The scope.')
+        const blocks = (await window.__appControl?.call('document_blocks', {})) as {
+            blocks: Array<{ nodeId: string }>
+        }
+        expect(blocks.blocks[0].nodeId).toBe('h1')
+
+        await window.__appControl?.call('document_apply', {
+            operations: [{ operationId: 'create.paragraph', input: { text: 'The purpose.', at: { kind: 'documentEnd' } } }]
+        })
+        expect(executed).toEqual([
+            [{ operationId: 'create.paragraph', input: { text: 'The purpose.', at: { kind: 'documentEnd' } } }]
+        ])
+        expect(changed).toBe(true)
     })
 })

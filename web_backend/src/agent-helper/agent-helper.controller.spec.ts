@@ -68,16 +68,40 @@ describe('agent helper controller', () => {
         expect(blocked.read().statusCode).toBe(401)
     })
 
-    it('replaces the previous session when the same user turns the helper on again', async () => {
+    it('keeps one token for a login across reloads and mints a new one after that login ends', async () => {
         const controller = new AgentHelperController()
         const first = fakeResponse()
         controller.open(fakeRequest({ user: { id: 'user-1' } }), first.res)
         const firstToken = (first.read().payload as { token: string }).token
 
+        const reloaded = fakeResponse()
+        await controller.release(
+            fakeRequest({
+                path: '/__agent-helper/release',
+                query: { token: firstToken },
+                body: { pageId: 'p1' }
+            }),
+            reloaded.res
+        )
+
         const second = fakeResponse()
         controller.open(fakeRequest({ user: { id: 'user-1' } }), second.res)
-        const secondToken = (second.read().payload as { token: string }).token
-        expect(secondToken).not.toBe(firstToken)
+        expect((second.read().payload as { token: string }).token).toBe(firstToken)
+
+        const listed = fakeResponse()
+        await controller.mcp(
+            fakeRequest({
+                headers: { host: 'api.example.com' },
+                query: { token: firstToken },
+                body: { jsonrpc: '2.0', id: 1, method: 'tools/list' }
+            }),
+            listed.res
+        )
+        expect(listed.read().statusCode).toBe(200)
+
+        const ended = fakeResponse()
+        controller.end(fakeRequest({ user: { id: 'user-1' } }), ended.res)
+        expect(ended.read().statusCode).toBe(204)
 
         const stale = fakeResponse()
         await controller.mcp(
@@ -90,20 +114,33 @@ describe('agent helper controller', () => {
         )
         expect(stale.read().statusCode).toBe(401)
 
-        const listed = fakeResponse()
-        await controller.mcp(
-            fakeRequest({
-                headers: { host: 'api.example.com' },
-                query: { token: secondToken },
-                body: { jsonrpc: '2.0', id: 1, method: 'tools/list' }
-            }),
-            listed.res
+        const nextLogin = fakeResponse()
+        controller.open(fakeRequest({ user: { id: 'user-1' } }), nextLogin.res)
+        expect((nextLogin.read().payload as { token: string }).token).not.toBe(firstToken)
+    })
+
+    it('adopts the token this login already published and will not take another user\'s', () => {
+        const controller = new AgentHelperController()
+        const kept = 'a'.repeat(43)
+        const opened = fakeResponse()
+        controller.open(
+            fakeRequest({ user: { id: 'user-1' }, body: { token: kept } }),
+            opened.res
         )
-        expect(listed.read().statusCode).toBe(200)
-        const tools = (
-            listed.read().payload as { result: { tools: Array<{ name: string }> } }
-        ).result.tools
-        expect(tools.map((tool) => tool.name)).toContain('api_access')
-        expect(tools.map((tool) => tool.name)).toContain('submit_form')
+        expect((opened.read().payload as { token: string }).token).toBe(kept)
+
+        const again = fakeResponse()
+        controller.open(
+            fakeRequest({ user: { id: 'user-1' }, body: { token: 'b'.repeat(43) } }),
+            again.res
+        )
+        expect((again.read().payload as { token: string }).token).toBe(kept)
+
+        const other = fakeResponse()
+        controller.open(
+            fakeRequest({ user: { id: 'user-2' }, body: { token: kept } }),
+            other.res
+        )
+        expect((other.read().payload as { token: string }).token).not.toBe(kept)
     })
 })

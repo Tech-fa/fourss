@@ -26,51 +26,6 @@
     >
       {{ headerFooterBannerText }}
     </div>
-    <div
-      v-if="aiPromptOpen"
-      class="sd-ai-write-panel"
-      role="dialog"
-      aria-labelledby="sd-ai-write-title"
-      test-id="document-ai-write-panel"
-    >
-      <label id="sd-ai-write-title" class="sd-ai-write-label" for="sd-ai-write-prompt">
-        {{ labels.aiWrite }}
-      </label>
-      <textarea
-        id="sd-ai-write-prompt"
-        ref="aiPromptInputRef"
-        v-model="aiPromptText"
-        class="sd-ai-write-input"
-        rows="3"
-        :placeholder="labels.aiWritePromptPlaceholder"
-        :disabled="aiWriting"
-        test-id="document-ai-write-prompt"
-        @keydown="onAiPromptKeydown"
-      />
-      <p v-if="aiPromptError" class="sd-ai-write-error" role="alert" test-id="document-ai-write-error">
-        {{ aiPromptError }}
-      </p>
-      <div class="sd-ai-write-actions">
-        <button
-          type="button"
-          class="sd-ai-write-btn"
-          :disabled="aiWriting"
-          test-id="document-ai-write-cancel"
-          @click="closeAiPrompt"
-        >
-          {{ labels.aiWriteCancel }}
-        </button>
-        <button
-          type="button"
-          class="sd-ai-write-btn sd-ai-write-btn-primary"
-          :disabled="aiWriting"
-          test-id="document-ai-write-generate"
-          @click="submitAiPrompt"
-        >
-          {{ aiWriting ? labels.aiWriteGenerating : labels.aiWriteGenerate }}
-        </button>
-      </div>
-    </div>
     <div id="editor" ref="editorRef" />
     <DocumentDiagramDialog
       v-if="diagramOpen"
@@ -127,19 +82,12 @@ import {
 } from './utils/readerMask'
 import {
   DOCX_MIME,
-  type SuperDocAiWriteRequest,
   type SuperDocAiWriteResult,
   type SuperDocDocumentSource,
   type SuperDocLabels,
   type SuperDocUser,  
 } from './types/messages'
-import {
-  AI_WRITE_OUTPUT_FORMAT,
-  AI_WRITE_OUTPUT_INSTRUCTIONS,
-  getDocumentPlainText,
-  getSelectedText,
-  insertAiContent,
-} from './utils/aiWrite'
+import { insertAiContent } from './utils/aiWrite'
 import {
   prepareDocxWithOlePreviews,
   restoreOleObjectsInDocx,
@@ -161,9 +109,6 @@ const PAGE_NUMBER_ICON =
 const DIAGRAM_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="8" y="2" width="8" height="5" rx="1"/><rect x="2" y="17" width="8" height="5" rx="1"/><rect x="14" y="17" width="8" height="5" rx="1"/><path d="M11 7h2v4h5v2h-5v4h-2v-4H6v-2h5V7z" fill="none"/><path d="M12 7v4M6 15.5V12h12v3.5M12 11H6M12 11h6" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>'
 
-const AI_WRITE_ICON =
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" fill="currentColor" aria-hidden="true"><path d="M234.7 42.7L197 56.8c-3 1.1-5 4-5 7.2s2 6.1 5 7.2l37.7 14.1L248.8 123c1.1 3 4 5 7.2 5s6.1-2 7.2-5l14.1-37.7L315 71.2c3-1.1 5-4 5-7.2s-2-6.1-5-7.2L277.3 42.7 263.2 5c-1.1-3-4-5-7.2-5s-6.1 2-7.2 5L234.7 42.7zM46.1 395.4c-18.7 18.7-18.7 49.1 0 67.9l34.6 34.6c18.7 18.7 49.1 18.7 67.9 0L397.5 248.1c-28.2-23.2-52.5-47.6-75.7-75.8L46.1 395.4zM484.6 25.9C462 3.3 426.2 3.3 403.6 25.9L366.3 63.2c28.2 23.2 52.5 47.6 75.8 75.8l37.2-37.2c22.6-22.6 22.6-58.4 0-81C479.3 20.8 479.3 20.8 484.6 25.9z"/></svg>'
-
 const READER_MASK_ICON =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M2 4.5h20v3.2H2V4.5zm0 6h13.5v3.2H2v-3.2zM2 16.5h20v3H2v-3z"/></svg>'
 
@@ -184,9 +129,7 @@ const props = withDefaults(
     canComment?: boolean
     showHighlightToolbar?: boolean
     showReaderMask?: boolean
-    showAiWrite?: boolean
     horizontalPageScroll?: boolean
-    generateAiContent?: (request: SuperDocAiWriteRequest) => Promise<SuperDocAiWriteResult>
     labels: SuperDocLabels
     diagrams?: DiagramMap
   }>(),
@@ -204,7 +147,6 @@ const props = withDefaults(
     canComment: false,
     showHighlightToolbar: false,
     showReaderMask: false,
-    showAiWrite: false,
     horizontalPageScroll: false,
     diagrams: () => ({}),
   },
@@ -225,18 +167,11 @@ const emit = defineEmits<{
 const toolbarRef = ref<HTMLElement | null>(null)
 const editorRef = ref<HTMLElement | null>(null)
 const docxFileInputRef = ref<HTMLInputElement | null>(null)
-const aiPromptInputRef = ref<HTMLTextAreaElement | null>(null)
 const differentFirstPageEnabled = ref(false)
 const hfSurface = ref('body')
 const hfVariant = ref<string | null>(null)
 const pageNumberNoticeText = ref('')
 const isReady = ref(false)
-const aiPromptOpen = ref(false)
-const aiPromptText = ref('')
-const aiPromptError = ref('')
-const aiWriting = ref(false)
-let aiWriteSelection = ''
-let aiWriteDocumentContext = ''
 
 let superdoc: any = null
 let oleRestoreEntries: OleRestoreEntry[] = []
@@ -635,10 +570,6 @@ function canMutateDocument() {
   return props.documentMode === 'editing' && props.role !== 'viewer'
 }
 
-function isAiWriteAvailable() {
-  return Boolean(props.showAiWrite && props.generateAiContent && canMutateDocument() && showToolbarChrome())
-}
-
 const diagramOpen = ref(false)
 const editingDiagramId = ref<string | null>(null)
 const diagramStore = ref<DiagramMap>(normalizeDiagramMap(props.diagrams))
@@ -880,73 +811,6 @@ function insertDiagramImage(image: DiagramImage) {
   }
 }
 
-function openAiPrompt() {
-  if (!isAiWriteAvailable() || aiWriting.value) return
-  const editor = getActiveEditor()
-  aiWriteSelection = getSelectedText(editor)
-  aiWriteDocumentContext = getDocumentPlainText(editor)
-  aiPromptError.value = ''
-  aiPromptOpen.value = true
-  nextTick(() => aiPromptInputRef.value?.focus())
-}
-
-function closeAiPrompt() {
-  if (aiWriting.value) return
-  aiPromptOpen.value = false
-  aiPromptError.value = ''
-}
-
-function onAiPromptKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') {
-    event.preventDefault()
-    closeAiPrompt()
-    return
-  }
-  if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
-    event.preventDefault()
-    void submitAiPrompt()
-  }
-}
-
-async function submitAiPrompt() {
-  const prompt = aiPromptText.value.trim()
-  if (!prompt) {
-    aiPromptError.value = props.labels.aiWriteEmptyPrompt
-    return
-  }
-  if (!props.generateAiContent || aiWriting.value || !canMutateDocument()) return
-
-  aiWriting.value = true
-  aiPromptError.value = ''
-  try {
-    const result = await props.generateAiContent({
-      prompt,
-      outputFormat: AI_WRITE_OUTPUT_FORMAT,
-      outputInstructions: AI_WRITE_OUTPUT_INSTRUCTIONS,
-      documentContext: aiWriteDocumentContext || undefined,
-      selection: aiWriteSelection || undefined,
-    })
-    const inserted = insertAiContent(
-      getActiveEditor(),
-      result.content,
-      result.contentType || AI_WRITE_OUTPUT_FORMAT,
-    )
-    if (!inserted) {
-      aiPromptError.value = props.labels.aiWriteInsertFailed
-      return
-    }
-    aiPromptText.value = ''
-    aiPromptOpen.value = false
-    emit('update')
-  } catch (error) {
-    aiPromptError.value = error instanceof Error && error.message
-      ? error.message
-      : props.labels.aiWriteError
-  } finally {
-    aiWriting.value = false
-  }
-}
-
 function isViewReviewMode() {
   return props.documentMode === 'viewing' && !isHighlightToolbarMode()
 }
@@ -961,6 +825,10 @@ function getPresentationEditor() {
 
 function getActiveEditor() {
   return getActiveEditorFromSuperdoc(superdoc) as any
+}
+
+function documentApi() {
+  return getActiveEditor()?.doc ?? null
 }
 
 function getNodeIdFromElement(el: Element): string | null {
@@ -1502,23 +1370,6 @@ function buildToolbarConfig() {
     customButtons.push(readerMaskToolbarButton())
   }
 
-  if (props.showAiWrite) {
-    customButtons.push({
-      type: 'button',
-      name: 'aiWrite',
-      group: 'left',
-      icon: AI_WRITE_ICON,
-      tooltip: props.labels.aiWrite,
-      allowWithoutEditor: false,
-      restoreEditorFocus: false,
-      command: () => openAiPrompt(),
-      attributes: {
-        ariaLabel: props.labels.aiWrite,
-        'test-id': 'document-ai-write-button',
-      },
-    })
-  }
-
   if (customButtons.length > 0) {
     config.customButtons = customButtons
   }
@@ -1945,6 +1796,7 @@ defineExpose({
   scrollToElement,
   hasComments,
   getDiagrams,
+  documentApi,
 })
 
 function getCommentIdFromDialog(dialog: Element): string | null {
@@ -2128,8 +1980,6 @@ onUnmounted(() => {
   clearPageNumberNotice()
   headerFooterEditor = null
   oleRestoreEntries = []
-  aiPromptOpen.value = false
-  aiWriting.value = false
   diagramOpen.value = false
   superdoc?.destroy()
   superdoc = null
@@ -2271,84 +2121,6 @@ onUnmounted(() => {
   color: #334155;
   background: #f1f5f9;
   border-bottom: 1px solid var(--border);
-}
-
-.sd-ai-write-panel {
-  flex-shrink: 0;
-  width: 90%;
-  padding: 10px 12px 12px;
-  margin:20px;
-  background: #f8fafc;
-  border-bottom: 1px solid var(--border);
-}
-
-.sd-ai-write-label {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #334155;
-}
-
-.sd-ai-write-input {
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 8px 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.375rem;
-  background: #ffffff;
-  color: #0f172a;
-  font: inherit;
-  font-size: 0.8125rem;
-  line-height: 1.4;
-  resize: vertical;
-}
-
-.sd-ai-write-input:focus {
-  outline: 2px solid #0f172a;
-  outline-offset: 1px;
-}
-
-.sd-ai-write-input:disabled {
-  color: #64748b;
-  background: #f1f5f9;
-}
-
-.sd-ai-write-error {
-  margin: 8px 0 0;
-  font-size: 0.75rem;
-  color: #b91c1c;
-}
-
-.sd-ai-write-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.sd-ai-write-btn {
-  padding: 6px 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 0.375rem;
-  background: #ffffff;
-  color: #334155;
-  font: inherit;
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
-
-.sd-ai-write-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.sd-ai-write-btn-primary {
-  border-color: #0f172a;
-  background: #0f172a;
-  color: #ffffff;
 }
 
 #editor {

@@ -21,16 +21,24 @@ export const HELPER_OFF_MESSAGE =
 export const HELPER_TOOL_ORDER =
     'Call list_pages, then navigate, then describe_page, then set_fields.'
 
+export const DOCUMENT_EDITOR_RULE =
+    'When a document editor is open, read its blocks with document_blocks and change them with document_apply. Those calls use SuperDoc document commands. Do not write the document body with set_fields.'
+
+export const PLATFORM_CONTEXT =
+    'The main context of this platform is ISO management system implementation and management.'
+
 export const AGENT_SERVER_NAME = 'app-helper'
 
 export function helperInstructions(): string {
     return [
+        PLATFORM_CONTEXT,
+        DOCUMENT_EDITOR_RULE,
         'These tools control the dashboard tab that has the agent helper turned on.',
         HELPER_TOOL_ORDER,
         'Paths that contain :name need a real id from the open page.',
         'To call the API, call api_access. It tells you the OpenAPI document for this app and gives you the authorization token from this browser localStorage. Look up the operation in that document, then call the API with that token.',
         'A playground keeps its own tables. The page uses playground.sql. A link to an existing record is the record id, the record name, and an endpoint path on this app. The page or a server function fetches that path. Do not add columns to the playground entity resolver.',
-        'To choose a dropdown, call select_option with the field label and the option text.',
+        'To choose a dropdown, call select_option with the field label and the option text. This works for every select on the page, including a search box and a multi-select. A multi-select adds one option each time you call it.',
         'Build what the user asked for by calling apply_playground. html is the page they see. js is how that page behaves. backend defines this playground\'s own routes with route(method, path, async (playground, request) => result) only when a request needs work on the server. The page calls a route with playground.api(path, { method, body, file }). The user sees the running app, not those files. Do not mention the files. This stores the app and shows it. It does not publish. The user clicks Publish.',
         'The tools change the window the user is looking at.',
         STAY_ON_PAGE_RULE,

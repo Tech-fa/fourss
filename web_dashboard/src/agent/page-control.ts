@@ -110,8 +110,19 @@ function createBuiltins(): Record<string, (args: ControlArgs) => unknown> {
     }
 }
 
-const DROPDOWN_ROOT = '[id="select2-dropdown"], [id="searcheable-select-dropdown"]'
+const DROPDOWN_ROOT = [
+    'select2-dropdown',
+    'searcheable-select-dropdown',
+    'multi-select-dropdown',
+    'searcheable-multi-select-dropdown',
+    'searcheable-api-select2-dropdown',
+    'searcheable-api-multi-select-dropdown'
+]
+    .map((id) => `[id="${id}"]`)
+    .join(', ')
 const OPTION_LIMIT = 40
+const OPTION_WAIT_MS = 500
+const SEARCH_WAIT_MS = 4000
 
 export function listDropdowns(root: ParentNode) {
     return dropdownRoots(root).map(describeDropdown)
@@ -132,22 +143,44 @@ export async function selectOption(args: ControlArgs) {
 
     const dropdown = findDropdown(field)
     if (!dropdown) throw new Error(`No dropdown matches ${field}.`)
+    const mode = dropdownMode(dropdown)
     openDropdown(dropdown)
-    const match = await waitForOption(dropdown, option)
+    // Type before the next wait so a remote select searches once, for this option.
+    if (mode.searchable) typeSearch(dropdown, option)
+    const match = await waitForOption(dropdown, option, mode.searchable ? SEARCH_WAIT_MS : OPTION_WAIT_MS)
+    if (!match) throw new Error(optionMiss(dropdown, option))
     match.click()
-    return { field, option, selected: clean(match.textContent) }
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    const selected = clean(match.textContent)
+    if (!mode.multiple) return { field, option, selected }
+    return { field, option, selected, values: selectedValues(dropdown) }
 }
 
 function dropdownRoots(root: ParentNode) {
     return Array.from(root.querySelectorAll(DROPDOWN_ROOT))
 }
 
+function dropdownMode(el: Element) {
+    const id = el.id || ''
+    return {
+        multiple: id.includes('multi'),
+        searchable: id.includes('searcheable'),
+        remote: id.includes('api')
+    }
+}
+
 function describeDropdown(el: Element) {
     const options = optionElements(el).map((item) => clean(item.textContent)).filter(Boolean)
+    const mode = dropdownMode(el)
     return {
         label: dropdownLabel(el),
         placeholder: dropdownPlaceholder(el),
         value: dropdownValue(el),
+        testId: dropdownTestId(el),
+        multiple: mode.multiple,
+        searchable: mode.searchable,
+        remote: mode.remote,
+        selected: selectedValues(el),
         options: options.slice(0, OPTION_LIMIT),
         optionCount: options.length
     }
@@ -169,55 +202,120 @@ function dropdownLabel(el: Element) {
 }
 
 function dropdownPlaceholder(el: Element) {
-    const input = el.querySelector('input')
-    if (input instanceof HTMLInputElement && input.placeholder) return clean(input.placeholder)
+    const input = searchInput(el)
+    if (input?.placeholder) return clean(input.placeholder)
+    const span = el.querySelector('button span')
+    if (placeholderSpan(span)) return clean(span?.textContent || '')
     return ''
 }
 
 function dropdownValue(el: Element) {
-    const input = el.querySelector('input')
-    if (input instanceof HTMLInputElement && input.value) return clean(input.value)
+    if (dropdownMode(el).multiple) return ''
+    const input = searchInput(el)
+    if (input && input.value && input.value !== input.placeholder) return clean(input.value)
     const span = el.querySelector('button span')
-    return clean(span?.textContent || '')
+    if (!span || placeholderSpan(span)) return ''
+    return clean(span.textContent || '')
+}
+
+function placeholderSpan(span: Element | null) {
+    return (span?.getAttribute('class') || '').includes('text-neutral-500')
+}
+
+function dropdownTestId(el: Element) {
+    let node: Element | null = el
+    while (node && node !== document.body) {
+        const id = node.getAttribute('test-id')
+        if (id) return id
+        node = node.parentElement
+    }
+    return ''
+}
+
+function selectedValues(el: Element) {
+    if (!dropdownMode(el).multiple) {
+        const value = dropdownValue(el)
+        return value ? [value] : []
+    }
+    const chips = el.previousElementSibling
+    if (!chips) return []
+    return Array.from(chips.children)
+        .map((chip) => clean(chip.textContent))
+        .filter(Boolean)
 }
 
 function findDropdown(key: string) {
     const wanted = norm(key)
     const matches = dropdownRoots(document).filter((el) => {
-        const names = [
-            dropdownLabel(el),
-            dropdownPlaceholder(el),
-            dropdownValue(el),
-            el.parentElement?.getAttribute('test-id') || ''
-        ]
+        const names = [dropdownLabel(el), dropdownPlaceholder(el), dropdownValue(el), dropdownTestId(el)]
         return names.some((name) => norm(name) === wanted)
     })
     if (matches.length > 1) throw new Error(`More than one dropdown matches ${key}.`)
     return matches[0] || null
 }
 
-function openDropdown(el: Element) {
+function searchInput(el: Element) {
     const input = el.querySelector('input')
-    if (input instanceof HTMLInputElement) {
+    if (!(input instanceof HTMLInputElement)) return null
+    const type = (input.getAttribute('type') || 'text').toLowerCase()
+    if (type === 'hidden' || type === 'button' || type === 'submit' || type === 'checkbox' || type === 'radio') {
+        return null
+    }
+    return input
+}
+
+function toggleButton(el: Element) {
+    const buttons = Array.from(el.querySelectorAll('button')).filter(
+        (button): button is HTMLButtonElement => button instanceof HTMLButtonElement
+    )
+    return buttons.find((button) => !button.parentElement?.closest('button')) || null
+}
+
+function isDropdownOpen(el: Element) {
+    return Boolean(el.querySelector('ul, div[class*="absolute"]'))
+}
+
+function openDropdown(el: Element) {
+    const input = searchInput(el)
+    if (input) {
         input.focus()
         input.dispatchEvent(new FocusEvent('focus', { bubbles: true }))
         return
     }
-    const button = el.querySelector('button')
-    if (button instanceof HTMLButtonElement) button.click()
+    if (isDropdownOpen(el)) return
+    toggleButton(el)?.click()
+}
+
+function typeSearch(el: Element, option: string) {
+    const input = searchInput(el)
+    if (!input) return
+    setNativeValue(input, option)
 }
 
 function optionElements(el: Element) {
     return Array.from(el.querySelectorAll('li')).filter((item) => clean(item.textContent))
 }
 
-async function waitForOption(el: Element, option: string) {
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-        const match = matchOption(optionElements(el), option)
+function optionMiss(el: Element, option: string) {
+    const options = optionElements(el)
+        .map((item) => clean(item.textContent))
+        .filter(Boolean)
+    if (!options.length) return `No option matches ${option}. The list has no options.`
+    const shown = options.slice(0, OPTION_LIMIT).join(', ')
+    const more = options.length > OPTION_LIMIT ? ` (${options.length - OPTION_LIMIT} more)` : ''
+    return `No option matches ${option}. Visible options: ${shown}${more}.`
+}
+
+async function waitForOption(el: Element, option: string, timeoutMs: number) {
+    const started = Date.now()
+    while (Date.now() - started < timeoutMs) {
+        const options = optionElements(el)
+        const match = matchOption(options, option)
         if (match) return match
+        if (!dropdownMode(el).searchable && options.length) return null
         await new Promise((resolve) => setTimeout(resolve, 30))
     }
-    throw new Error(`No option matches ${option}.`)
+    return matchOption(optionElements(el), option)
 }
 
 function matchOption(options: Element[], option: string) {

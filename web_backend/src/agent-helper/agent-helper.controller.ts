@@ -20,14 +20,19 @@ export class AgentHelperController {
             res.status(401).json({ error: 'Unauthorized.' })
             return
         }
-        this.replaceUser(userId)
-        const token = randomBytes(32).toString('base64url')
-        this.sessions.set(token, {
-            userId,
-            broker: new AgentHelperBroker(token, { access: 'account' })
-        })
-        this.byUser.set(userId, token)
+        const token = this.tokenFor(userId, requestedToken(req.body))
         res.status(200).json({ token })
+    }
+
+    @Post('session/end')
+    end(@Req() req: AuthedRequest, @Res() res: Response) {
+        const userId = String(req.user?.id || '')
+        if (!userId) {
+            res.status(401).json({ error: 'Unauthorized.' })
+            return
+        }
+        this.replaceUser(userId)
+        res.status(204).end()
     }
 
     @Public()
@@ -50,10 +55,36 @@ export class AgentHelperController {
 
     @Public()
     @Post('release')
-    async release(@Req() req: Request, @Res() res: Response) {
-        const token = tokenFrom(req)
-        await this.forward(req, res)
-        if (token) this.drop(token)
+    release(@Req() req: Request, @Res() res: Response) {
+        return this.forward(req, res)
+    }
+
+    private tokenFor(userId: string, requested: string) {
+        const current = this.byUser.get(userId)
+        if (current && this.sessions.has(current)) return current
+        if (requested && this.canAdopt(userId, requested)) {
+            this.bind(userId, requested)
+            return requested
+        }
+        const token = randomBytes(32).toString('base64url')
+        this.bind(userId, token)
+        return token
+    }
+
+    private canAdopt(userId: string, token: string) {
+        if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return false
+        const existing = this.sessions.get(token)
+        return !existing || existing.userId === userId
+    }
+
+    private bind(userId: string, token: string) {
+        if (!this.sessions.has(token)) {
+            this.sessions.set(token, {
+                userId,
+                broker: new AgentHelperBroker(token, { access: 'account' })
+            })
+        }
+        this.byUser.set(userId, token)
     }
 
     private replaceUser(userId: string) {
@@ -94,6 +125,12 @@ export class AgentHelperController {
 function tokenFrom(req: Request) {
     const token = req.query.token
     return typeof token === 'string' ? token : ''
+}
+
+function requestedToken(body: unknown) {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return ''
+    const token = (body as { token?: unknown }).token
+    return typeof token === 'string' ? token.trim() : ''
 }
 
 function header(req: Request, name: string) {

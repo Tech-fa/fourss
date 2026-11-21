@@ -80,7 +80,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Form } from 'vee-validate'
 import { useI18n } from 'vue-i18n'
@@ -94,6 +94,7 @@ import { useToast } from '@/stores/notification'
 import type { DocumentTemplate } from '@/util/interfaces'
 import Spinner from '../Spinner.vue'
 import SuperDocEditor from '../SuperDocEditor.vue'
+import { installAgentDocumentBridge } from '@/agent/document-bridge'
 const superdocRef = ref<InstanceType<typeof SuperDocEditor> | null>(null)
 const superdocUser = computed(() => getSuperdocUserFromAuth(authStore.state.userDetails))
 const superdocSource = ref<File | Blob | string | null>(null)
@@ -258,12 +259,21 @@ const handleSubmit = async (values: any) => {
     }
 }
 
+let releaseAgentDocument: (() => void) | null = null
+
 onMounted(() => {
+    releaseAgentDocument = installAgentDocumentBridge({
+        api: () => superdocRef.value?.documentApi() ?? null
+    })
     if (isEditing.value) {
         loadTemplate()
     } else if (isCopyMode.value && route.params.id) {
         loadTemplateForCopy()
     }
+})
+
+onUnmounted(() => {
+    releaseAgentDocument?.()
 })
 </script>
 

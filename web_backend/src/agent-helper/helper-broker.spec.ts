@@ -1,7 +1,7 @@
 import { AUDIT_PROGRAM_GUIDE } from './audit-program'
 import { INTEGRATIONS_GUIDE } from './integrations'
 import { NON_CONFORMITY_GUIDE } from './non-conformity'
-import { HELPER_OFF_MESSAGE, LEAVE_CONFIRMATION_TO_THE_USER, STAY_ON_PAGE_RULE, SUBMIT_FORM_REFUSAL } from './instructions'
+import { DOCUMENT_EDITOR_RULE, HELPER_OFF_MESSAGE, LEAVE_CONFIRMATION_TO_THE_USER, PLATFORM_CONTEXT, STAY_ON_PAGE_RULE, SUBMIT_FORM_REFUSAL } from './instructions'
 import { AgentHelperBroker, type HelperHttpRequest, type HelperHttpResponse } from './helper-broker'
 
 function signal() {
@@ -57,6 +57,8 @@ describe('agent helper broker', () => {
         )
         const body = ready.body as { result: { instructions: string; serverInfo: { name: string } } }
         expect(body.result.serverInfo.name).toBe('app-helper')
+        expect(body.result.instructions.startsWith(PLATFORM_CONTEXT)).toBe(true)
+        expect(body.result.instructions).toContain(DOCUMENT_EDITOR_RULE)
         expect(body.result.instructions).toContain(LEAVE_CONFIRMATION_TO_THE_USER)
         expect(body.result.instructions).toContain(STAY_ON_PAGE_RULE)
         expect(body.result.instructions).toContain(AUDIT_PROGRAM_GUIDE)
@@ -80,14 +82,19 @@ describe('agent helper broker', () => {
             'api_access',
             'set_fields',
             'select_option',
+            'document_blocks',
+            'document_apply',
             'apply_playground',
             'submit_form'
         ])
         expect(tools.find((tool) => tool.name === 'set_fields')?.description).toContain(
-            'When that document is empty, the value is the new document'
+            'This does not write the document.'
         )
+        expect(tools.find((tool) => tool.name === 'document_apply')?.description).toContain('create.heading')
         expect(tools.find((tool) => tool.name === 'api_access')?.description).toContain('localStorage')
         expect(tools.find((tool) => tool.name === 'apply_playground')?.description).toContain('It does not publish.')
+        expect(tools.find((tool) => tool.name === 'select_option')?.description).toContain('multi-select')
+        expect(tools.find((tool) => tool.name === 'describe_page')?.description).toContain('every select')
         expect(tools.find((tool) => tool.name === 'submit_form')?.description).toBe(SUBMIT_FORM_REFUSAL)
     })
 

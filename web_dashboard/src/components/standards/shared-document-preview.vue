@@ -38,7 +38,6 @@
                 document-mode="viewing"
                 role="viewer"
                 :hide-toolbar="true"
-                :show-ai-write="false"
                 :show-open-docx="false"
             />
         </div>
