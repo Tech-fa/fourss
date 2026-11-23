@@ -13,6 +13,7 @@ import {
     PLATFORM_CONTEXT,
     STAY_ON_PAGE_RULE,
     SUBMIT_FORM_REFUSAL,
+    TASK_GUIDE_RULE,
     agentHandoff,
     helperInstructions
 } from './confirmation'
@@ -23,16 +24,22 @@ describe('agent helper confirmation', () => {
     it('keeps the Fourss confirmation rules', () => {
         const instructions = helperInstructions()
         expect(instructions.startsWith(PLATFORM_CONTEXT)).toBe(true)
+        expect(instructions).toContain(TASK_GUIDE_RULE)
         expect(instructions).toContain(DOCUMENT_EDITOR_RULE)
         expect(instructions).toContain(LEAVE_CONFIRMATION_TO_THE_USER)
         expect(instructions).toContain(STAY_ON_PAGE_RULE)
+        expect(instructions).not.toContain(AUDIT_PROGRAM_GUIDE)
+        expect(instructions).not.toContain(NON_CONFORMITY_GUIDE)
+        expect(instructions).not.toContain(INTEGRATIONS_GUIDE)
         expect(instructions).toContain('call api_access')
         expect(instructions).toContain('localStorage')
         expect(instructions).not.toContain('then submit_form')
 
         const server = readFileSync(resolve(root, 'fourss/web_backend/src/agent-helper/instructions.ts'), 'utf8')
         expect(server).toContain(PLATFORM_CONTEXT)
+        expect(server).toContain(TASK_GUIDE_RULE)
         expect(server).toContain(LEAVE_CONFIRMATION_TO_THE_USER)
+        expect(server).not.toContain('AUDIT_PROGRAM_GUIDE')
         expect(server).toContain(STAY_ON_PAGE_RULE)
         expect(server).toContain(SUBMIT_FORM_REFUSAL)
         expect(server).toContain(API_ACCESS_DESCRIPTION)
@@ -50,23 +57,11 @@ describe('agent helper confirmation', () => {
         expect(handoff).toContain(LEAVE_CONFIRMATION_TO_THE_USER)
         expect(handoff).toContain(STAY_ON_PAGE_RULE)
         expect(handoff).toContain('this browser tab is closed')
+        expect(handoff).toContain(TASK_GUIDE_RULE)
         expect(handoff).not.toContain('then submit_form')
-        expect(instructions).toContain(AUDIT_PROGRAM_GUIDE)
-        expect(handoff).toContain(AUDIT_PROGRAM_GUIDE)
-        expect(instructions).toContain(NON_CONFORMITY_GUIDE)
-        expect(handoff).toContain(NON_CONFORMITY_GUIDE)
-        expect(instructions).toContain(INTEGRATIONS_GUIDE)
-        expect(handoff).toContain(INTEGRATIONS_GUIDE)
-        expect(instructions).toContain('Do not ask for a secret in the chat.')
-        expect(instructions).toContain('POST /integrations/:id/proposal')
-        expect(instructions).toContain('Five whys')
-        expect(instructions).toContain('Do not supply a why or a because')
-        expect(instructions).toContain('assigned_to_id')
-        expect(instructions).toContain('rcaFiveWhyStepId')
-        expect(instructions).toContain('POST /audits/programs')
-        expect(instructions).toContain('scheduleEntries')
-        expect(instructions).toContain('POST /audits/instances')
-        expect(instructions).toContain('checklist-definitions/:id/publish')
+        expect(handoff).not.toContain(AUDIT_PROGRAM_GUIDE)
+        expect(handoff).not.toContain(NON_CONFORMITY_GUIDE)
+        expect(handoff).not.toContain(INTEGRATIONS_GUIDE)
 
         const serverGuide = readFileSync(
             resolve(root, 'fourss/web_backend/src/agent-helper/audit-program.ts'),

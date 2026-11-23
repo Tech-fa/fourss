@@ -1,7 +1,8 @@
 import { AUDIT_PROGRAM_GUIDE } from './audit-program'
 import { INTEGRATIONS_GUIDE } from './integrations'
 import { NON_CONFORMITY_GUIDE } from './non-conformity'
-import { DOCUMENT_EDITOR_RULE, HELPER_OFF_MESSAGE, LEAVE_CONFIRMATION_TO_THE_USER, PLATFORM_CONTEXT, STAY_ON_PAGE_RULE, SUBMIT_FORM_REFUSAL } from './instructions'
+import { DOCUMENT_EDITOR_RULE, HELPER_OFF_MESSAGE, LEAVE_CONFIRMATION_TO_THE_USER, PLATFORM_CONTEXT, STAY_ON_PAGE_RULE, SUBMIT_FORM_REFUSAL, TASK_GUIDE_DESCRIPTION, TASK_GUIDE_RULE } from './instructions'
+import { NO_PROCEDURE } from './task-guide'
 import { AgentHelperBroker, type HelperHttpRequest, type HelperHttpResponse } from './helper-broker'
 
 function signal() {
@@ -58,13 +59,14 @@ describe('agent helper broker', () => {
         const body = ready.body as { result: { instructions: string; serverInfo: { name: string } } }
         expect(body.result.serverInfo.name).toBe('app-helper')
         expect(body.result.instructions.startsWith(PLATFORM_CONTEXT)).toBe(true)
+        expect(body.result.instructions).toContain(TASK_GUIDE_RULE)
         expect(body.result.instructions).toContain(DOCUMENT_EDITOR_RULE)
         expect(body.result.instructions).toContain(LEAVE_CONFIRMATION_TO_THE_USER)
         expect(body.result.instructions).toContain(STAY_ON_PAGE_RULE)
-        expect(body.result.instructions).toContain(AUDIT_PROGRAM_GUIDE)
-        expect(body.result.instructions).toContain(NON_CONFORMITY_GUIDE)
-        expect(body.result.instructions).toContain(INTEGRATIONS_GUIDE)
-        expect(body.result.instructions).toContain('Do not supply a why or a because')
+        expect(body.result.instructions).not.toContain(AUDIT_PROGRAM_GUIDE)
+        expect(body.result.instructions).not.toContain(NON_CONFORMITY_GUIDE)
+        expect(body.result.instructions).not.toContain(INTEGRATIONS_GUIDE)
+        expect(body.result.instructions).not.toContain('Creating an audit program')
         expect(body.result.instructions).not.toContain('then submit_form')
 
         const listed = await broker.handle(
@@ -76,6 +78,7 @@ describe('agent helper broker', () => {
         )
         const tools = (listed.body as { result: { tools: Array<{ name: string; description: string }> } }).result.tools
         expect(tools.map((tool) => tool.name)).toEqual([
+            'task_guide',
             'list_pages',
             'navigate',
             'describe_page',
@@ -96,6 +99,59 @@ describe('agent helper broker', () => {
         expect(tools.find((tool) => tool.name === 'select_option')?.description).toContain('multi-select')
         expect(tools.find((tool) => tool.name === 'describe_page')?.description).toContain('every select')
         expect(tools.find((tool) => tool.name === 'submit_form')?.description).toBe(SUBMIT_FORM_REFUSAL)
+        expect(tools.find((tool) => tool.name === 'task_guide')?.description).toBe(TASK_GUIDE_DESCRIPTION)
+        expect(tools.find((tool) => tool.name === 'task_guide')?.description).not.toContain('audit program')
+    })
+
+    it('returns only the procedure that matches the request', async () => {
+        const broker = new AgentHelperBroker('secret', { waitMs: 30 })
+        const waiting = broker.handle(request({ path: '/__agent-helper/wait', body: {} }))
+
+        const documents = await broker.handle(
+            mcp('task_guide', { intent: 'Build the quality manual and the document control procedure.' })
+        )
+        expect(resultBody(documents).isError).toBe(false)
+        expect(resultBody(documents).content[0].text).toBe(NO_PROCEDURE)
+        expect(resultBody(documents).content[0].text).not.toContain('Creating an audit program')
+        expect(resultBody(documents).content[0].text).not.toContain('Working a non-conformity')
+        expect(resultBody(documents).content[0].text).not.toContain('A connection is one row')
+
+        const review = await broker.handle(mcp('task_guide', { intent: 'Please audit this document for completeness.' }))
+        expect(resultBody(review).content[0].text).toBe(NO_PROCEDURE)
+
+        const audit = await broker.handle(
+            mcp('task_guide', { intent: 'Create an internal audit program for ISO 9001.' })
+        )
+        expect(resultBody(audit).content[0].text).toContain(AUDIT_PROGRAM_GUIDE)
+        expect(resultBody(audit).content[0].text).not.toContain('Working a non-conformity')
+        expect(resultBody(audit).content[0].text).not.toContain('A connection is one row')
+        expect(resultBody(audit).content[0].text.length).toBeGreaterThan(AUDIT_PROGRAM_GUIDE.length)
+
+        const finding = await broker.handle(
+            mcp('task_guide', { intent: 'Log a non-conformity and run the five whys.' })
+        )
+        expect(resultBody(finding).content[0].text).toContain(NON_CONFORMITY_GUIDE)
+        expect(resultBody(finding).content[0].text).not.toContain('Creating an audit program')
+
+        const slack = await broker.handle(mcp('task_guide', { intent: 'Connect Slack.' }))
+        expect(resultBody(slack).content[0].text).toContain(INTEGRATIONS_GUIDE)
+        expect(resultBody(slack).content[0].text).not.toContain('Creating an audit program')
+
+        const both = await broker.handle(
+            mcp('task_guide', { intent: 'Create the audit program and a non-conformity.' })
+        )
+        expect(resultBody(both).content[0].text).toContain(AUDIT_PROGRAM_GUIDE)
+        expect(resultBody(both).content[0].text).toContain(NON_CONFORMITY_GUIDE)
+        expect(resultBody(both).content[0].text).not.toContain('A connection is one row')
+
+        const missing = await broker.handle(mcp('task_guide', {}))
+        expect(resultBody(missing).isError).toBe(true)
+        expect(resultBody(missing).content[0].text).toBe('intent is required.')
+
+        const page = await waiting
+        expect(page.status).toBe(200)
+        expect(page.body).toMatchObject({ idle: true })
+        expect(page.body).not.toHaveProperty('call')
     })
 
     it('refuses submit_form without asking the page to click', async () => {

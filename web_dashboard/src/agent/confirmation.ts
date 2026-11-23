@@ -1,7 +1,3 @@
-import { AUDIT_PROGRAM_GUIDE } from './audit-program'
-import { INTEGRATIONS_GUIDE } from './integrations'
-import { NON_CONFORMITY_GUIDE } from './non-conformity'
-
 /**
  * These sentences are the confirmation rules for the Fourss agent helper.
  * helper-broker.spec.ts fails if the dashboard and server copies drift.
@@ -24,6 +20,9 @@ export const HELPER_TOOL_ORDER =
 export const DOCUMENT_EDITOR_RULE =
     'When a document editor is open, read its blocks with document_blocks and change them with document_apply. Those calls use SuperDoc document commands. Do not write the document body with set_fields.'
 
+export const TASK_GUIDE_RULE =
+    'Call task_guide with the request the user made as intent before you act on it. Pass that request unchanged. Follow only the procedure that call returns. When it returns no procedure, do what they asked with the page tools and do not add another task.'
+
 export const PLATFORM_CONTEXT =
     'The main context of this platform is ISO management system implementation and management.'
 
@@ -32,6 +31,7 @@ export const AGENT_SERVER_NAME = 'app-helper'
 export function helperInstructions(): string {
     return [
         PLATFORM_CONTEXT,
+        TASK_GUIDE_RULE,
         DOCUMENT_EDITOR_RULE,
         'These tools control the dashboard tab that has the agent helper turned on.',
         HELPER_TOOL_ORDER,
@@ -43,7 +43,7 @@ export function helperInstructions(): string {
         'The tools change the window the user is looking at.',
         STAY_ON_PAGE_RULE,
         LEAVE_CONFIRMATION_TO_THE_USER
-    ].join(' ') + '\n\n' + AUDIT_PROGRAM_GUIDE + '\n\n' + NON_CONFORMITY_GUIDE + '\n\n' + INTEGRATIONS_GUIDE
+    ].join(' ')
 }
 
 export function agentHandoff(mcpUrl: string) {

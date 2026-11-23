@@ -3,12 +3,15 @@ import {
     APPLY_PLAYGROUND_DESCRIPTION,
     HELPER_OFF_MESSAGE,
     SUBMIT_FORM_REFUSAL,
+    TASK_GUIDE_DESCRIPTION,
     helperInstructions
 } from './instructions'
+import { procedureForIntent } from './task-guide'
 
 export const HELPER_PREFIX = '/__agent-helper'
 
 const KNOWN_TOOLS = new Set([
+    'task_guide',
     'list_pages',
     'navigate',
     'describe_page',
@@ -195,6 +198,10 @@ export class AgentHelperBroker {
         const invalid = invalidArguments(name, args)
         if (invalid) return { status: 200, body: rpcResult(rpcId, toolError(invalid)) }
         if (name === 'submit_form') return { status: 200, body: rpcResult(rpcId, toolError(SUBMIT_FORM_REFUSAL)) }
+        if (name === 'task_guide') {
+            const intent = typeof args.intent === 'string' ? args.intent : ''
+            return { status: 200, body: rpcResult(rpcId, toolText(procedureForIntent(intent))) }
+        }
         this.releaseIfStale()
         if (!this.owner) return { status: 200, body: rpcResult(rpcId, toolError(HELPER_OFF_MESSAGE)) }
         if (this.pending) {
@@ -414,6 +421,14 @@ function requestedProtocol(body: unknown) {
 
 function toolDefinitions() {
     return [
+        tool('task_guide', TASK_GUIDE_DESCRIPTION, {
+            type: 'object',
+            properties: {
+                intent: { type: 'string', description: 'The user\'s request, in their words.' }
+            },
+            required: ['intent'],
+            additionalProperties: false
+        }),
         tool('list_pages', 'List the pages this app can open. Use a path from this list with navigate.', {
             type: 'object',
             properties: {},
@@ -550,6 +565,10 @@ function tool(name: string, description: string, inputSchema: unknown) {
 }
 
 function invalidArguments(name: string, args: Record<string, unknown>) {
+    if (name === 'task_guide') {
+        const intent = typeof args.intent === 'string' ? args.intent.trim() : ''
+        if (!intent) return 'intent is required.'
+    }
     if (name === 'navigate') {
         const path = typeof args.path === 'string' ? args.path.trim() : ''
         if (!path) return 'path is required.'
@@ -577,6 +596,13 @@ function invalidArguments(name: string, args: Record<string, unknown>) {
         if (!html && !backend && !source) return 'html, backend, or source is required.'
     }
     return ''
+}
+
+function toolText(text: string) {
+    return {
+        content: [{ type: 'text', text }],
+        isError: false
+    }
 }
 
 function toolResult(value: unknown) {
