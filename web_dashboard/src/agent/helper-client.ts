@@ -265,6 +265,7 @@ async function pump(current: number, signal: AbortSignal, token: string) {
             })
         } catch (error) {
             if (current !== generation || isAbort(error)) return
+            if (await keepBuhoSession(signal)) continue
             fail(HELPER_UNAVAILABLE, true)
             return
         }
@@ -283,6 +284,7 @@ async function pump(current: number, signal: AbortSignal, token: string) {
             return
         }
         if (!response.ok) {
+            if (await keepBuhoSession(signal)) continue
             fail(HELPER_UNAVAILABLE, true)
             return
         }
@@ -312,6 +314,7 @@ async function pump(current: number, signal: AbortSignal, token: string) {
             })
         } catch (error) {
             if (current !== generation || isAbort(error)) return
+            if (await keepBuhoSession(signal)) continue
             fail(HELPER_UNAVAILABLE, true)
             return
         }
@@ -320,10 +323,32 @@ async function pump(current: number, signal: AbortSignal, token: string) {
             return
         }
         if (!posted.ok && current === generation && !signal.aborted) {
+            if (await keepBuhoSession(signal)) continue
             fail(HELPER_UNAVAILABLE, true)
             return
         }
     }
+}
+
+function waitFor(ms: number, signal: AbortSignal) {
+    return new Promise<void>((resolve) => {
+        const timer = window.setTimeout(resolve, ms)
+        const stop = () => {
+            window.clearTimeout(timer)
+            resolve()
+        }
+        if (signal.aborted) {
+            stop()
+            return
+        }
+        signal.addEventListener('abort', stop, { once: true })
+    })
+}
+
+async function keepBuhoSession(signal: AbortSignal) {
+    if (!hostedByBuho()) return false
+    await waitFor(1000, signal)
+    return true
 }
 
 function signInMessage() {

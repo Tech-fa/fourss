@@ -112,6 +112,31 @@ describe('agent helper client', () => {
         await vi.waitFor(() => expect(agentHelperState().status).toBe('connected'))
     })
 
+    it('keeps the Fourss tools connected when a wait fails inside Buho', async () => {
+        window.__buhoHost = true
+        localStorage.setItem('auth', JSON.stringify({ token: 'Bearer browser-token' }))
+        let waits = 0
+        vi.stubGlobal(
+            'fetch',
+            vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+                const url = String(input)
+                if (url.includes('/session')) return Promise.resolve(jsonResponse({ token: 'secret' }))
+                if (url.includes('/wait')) {
+                    waits += 1
+                    if (waits === 1) return Promise.reject(new TypeError('network'))
+                    return hang(init?.signal)
+                }
+                return Promise.resolve(jsonResponse({ ok: true }))
+            })
+        )
+
+        bootAgentHelper({ push: async () => undefined })
+
+        await vi.waitFor(() => expect(waits).toBe(2), { timeout: 3000 })
+        expect(agentHelperState().status).toBe('connected')
+        expect(window.__buhoOffer?.mcp?.url).toContain('token=secret')
+    })
+
     it('restores a turned-on helper after reload', async () => {
         sessionStorage.setItem('fourss.agentHelper', 'on')
         localStorage.setItem('auth', JSON.stringify({ token: 'Bearer browser-token' }))
