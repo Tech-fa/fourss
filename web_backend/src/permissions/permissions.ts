@@ -442,13 +442,18 @@ export const defaultRoles = [
   },
   {
     name: "Observer",
-    permissions: [
-      {
-        subject: "all",
+    permissions: Object.values(permissions)
+      .filter(
+        (permission) =>
+          permission.subject !== userPermission.subject &&
+          permission.actions.includes("read"),
+      )
+      .map((permission) => ({
+        subject: permission.subject,
         action: "read",
-      },
-    ],
-    description: "Admin role gives access to all modules and features",
+      })),
+    description:
+      "Observer role gives read access to every module except users",
   },
   {
     name: "Process Owner",
