@@ -359,7 +359,9 @@
                 <li class="mt-auto min-w-0">
                   <div class="flex flex-col gap-y-2">
                     <!-- Agent helper -->
+                     <Can subject="playgrounds" :actions="['create']"> 
                     <AgentHelperNav v-if="AgentHelperNav" />
+                  </Can>
 
                     <!-- Language -->
                     <div

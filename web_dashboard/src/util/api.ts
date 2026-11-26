@@ -53,7 +53,7 @@ export const apiPostPublic = async <T>(path: string, body: { [key: string]: any 
 
 const checkAuth = (error: any, authStore: AuthStore) => {
     if (error?.message?.includes('401') || error?.message?.includes('403')) {
-        authStore.logout()
+        // authStore.logout()
     }
 }
 export const apiPost = async <T>(
