@@ -480,6 +480,7 @@ import { useI18n } from 'vue-i18n'
 import { LOCALE_OPTIONS, type AppLocale } from '@/i18n'
 import Select2 from './Select2.vue'
 import { TEAMS_FEATURE_ENABLED } from '@/util/teams-feature'
+import Can from './Can.vue'
 
 const AgentHelperNav = defineAsyncComponent(() => import('@/components/agent/AgentHelperNav.vue'))
 
