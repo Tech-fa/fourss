@@ -1,5 +1,5 @@
 <template>
-    <div id="login-page" class="login-page fixed inset-0 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
+    <div v-if="!acceptingHandoff" id="login-page" class="login-page fixed inset-0 flex items-center justify-center p-4 sm:p-6 overflow-hidden">
         <div class="login-page__background fixed inset-0 bg-cover bg-center bg-no-repeat" :style="backgroundStyle"
             aria-hidden="true" />
         <div class="login-page__overlay fixed inset-0" aria-hidden="true" />
@@ -104,7 +104,7 @@
 import { ref, computed } from 'vue'
 import axios from 'axios'
 import { apiPostPublic } from '@/util/api'
-import { useAuthStore } from '@/stores/auth'
+import { useAuthStore, type UserDetails } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import { useToast } from '@/stores/notification'
 import { Form } from 'vee-validate'
@@ -117,6 +117,7 @@ import { LOCALE_OPTIONS, type AppLocale } from '@/i18n'
 import Select2 from '../Select2.vue'
 import { watch } from 'vue'
 import { getFirstSectionDashboardRoute } from './section-map'
+import { dashboardRedirect, decodeLoginToken } from './session-handoff'
 
 const { t } = useI18n()
 const localeOptions = LOCALE_OPTIONS
@@ -136,7 +137,36 @@ const passwordRules = (v: any) => (!exists(v) ? t('auth.login.passwordRequired')
 const loading = ref(false)
 const router = useRouter()
 const authStore = useAuthStore()
+const acceptingHandoff = ref(false)
 const selectedLocale = ref<{ value: AppLocale; label: string }>(LOCALE_OPTIONS.find(lang => lang.value === authStore.locale) || LOCALE_OPTIONS[0])
+
+const handoffToken = queryText(router.currentRoute.value.query.token)
+const handoffSession = handoffToken ? decodeLoginToken(handoffToken) : null
+if (handoffSession) {
+    try {
+        authStore.setLoginState(
+            `Bearer ${handoffSession.access_token}`,
+            handoffSession.user as UserDetails & { locale?: 'en' | 'ar' | 'fr' }
+        )
+        acceptingHandoff.value = true
+        void router.replace(dashboardRedirect(router.currentRoute.value.query.redirect))
+    } catch {
+        void stripToken()
+    }
+} else if (handoffToken) {
+    void stripToken()
+}
+
+function queryText(value: unknown) {
+    const raw = Array.isArray(value) ? value[0] : value
+    return typeof raw === 'string' ? raw : ''
+}
+
+function stripToken() {
+    const query = { ...router.currentRoute.value.query }
+    delete query.token
+    return router.replace({ name: 'Login', query })
+}
 
 watch(selectedLocale, () => {
     authStore.setLocale(selectedLocale.value.value)
