@@ -6,10 +6,20 @@
                 {{ t('integrations.name') }}
                 <AppInput v-model="name" hide-icon :placeholder="t('integrations.name')" />
             </label>
-            <AppButton button-style="primary" type="button" :loading="creating" @click="create">{{ t('integrations.create') }}</AppButton>
+            <Can subject="integrations" :actions="['create']">
+                <AppButton
+                    button-style="primary"
+                    type="button"
+                    :loading="creating"
+                    @click="create"
+                    >{{ t('integrations.create') }}</AppButton
+                >
+            </Can>
         </form>
         <p v-if="status" class="text-sm text-neutral-600">{{ status }}</p>
-        <p v-if="!loading && !rows.length" class="text-sm text-neutral-500">{{ t('integrations.empty') }}</p>
+        <p v-if="!loading && !rows.length" class="text-sm text-neutral-500">
+            {{ t('integrations.empty') }}
+        </p>
         <Table
             v-if="rows.length"
             :cols="['Name', 'Status']"
@@ -60,7 +70,9 @@ const columnLabels = computed(() => ({
     Name: t('integrations.name'),
     Status: t('integrations.status')
 }))
-const tableRows = computed(() => rows.value.map((row) => ({ id: row.id, Name: row.name, Status: row.status })))
+const tableRows = computed(() =>
+    rows.value.map((row) => ({ id: row.id, Name: row.name, Status: row.status }))
+)
 
 function noop() {}
 
